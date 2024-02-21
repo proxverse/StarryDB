@@ -17,12 +17,12 @@
 package org.apache.spark.sql.execution.columnar.jni;
 
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.spark.sql.execution.ExecutorDictManager;
 
 public class NativeDictClass {
 
   public static long toDictVector(long id, int numblocks) {
-//    return ExecutorDictManager.fetchDictVectorAddress(id, numblocks);
-    return 1;
+    return ExecutorDictManager.fetchDictVectorAddress(id, numblocks).handle;
   }
 
   @VisibleForTesting

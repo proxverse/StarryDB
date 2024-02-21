@@ -35,6 +35,10 @@ public class VeloxColumnarBatch extends ColumnarBatch {
     return veloxColumnarBatch;
   }
 
+  public static VeloxColumnarBatch createFromJson(byte[] json, StructType structType) {
+    return createFromRowVector(NativeColumnarVector.deserialize(json), structType);
+  }
+
   public static VeloxColumnarBatch createFromRowVector(NativeColumnarVector rootVector, StructType structType) {
     ColumnVector[] columnVectors = new ColumnVector[structType.size()];
     for (int i = 0; i < structType.size(); i++) {

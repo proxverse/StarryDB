@@ -1,10 +1,14 @@
 package org.apache.spark.sql.execution.columnar.jni;
 
+import org.apache.spark.sql.execution.columnar.VeloxColumnarBatch;
+import org.apache.spark.sql.types.StructType;
+
 import java.lang.annotation.Native;
 
 public class NativeExpressionConvert {
 
   public static native String nativeToVeloxTypeString(String dt);
+
   public static native long nativeCreateFieldAccessTypedExprHanlde(String column, String dt);
 
   public static native long nativeCreateCastTypedExprHanlde(String dt, long column);
@@ -13,7 +17,14 @@ public class NativeExpressionConvert {
 
   public static native long nativeCreateConstantTypedExprHanlde(String resultType, long vectorBatch);
 
-  public static native long nativeEvalWithBatch(long expr, long batch);
+  public static native long nativeEvalWithBatch(long expr, NativeColumnarBatch batch);
+
+
+  public static VeloxColumnarBatch evalWithBatch(long expr, VeloxColumnarBatch batch, StructType structType) {
+    return VeloxColumnarBatch.createFromRowVector(new NativeColumnarVector(nativeEvalWithBatch(expr, batch.nativeObje())), structType);
+
+  }
+
 
   public static native String nativeSerializeExpr(long expr);
 

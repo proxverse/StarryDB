@@ -29,41 +29,4 @@ class PlanSuite extends ColumnarSharedSparkSession {
 
     str
   }
-
-  test("test") {
-    val rows = spark.read
-      .parquet(
-        "/Users/xuyiming/data2/warehouse/pool_1.db/t_3_case_table_21/part-00000-1b0274e3-75b1-4bb4-ae89-ea71cdc61197_00000.c000.snappy.parquet")
-//      .filter("preCaseId = 'ABC-20220103-00005-312'")
-      .select(col("preCaseId"), element_at(col("sortedEventList"), 1))
-      .limit(10)
-      .collect()
-    rows
-    Thread.sleep(100)
-  }
-
-  test("test join") {
-    val rows = spark.read
-        .parquet(
-          "/Users/xuyiming/data2/warehouse/pool_1.db/t_3_case_table_21/part-00000-1b0274e3-75b1-4bb4-ae89-ea71cdc61197_00000.c000.snappy.parquet")
-        //      .filter("preCaseId = 'ABC-20220103-00005-312'")
-        .select(col("preCaseId").as("A1"), element_at(col("sortedEventList"), 1).as("B1"))
-
-
-    val value = spark.read
-        .parquet(
-          "/Users/xuyiming/data2/warehouse/pool_1.db/t_3_case_table_21/part-00000-1b0274e3-75b1-4bb4-ae89-ea71cdc61197_00000.c000.snappy.parquet")
-        //      .filter("preCaseId = 'ABC-20220103-00005-312'")
-        .select(col("preCaseId").as("A2"), element_at(col("sortedEventList"), 1).as("B2"))
-        .join(rows, expr("A1 = A2"), "inner")
-        .limit(10)
-    val plan = value.queryExecution.executedPlan
-    val rows1 = value
-        .collect()
-
-
-    rows
-    Thread.sleep(100)
-  }
-
 }

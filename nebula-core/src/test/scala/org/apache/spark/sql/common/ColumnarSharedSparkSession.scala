@@ -15,17 +15,8 @@
  * limitations under the License.
  */
 package org.apache.spark.sql.common
-import org.apache.spark.sql.{SparkSession, SQLContext}
-import org.apache.spark.sql.execution.columnar.extension.{
-  ColumnarTransitionRule,
-  JoinSelectionOverrides,
-  PreRuleReplaceRowToColumnar,
-  VeloxColumnarPostRule
-}
-import org.apache.spark.sql.execution.columnar.extension.rule.{
-  AggregateFunctionRewriteRule,
-  PreProjectRewriteRule
-}
+import com.prx.nebula.Nebula
+import org.apache.spark.sql.{SQLContext, SparkSession}
 
 trait ColumnarSharedSparkSession extends org.apache.spark.sql.test.SharedSparkSession {
   private var _spark: SparkSession = null
@@ -33,45 +24,7 @@ trait ColumnarSharedSparkSession extends org.apache.spark.sql.test.SharedSparkSe
   override implicit def spark: SparkSession = _spark
 
   override def initializeSession(): Unit = {
-    val conf = sparkConf
-    conf.set("spark.sql.parquet.outputTimestampType", "TIMESTAMP_MILLIS")
-    conf.set("spark.sql.adaptive.enabled", "false")
-    conf.set("spark.sql.files.openCostInBytes", "100M")
-    conf.set("spark.plugins", "com.prx.nebula.NebulaPlugin")
-    conf.set("spark.gluten.sql.columnar.backend.lib", "velox")
-    conf.set("spark.gluten.sql.columnar.broadcastexchange", "true")
-    conf.set("spark.gluten.sql.columnar.filescan", "false")
-    conf.set("spark.gluten.sql.columnar.broadcastJoin", "true")
-    // conf.set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
-    conf.set("spark.memory.offHeap.enabled", "true")
-    conf.set("spark.sql.columnVector.offheap.enabled", "true")
-    conf.set("spark.memory.offHeap.size", "4G")
-    conf.set("spark.gluten.sql.enable.native.parquetReader", "true")
-    conf.set("spark.sql.parquet.enableNestedColumnVectorizedReader", "true")
-    conf.set("spark.sql.testkey", "true")
-    conf.set("spark.gluten.enabled", "false")
-//    conf.set("spark.sql.optimizer.rewriteCountDistinct", "false")
-    conf.set("spark.gluten.rewriterColumnarExpression.enabled", "false")
-    conf.set("spark.sql.inMemoryColumnarStorage.partitionPruning", "false")
-    conf.set("spark.sql.inMemoryColumnarStorage.enableVectorizedReader", "true")
-    conf.set(
-      "spark.sql.cache.serializer",
-      "org.apache.spark.sql.execution.columnar.cache.CachedVeloxBatchSerializer")
-//    conf.set("spark.gluten.sql.native.parquetReader.async", "false")
-    _spark = SparkSession
-      .builder()
-      .config(conf)
-      .master("local[1]")
-      .withExtensions(e => e.injectOptimizerRule(AggregateFunctionRewriteRule))
-//      .withExtensions(e => e.injectOptimizerRule(AggregateProjectPushdownRewriteRule))
-      .withExtensions(e => e.injectPlannerStrategy(JoinSelectionOverrides))
-      .withExtensions(e =>
-        e.injectColumnar(spark =>
-          ColumnarTransitionRule(PreRuleReplaceRowToColumnar(spark), VeloxColumnarPostRule())))
-      .appName("test-sql-context")
-      .getOrCreate()
-    _spark.sqlContext.experimental.extraOptimizations = Seq(new PreProjectRewriteRule(spark))
-    _spark
+    _spark = Nebula.nebulaSession()
   }
   override def sqlContext: SQLContext = _spark.sqlContext
 

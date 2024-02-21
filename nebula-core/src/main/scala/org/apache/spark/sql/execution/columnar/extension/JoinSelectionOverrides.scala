@@ -32,7 +32,6 @@ case class JoinSelectionOverrides(session: SparkSession)
     extends Strategy
     with JoinSelectionHelper
     with SQLConfHelper {
-
   private def isBroadcastStage(plan: LogicalPlan): Boolean = plan match {
     case LogicalQueryStage(_, _: BroadcastQueryStageExec) => true
     case _ => false
