@@ -1,5 +1,7 @@
 package org.apache.spark.sql.execution.columnar.jni;
 
+import org.apache.spark.sql.types.StructType;
+
 public class NativeColumnarBatch extends NativeClass {
 
   public NativeColumnarBatch(NativeColumnarVector[] columns,int numRows) {
@@ -31,4 +33,10 @@ public class NativeColumnarBatch extends NativeClass {
   public NativeColumnarVector rowVector() {
     return new NativeColumnarVector(nativeRowVector());
   }
+
+  public void setSchema(StructType type) {
+    nativeSetSchema(type.catalogString());
+  }
+
+  private native void nativeSetSchema(String s);
 }

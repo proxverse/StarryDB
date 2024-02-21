@@ -10,7 +10,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.analysis.TypeCoercion.implicitCast
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.execution.columnar.VeloxWritableColumnVector
-import org.apache.spark.sql.execution.columnar.extension.plan.RowToColumnConverter
+import org.apache.spark.sql.execution.columnar.extension.plan.VeloxRowToColumnConverter
 import org.apache.spark.sql.execution.columnar.jni.NativeExpressionConvert
 import org.apache.spark.unsafe.types.UTF8String
 
@@ -98,7 +98,7 @@ object ExpressionConvert extends Logging {
             NativeExpression(l, literal)
           case other =>
             val row = InternalRow.fromSeq(Seq(v))
-            val converter = RowToColumnConverter.getConverterForType(dt, true)
+            val converter = VeloxRowToColumnConverter.getConverterForType(dt, true)
             val vector = VeloxWritableColumnVector.createVector(1, literal.dataType)
             converter.append(row, 0, vector)
             val handle = NativeExpressionConvert.nativeCreateConstantTypedExprHanlde(

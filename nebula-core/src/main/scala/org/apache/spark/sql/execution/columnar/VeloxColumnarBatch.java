@@ -21,6 +21,7 @@ public class VeloxColumnarBatch extends ColumnarBatch {
   boolean isClosed = false;
 
   NativeColumnarBatch nativeColumnarBatch;
+  private StructType schema;
 
 
   public static VeloxColumnarBatch createFromRowVectorHandle(long handle, List<Attribute> attributes) {
@@ -75,6 +76,11 @@ public class VeloxColumnarBatch extends ColumnarBatch {
     return columns;
   }
 
+
+  public void setSchema(StructType type){
+    this.schema = type;
+    nativeColumnarBatch.setSchema(type);
+  }
 
   @Override
   public void setNumRows(int numRows) {
