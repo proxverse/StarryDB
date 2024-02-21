@@ -1,0 +1,90 @@
+**/target/**
+*.class
+*.iml
+
+# logs
+*.log
+
+# cache files
+*.cache
+
+# IDEA config files
+.idea/
+*.iml
+*.class
+
+# vscode config
+.vscode
+
+# vscode scala
+.bloop
+.metals
+
+# clangd
+.clangd
+
+# Mobile Tools for Java (J2ME)
+.mtj.tmp/
+
+# Package Files #
+*.war
+*.ear
+
+# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+hs_err_pid*
+
+.idea/
+target/
+*.iml
+
+**/target/**
+
+# logs
+*.log
+
+thirdparty/*.tar*
+CMakeFiles/
+CMakeCache.txt
+CTestTestfile.cmake
+Makefile
+cmake_install.cmake
+build/
+*-build/
+Testing/
+cmake-build-debug/
+cmake-build-release/
+
+# Editor temporary/working/backup files #
+.#*
+*\#*\#
+[#]*#
+*~
+*$
+*.bak
+*flymake*
+*.kdev4
+*.swp
+scalastyle-output.xml
+
+# Generated C++ benchmark data
+backends-velox/generated-native-benchmark/
+
+# Generated C++ benchmark executables
+cpp/**/benchmarks/**/*
+!cpp/**/benchmarks/**/
+!cpp/**/benchmarks/**/*.*
+
+# Generated C++ example executables
+cpp/**/example/**/*
+!cpp/**/example/**/
+!cpp/**/example/**/*.*
+
+/cpp-ch/ClickHouse
+/cpp-ch/cmake-build-*
+/cpp-ch/local-engine/tests/testConfig.h
+/cpp-ch/build_ch
+
+dist/
+
+/cpp-ch/local-engine/Parser/*_udf
+!/cpp-ch/local-engine/Parser/example_udf
