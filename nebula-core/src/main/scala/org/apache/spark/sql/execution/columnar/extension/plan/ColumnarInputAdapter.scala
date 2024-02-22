@@ -23,6 +23,8 @@ case class ColumnarInputAdapter(child: SparkPlan) extends UnaryExecNode with Col
   // One of the issues is that the generated equals will see ColumnarProjectExec and ProjectExec
   // as being equal and this can result in the withNewChildren method not actually replacing
   // anything
+  override def nodeName: String = s"InputAdapter"
+
   override def equals(other: Any): Boolean = {
     if (!super.equals(other)) {
       return false

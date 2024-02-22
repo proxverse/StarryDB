@@ -18,7 +18,11 @@ package org.apache.spark.sql.execution.columnar.extension
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql._
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Partial, PartialMerge}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{
+  AggregateExpression,
+  Partial,
+  PartialMerge
+}
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Literal, NamedExpression}
 import org.apache.spark.sql.catalyst.rules.{PlanChangeLogger, Rule}
 import org.apache.spark.sql.execution.NebulaConf.isNebulaEnabled
@@ -26,7 +30,12 @@ import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.columnar.extension.plan._
 import org.apache.spark.sql.execution.columnar.jni.NativeQueryContext
 import org.apache.spark.sql.execution.exchange.Exchange
-import org.apache.spark.sql.execution.{ColumnarRule, ColumnarToRowExec, RowToColumnarExec, SparkPlan}
+import org.apache.spark.sql.execution.{
+  ColumnarRule,
+  ColumnarToRowExec,
+  RowToColumnarExec,
+  SparkPlan
+}
 
 class ColumnarExtensions extends (SparkSessionExtensions => Unit) {
   def apply(e: SparkSessionExtensions): Unit = {
@@ -166,15 +175,18 @@ case class VeloxColumnarPostRule() extends Rule[SparkPlan] {
             ColumnarInputAdapter(other)
         })
       case rc: ColumnarToRowExec if isNebulaEnabled && rc.child.isInstanceOf[ColumnarSupport] =>
-        new VeloxColumnarToRowExec(new ColumnarEngineExec(rc.child))
-      case rc: ColumnarToRowExec
-          if isNebulaEnabled && !rc.child.isInstanceOf[ColumnarSupport] =>
+        new VeloxColumnarToRowExec(
+          new ColumnarEngineExec(rc.child)(
+            ColumnarEngineExec.transformStageCounter.incrementAndGet()))
+      case rc: ColumnarToRowExec if isNebulaEnabled && !rc.child.isInstanceOf[ColumnarSupport] =>
         new VeloxColumnarToRowExec(rc.child)
       case rc: RowToColumnarExec =>
         new RowToVeloxColumnarExec(rc.child)
 
       case _ @ColumnarBroadcastExchangeExec(mode, child: ColumnarSupport) =>
-        ColumnarBroadcastExchangeExec(mode, ColumnarEngineExec(child))
+        ColumnarBroadcastExchangeExec(
+          mode,
+          ColumnarEngineExec(child)(ColumnarEngineExec.transformStageCounter.incrementAndGet()))
       case plan => plan
     }
     after
