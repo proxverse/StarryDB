@@ -3,6 +3,7 @@ package org.apache.spark.sql.execution.columnar;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+
 import org.apache.spark.sql.execution.columnar.jni.NativeColumnarVector;
 import org.apache.spark.sql.execution.datasources.parquet.ParquetDictionary;
 import org.apache.spark.sql.execution.vectorized.Dictionary;
@@ -93,9 +94,7 @@ public class VeloxWritableColumnVector extends WritableColumnVector {
 
   public static VeloxWritableColumnVector bindVector(NativeColumnarVector nativeColumnarVector, DataType dataType) {
     String encoding = nativeColumnarVector.encoding();
-    if ("DICTIONARY".equals(encoding)) {
-      throw new UnsupportedOperationException();
-    } else if ("CONSTANT".equals(encoding)) {
+    if ("CONSTANT".equals(encoding)) {
       return new VeloxConstantsVector(nativeColumnarVector, dataType);
     } else {
       if (dataType.sameType(DataTypes.TimestampType)) {
@@ -177,7 +176,16 @@ public class VeloxWritableColumnVector extends WritableColumnVector {
     } else {
       this.childColumns = null;
     }
-    bindAddress();
+    if ("DICTIONARY".equals(nativeColumnarVector.encoding())) {
+      dictionaryVector = bindVector(nativeColumnarVector.valueVector(), dataType());
+      dictionaryIds = bindVector(nativeColumnarVector.dictIdVector(), DataTypes.IntegerType);
+      hasNull = nativeColumnarVector.mayHasNulls();
+      if (hasNull) {
+        this.nullAddress = nativeColumnarVector.dataAddress(NativeColumnarVector.DataTypeEnum.NULL);
+      }
+    } else {
+      bindAddress();
+    }
   }
 
   void initInternal() {
@@ -259,6 +267,9 @@ public class VeloxWritableColumnVector extends WritableColumnVector {
 
   @Override
   protected void reserveInternal(int capacity) {
+    if (capacity == 0) {
+      return;
+    }
     nativeColumnarVector.reserve(capacity);
     bindAddress();
     this.capacity = capacity;
@@ -822,26 +833,18 @@ public class VeloxWritableColumnVector extends WritableColumnVector {
     return null;
   }
 
-  public void resizeToAppendElementsSizeIfNeed() {
-    if (elementsAppended > 0) {
-      if (childColumns != null) {
-        for (ColumnVector child : childColumns) {
-          if (!child.equals(this)) {
-            if (dictionaryIds != null) {
-              dictionaryVector.resizeToAppendElementsSizeIfNeed();
-            }
-            ((VeloxWritableColumnVector) child).resizeToAppendElementsSizeIfNeed();
-          }
+  public void resizeToAppendElementsSizeIfNeed(int numRows) {
+    reserveInternal(numRows);
+    // 基本类型 + struct type 类型的 child 需要 resize,其他不需要
+    if (!(isArray() || type instanceof MapType || type instanceof StringType
+        || type instanceof BinaryType) && childColumns != null) {
+      for (ColumnVector child : childColumns) {
+        if (!child.equals(this)) {
+          ((VeloxWritableColumnVector) child).resizeToAppendElementsSizeIfNeed(numRows);
         }
-      }
-      if (elementsAppended != capacity) {
-        reserveInternal(elementsAppended);
       }
     }
   }
-
-  native long getDataAddress(long ptr);
-
   native long getOffsetAddress(long ptr);
 
   native long getSizeAddress(long ptr);
@@ -984,6 +987,7 @@ public class VeloxWritableColumnVector extends WritableColumnVector {
       throw new RuntimeException("Error for reset with closed column");
     }
   }
+
 
   @Override
   public void close() {

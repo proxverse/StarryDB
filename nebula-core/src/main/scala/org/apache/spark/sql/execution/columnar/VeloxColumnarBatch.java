@@ -10,6 +10,8 @@ import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 import org.apache.spark.sql.vectorized.ColumnarBatchRow;
 import org.apache.spark.util.TaskCompletionListener;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Iterator;
 import java.util.List;
@@ -17,6 +19,7 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class VeloxColumnarBatch extends ColumnarBatch {
+  private Logger LOG = LoggerFactory.getLogger(VeloxColumnarBatch.class);
 
   boolean isClosed = false;
 
@@ -37,7 +40,9 @@ public class VeloxColumnarBatch extends ColumnarBatch {
   }
 
   public static VeloxColumnarBatch createFromJson(byte[] json, StructType structType) {
-    return createFromRowVector(NativeColumnarVector.deserialize(json), structType);
+    VeloxColumnarBatch fromRowVector = createFromRowVector(NativeColumnarVector.deserialize(json), structType);
+    fromRowVector.setSchema(structType);
+    return fromRowVector;
   }
 
   public static VeloxColumnarBatch createFromRowVector(NativeColumnarVector rootVector, StructType structType) {
@@ -64,8 +69,9 @@ public class VeloxColumnarBatch extends ColumnarBatch {
       ColumnVector cv = columns[i];
       if (cv instanceof VeloxWritableColumnVector) {
         columnVectorAddrs[i] = ((VeloxWritableColumnVector) cv).getNative();
-      }
-      else {
+      } else if (cv instanceof WrappedColumnarVector) {
+        columnVectorAddrs[i] = ((VeloxWritableColumnVector) ((WrappedColumnarVector) cv).getWrapped()).getNative();
+      } else {
         throw new UnsupportedOperationException("VeloxColumnarBatch only support VeloxColumnVector");
       }
     }
@@ -77,20 +83,27 @@ public class VeloxColumnarBatch extends ColumnarBatch {
   }
 
 
-  public void setSchema(StructType type){
+  public void setSchema(StructType type) {
+    if (type.catalogString().matches(".*[ ,]+.*")) {
+      return;
+    }
     this.schema = type;
-    nativeColumnarBatch.setSchema(type);
+    try {
+      nativeColumnarBatch.setSchema(type);
+    } catch (Exception e) {
+      LOG.error("Error set schema : " + type.catalogString(), e);
+    }
   }
 
   @Override
   public void setNumRows(int numRows) {
     this.numRows = numRows;
+    nativeColumnarBatch.setNumRows(numRows);
     for (ColumnVector veloxColumnVector : columns) {
       if (veloxColumnVector instanceof VeloxWritableColumnVector) {
-        ((VeloxWritableColumnVector) veloxColumnVector).resizeToAppendElementsSizeIfNeed();
+        ((VeloxWritableColumnVector) veloxColumnVector).resizeToAppendElementsSizeIfNeed(numRows);
       }
     }
-    nativeColumnarBatch.setNumRows(numRows);
   }
 
 

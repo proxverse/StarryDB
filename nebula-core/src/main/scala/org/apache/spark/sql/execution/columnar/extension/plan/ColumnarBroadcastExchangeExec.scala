@@ -312,8 +312,8 @@ case class VeloxBuildSideRelation(
           var rowCount = 0
           val row = rowIterator.next()
           val start = System.nanoTime()
-          val cb = VeloxColumnarBatch.createFromRowVector(
-            NativeColumnarVector.deserialize(row),
+          val cb = VeloxColumnarBatch.createFromJson(
+            row,
             structType)
           elapse += System.nanoTime() - start
           rowCount += cb.numRows()

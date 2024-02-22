@@ -2,7 +2,7 @@ package org.apache.spark.sql.execution.columnar.expressions.convert
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.execution.columnar.ColumnarConf
+import org.apache.spark.sql.execution.NebulaConf
 import org.apache.spark.util.Utils
 
 import scala.reflect.ClassTag
@@ -101,11 +101,11 @@ object NameSig {
 object NativeExpressionExtension extends Logging {
 
   lazy val (extensionSig: Seq[Sig], extensionNameSig: Seq[NameSig]) = {
-    if (ColumnarConf.expressionExtensionClass.isEmpty) {
+    if (NebulaConf.expressionExtensionClass.isEmpty) {
       (Nil, Nil)
     } else {
       try {
-        val extensionConfClass = Utils.classForName(ColumnarConf.expressionExtensionClass.get)
+        val extensionConfClass = Utils.classForName(NebulaConf.expressionExtensionClass.get)
         val extensionTrait = extensionConfClass
           .getConstructor()
           .newInstance()
@@ -115,7 +115,7 @@ object NativeExpressionExtension extends Logging {
         // Ignore the error if we cannot find the class or when the class has the wrong type.
         case e @ (_: ClassCastException | _: ClassNotFoundException | _: NoClassDefFoundError) =>
           logWarning(
-            s"Cannot create extended expression transformer ${ColumnarConf.expressionExtensionClass.get}",
+            s"Cannot create extended expression transformer ${NebulaConf.expressionExtensionClass.get}",
             e)
       }
     }

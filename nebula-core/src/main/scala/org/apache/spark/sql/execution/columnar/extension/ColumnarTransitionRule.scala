@@ -17,16 +17,16 @@
 package org.apache.spark.sql.execution.columnar.extension
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.rules.{PlanChangeLogger, Rule}
-import org.apache.spark.sql.execution.{ColumnarRule, ColumnarToRowExec, RowToColumnarExec, SparkPlan}
 import org.apache.spark.sql._
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Literal, NamedExpression}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Partial, PartialMerge}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Literal, NamedExpression}
+import org.apache.spark.sql.catalyst.rules.{PlanChangeLogger, Rule}
+import org.apache.spark.sql.execution.NebulaConf.isNebulaEnabled
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
-import org.apache.spark.sql.execution.columnar.ColumnarConf.isColumnarEnabled
-import org.apache.spark.sql.execution.columnar.extension.plan.{ColumnarBroadcastExchangeExec, ColumnarEngineExec, ColumnarInputAdapter, ColumnarSupport, RowToVeloxColumnarExec, VeloxColumnarToRowExec}
+import org.apache.spark.sql.execution.columnar.extension.plan._
 import org.apache.spark.sql.execution.columnar.jni.NativeQueryContext
 import org.apache.spark.sql.execution.exchange.Exchange
+import org.apache.spark.sql.execution.{ColumnarRule, ColumnarToRowExec, RowToColumnarExec, SparkPlan}
 
 class ColumnarExtensions extends (SparkSessionExtensions => Unit) {
   def apply(e: SparkSessionExtensions): Unit = {
@@ -135,12 +135,18 @@ case class PreRuleReplaceRowToColumnar(session: SparkSession)
   }
 
   override def apply(plan: SparkPlan): SparkPlan =
-    if (!isColumnarEnabled) {
+    if (!isNebulaEnabled) {
       plan
     } else {
-      NativeQueryContext.clear()
-      new NativeQueryContext()
-      replaceWithColumnarPlan(plan)
+      try {
+        NativeQueryContext.clear()
+        new NativeQueryContext()
+        replaceWithColumnarPlan(plan)
+      } catch {
+        case e =>
+          logError("Error for appy to columnar", e)
+          plan
+      }
     }
 }
 
@@ -159,10 +165,10 @@ case class VeloxColumnarPostRule() extends Rule[SparkPlan] {
           case other =>
             ColumnarInputAdapter(other)
         })
-      case rc: ColumnarToRowExec if isColumnarEnabled && rc.child.isInstanceOf[ColumnarSupport] =>
+      case rc: ColumnarToRowExec if isNebulaEnabled && rc.child.isInstanceOf[ColumnarSupport] =>
         new VeloxColumnarToRowExec(new ColumnarEngineExec(rc.child))
       case rc: ColumnarToRowExec
-          if isColumnarEnabled && !rc.child.isInstanceOf[ColumnarSupport] =>
+          if isNebulaEnabled && !rc.child.isInstanceOf[ColumnarSupport] =>
         new VeloxColumnarToRowExec(rc.child)
       case rc: RowToColumnarExec =>
         new RowToVeloxColumnarExec(rc.child)

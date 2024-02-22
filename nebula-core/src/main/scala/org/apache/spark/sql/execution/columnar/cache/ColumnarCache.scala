@@ -19,18 +19,14 @@ package org.apache.spark.sql.execution.columnar.cache
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, UnsafeProjection}
-import org.apache.spark.sql.columnar.{
-  CachedBatch,
-  CachedBatchSerializer,
-  SimpleMetricsCachedBatch
-}
-import org.apache.spark.sql.execution.columnar.VeloxColumnarBatch
+import org.apache.spark.sql.columnar.{CachedBatch, CachedBatchSerializer, SimpleMetricsCachedBatch}
+import org.apache.spark.sql.execution.columnar.{NoCloseColumnVector, VeloxColumnarBatch}
 import org.apache.spark.sql.execution.columnar.extension.plan.RowToVeloxColumnarExec
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.vectorized.{OffHeapColumnVector, OnHeapColumnVector}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
-import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
 import org.apache.spark.storage.StorageLevel
 
 import scala.collection.JavaConverters._
@@ -146,9 +142,13 @@ class CachedVeloxBatchSerializer extends CachedBatchSerializer {
     input.mapPartitionsInternal { itr =>
       itr
         .map { batch =>
-          val newBatch = VeloxColumnarBatch.createFromRowVector(
-            batch.asInstanceOf[CachedVeloxBatch].veloxBatch.rowVector(),
-            structType)
+          val veloxBatch = batch.asInstanceOf[CachedVeloxBatch].veloxBatch
+          val veloxColumnarBatch = veloxBatch.getColumns
+          val vectors = requestedColumnIndices
+            .map(veloxColumnarBatch.apply)
+            .map(c => new NoCloseColumnVector(c).asInstanceOf[ColumnVector])
+            .toArray
+          val newBatch = new VeloxColumnarBatch(vectors, veloxBatch.numRows())
           newBatch.setAutoClose()
           newBatch
         }
@@ -175,6 +175,7 @@ class CachedVeloxBatchSerializer extends CachedBatchSerializer {
           val GlutenVeloxColumnarBatch = veloxBatch.getColumns
           val vectors = requestedColumnIndices
             .map(GlutenVeloxColumnarBatch.apply)
+            .map(c => new NoCloseColumnVector(c).asInstanceOf[ColumnVector])
             .toArray
           val newBatch = new VeloxColumnarBatch(vectors, veloxBatch.numRows())
           newBatch.setAutoClose()

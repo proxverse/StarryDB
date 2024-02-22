@@ -11,6 +11,9 @@ import org.apache.spark.sql.functions._
 class PlanSuite extends ColumnarSharedSparkSession {
 
   test("test plan builder ") {
+
+    val rows = spark.read.parquet("/Users/xuyiming/data4/warehouse/pool_1.db/t_orderevent_3/part-00000-e9da698f-6d79-4b8f-b2a5-0635101aaed4-c000.snappy.parquet")
+    .collect()
     val c1 = 'a.boolean
     val c4 = 'b.string
     val c6 = 'c.string
