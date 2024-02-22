@@ -28,10 +28,10 @@ import org.apache.spark.sql.execution.columnar.jni.NativePlanBuilder
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import java.util
 import scala.collection.JavaConverters._
 
 case class ColumnarEngineExec(child: SparkPlan) extends SparkPlan with ColumnarToRowTransition {
-
 
   override def supportsColumnar: Boolean = true
 
@@ -44,7 +44,6 @@ case class ColumnarEngineExec(child: SparkPlan) extends SparkPlan with ColumnarT
   override lazy val metrics: Map[String, SQLMetric] = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
     "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "number of input batches"))
-
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     prepareVectorRDD()
@@ -67,17 +66,20 @@ case class ColumnarEngineExec(child: SparkPlan) extends SparkPlan with ColumnarT
   }
 
   def prepareVectorRDD(): RDD[ColumnarBatch] = {
-      val partitions = child.asInstanceOf[ColumnarSupport]
-      val builder = new NativePlanBuilder
-      partitions.makePlan(builder)
-      val planJson = builder.builderAndRelease()
-      new ColumnarExecutionRDD(
-        sparkContext,
-        planJson,
-        partitions.columnarInputRDDs.map(_._1).toArray,
-        partitions.columnarInputRDDs.map(_._2).toArray,
-        child.output,
-        sparkContext.getConf)
+    val partitions = child.asInstanceOf[ColumnarSupport]
+    val builder = new NativePlanBuilder
+    partitions.makePlan(builder)
+    val planJson = builder.builderAndRelease()
+    val nodeMetrics = new util.HashMap[String, (String, Map[String, SQLMetric])]()
+    partitions.collectMetrics(nodeMetrics)
+    new ColumnarExecutionRDD(
+      sparkContext,
+      planJson,
+      partitions.columnarInputRDDs.map(_._1).toArray,
+      partitions.columnarInputRDDs.map(_._2).toArray,
+      child.output,
+      nodeMetrics.asScala.toMap,
+      sparkContext.getConf)
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): ColumnarEngineExec =

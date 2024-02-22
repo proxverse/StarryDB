@@ -20,11 +20,21 @@ import org.apache.spark.broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
-import org.apache.spark.sql.catalyst.plans.{ExistenceJoin, FullOuter, Inner, JoinType, LeftAnti, LeftOuter, LeftSemi, RightOuter}
+import org.apache.spark.sql.catalyst.plans.{
+  ExistenceJoin,
+  FullOuter,
+  Inner,
+  JoinType,
+  LeftAnti,
+  LeftOuter,
+  LeftSemi,
+  RightOuter
+}
 import org.apache.spark.sql.execution.columnar.jni.NativePlanBuilder
 import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.columnar.expressions.{ExpressionConvert, NativeExpression}
+import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 object ColumnarSupport {
@@ -40,6 +50,17 @@ object ColumnarSupport {
 trait ColumnarSupport {
   self: SparkPlan =>
   def collectPartitions(): Seq[FilePartition] = Nil
+
+  override lazy val metrics: Map[String, SQLMetric] = {
+    Map(
+      "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
+      "cpuWallTiming" -> SQLMetrics.createTimingMetric(sparkContext, "cpu wall timing"),
+      "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
+      "numOutputRows" -> SQLMetrics
+        .createMetric(sparkContext, "number of output rows")) ++ extensionMetrics
+  }
+
+  lazy val extensionMetrics: Map[String, SQLMetric] = Map.empty
 
   def makePlan(operations: NativePlanBuilder): Unit = {
     children.head match {
@@ -76,6 +97,15 @@ trait ColumnarSupport {
 
   override def doExecuteBroadcast[T](): broadcast.Broadcast[T] = {
     children.head.executeBroadcast()
+  }
+
+  def collectMetrics(
+      metricsList: java.util.HashMap[String, (String, Map[String, SQLMetric])]): Unit = {
+    children.foreach {
+      case child: ColumnarSupport => child.collectMetrics(metricsList)
+      case other =>
+    }
+    metricsList.put(nodeID, (nodeName, metrics))
   }
 
   def toVeloxJoinType(joinType: JoinType, buildSide: BuildSide): String = {

@@ -1,11 +1,6 @@
 package org.apache.spark.sql.execution.columnar.extension.plan
 
-import org.apache.spark.sql.catalyst.expressions.{
-  Attribute,
-  AttributeReference,
-  Expression,
-  NamedExpression
-}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression, NamedExpression}
 import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
@@ -15,6 +10,7 @@ import org.apache.spark.sql.execution.columnar.jni.NativePlanBuilder
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.joins.ShuffledHashJoinExec
+import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.types.StructType
 
 class ColumnarHashJoinExec(
@@ -60,6 +56,10 @@ class ColumnarHashJoinExec(
     throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
   }
 
+
+  override lazy val extensionMetrics = Map(
+    "buildDataSize" -> SQLMetrics.createSizeMetric(sparkContext, "data size of build side"),
+    "buildTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to build hash map"))
   // We have to override equals because subclassing a case class like ProjectExec is not that clean
   // One of the issues is that the generated equals will see ColumnarProjectExec and ProjectExec
   // as being equal and this can result in the withNewChildren method not actually replacing

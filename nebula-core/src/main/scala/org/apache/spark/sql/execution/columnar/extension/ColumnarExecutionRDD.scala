@@ -23,12 +23,22 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import java.util
 import org.apache.spark.{Partition, SparkConf, SparkContext, TaskContext, _}
 import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.execution.columnar.extension.MetricsUpdater.applyMetrics
 import org.apache.spark.sql.execution.columnar.extension.vector.ColumnarBatchInIterator
 import org.apache.spark.sql.execution.columnar.jni.NativeColumnarExecution
+import org.apache.spark.sql.execution.metric.SQLMetric
+import org.json4s
 import org.json4s.jackson.Serialization
 import org.json4s.NoTypeHints
+import org.json4s._
+import org.json4s.JsonAST.JValue
+import org.json4s.JsonDSL._
+import org.json4s.jackson.JsonMethods._
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
+import scala.util.Try
+import scala.util.matching.Regex
 
 class ZippedPartitionsPartition(idx: Int, @transient private val rdds: Seq[RDD[_]])
     extends Partition {
@@ -45,6 +55,7 @@ class ColumnarExecutionRDD(
     var nodeIds: Array[String],
     var rdds: Array[RDD[ColumnarBatch]],
     outputAttributes: Seq[Attribute],
+    nodeMetrics: Map[String, (String, Map[String, SQLMetric])],
     sparkConf: SparkConf)
     extends RDD[ColumnarBatch](sc, rdds.map(x => new OneToOneDependency(x))) {
 
@@ -65,7 +76,11 @@ class ColumnarExecutionRDD(
     val str = Serialization.write(sparkConf.getAllWithPrefix("spark.sql.columnar").toMap)
     execution.init(planJson, nodeIds, columnarNativeIterator, str)
 
-    TaskContext.get().addTaskCompletionListener[Unit](t => execution.close())
+    TaskContext.get().addTaskCompletionListener[Unit] { t =>
+      val metrics = parse(execution.getMetrics)
+      applyMetrics(nodeMetrics, metrics)
+      execution.close()
+    }
     val iter = new Iterator[ColumnarBatch] {
 
       override def hasNext: Boolean = {
@@ -100,4 +115,35 @@ class ColumnarExecutionRDD(
     rdds = null
   }
 
+}
+
+object MetricsUpdater {
+  val pattern: Regex = "wallNanos:\\s*(\\d+)".r
+  val text = "count: 4, wallNanos: 518708, cpuNanos: 510249"
+
+  val wallNanosValue: Option[String] = pattern.findFirstMatchIn(text).map(_.group(1))
+
+  def applyMetrics(
+      nodeMetrics: Map[String, (String, Map[String, SQLMetric])],
+      metrics: json4s.JValue): Unit = {
+    val seqTry = Try(metrics.values.asInstanceOf[List[Map[String, Any]]])
+    seqTry.get.foreach { nodeStatus =>
+      val nodeId = nodeStatus.apply("planNodeId").toString
+      val tuple = nodeMetrics.apply(nodeId)
+      tuple._2.foreach { tp =>
+        tp._1 match {
+          case "peakMemoryBytes" => tp._2.add(nodeStatus.apply("peakMemoryBytes").toString.toLong)
+          case "cpuWallTiming" =>
+            tp._2.add(
+              pattern
+                .findFirstMatchIn(nodeStatus.apply("cpuWallTiming").toString)
+                .map(_.group(1)).get
+                .toLong / 1000000)
+          case "numInputRows" => tp._2.add(nodeStatus.apply("inputRows").toString.toLong)
+          case "numOutputRows" => tp._2.add(nodeStatus.apply("outputRows").toString.toLong)
+          case _ =>
+        }
+      }
+    }
+  }
 }
