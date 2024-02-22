@@ -13,6 +13,8 @@ trait NativeExpressionExtensionTrait {
 
   val SCALAR_SIGS: Seq[Sig] = Nil
 
+  val AGGREGATE_SIGS: Seq[AggregateSig] = Nil
+
 }
 
 object PQLExpressionMappings {
@@ -41,11 +43,10 @@ object PQLExpressionMappings {
 
   private lazy val defaultExpressionsMap: Map[Class[_], String] = {
     SCALAR_SIGS
-        .map(s => (s.expClass, s.nativeName))
-        .toMap[Class[_], String]
+      .map(s => (s.expClass, s.nativeName))
+      .toMap[Class[_], String]
   }
 }
-
 
 object ExpressionConvertMapping {
 
@@ -82,7 +83,21 @@ object ExpressionConvertMapping {
   }
 }
 
+object AggregateExpressionConvertMapping {
+  lazy val AGGREGATE_SIGS: Seq[AggregateSig] = NativeExpressionExtension.extensionAggregateSig
+  def expressionsMap: Map[Class[_], AggregateExpressionConvertTrait] =
+    defaultExpressionsMap
+
+  private lazy val defaultExpressionsMap: Map[Class[_], AggregateExpressionConvertTrait] = {
+    (AGGREGATE_SIGS)
+      .map(s => (s.expClass, s.convert))
+      .toMap[Class[_], AggregateExpressionConvertTrait]
+  }
+}
+
 case class Sig(expClass: Class[_], convert: ExpressionConvertTrait)
+
+case class AggregateSig(expClass: Class[_], convert: AggregateExpressionConvertTrait)
 
 object Sig {
   def apply[T <: Expression: ClassTag](convert: ExpressionConvertTrait): Sig = {
@@ -100,17 +115,25 @@ object NameSig {
 
 object NativeExpressionExtension extends Logging {
 
-  lazy val (extensionSig: Seq[Sig], extensionNameSig: Seq[NameSig]) = {
+  lazy val (
+    extensionSig: Seq[Sig],
+    extensionNameSig: Seq[NameSig],
+    extensionAggregateSig: Seq[AggregateSig]) = {
     if (NebulaConf.expressionExtensionClass.isEmpty) {
       (Nil, Nil)
     } else {
       try {
         val extensionConfClass = Utils.classForName(NebulaConf.expressionExtensionClass.get)
+        val value = extensionConfClass
+          .getConstructor()
         val extensionTrait = extensionConfClass
           .getConstructor()
           .newInstance()
           .asInstanceOf[NativeExpressionExtensionTrait]
-        (extensionTrait.SCALAR_SIGS, extensionTrait.SCALAR_NAMESIGS)
+        (
+          extensionTrait.SCALAR_SIGS,
+          extensionTrait.SCALAR_NAMESIGS,
+          extensionTrait.AGGREGATE_SIGS)
       } catch {
         // Ignore the error if we cannot find the class or when the class has the wrong type.
         case e @ (_: ClassCastException | _: ClassNotFoundException | _: NoClassDefFoundError) =>

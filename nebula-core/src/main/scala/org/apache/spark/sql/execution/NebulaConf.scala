@@ -11,7 +11,7 @@ object NebulaConf {
     .buildConf("spark.sql.nebula.enabled")
     .doc("enabled nebula")
     .booleanConf
-    .createWithDefault(false)
+    .createWithDefault(true)
 
   val NATIVE_PARQUET_READER_ENABLED = SQLConf
     .buildConf("spark.sql.nebula.datasource.nativeParquetReaderEnabled")

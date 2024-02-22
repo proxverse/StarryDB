@@ -4,6 +4,10 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
+import org.apache.spark.sql.execution.columnar.expressions.convert.{
+  AggregateExpressionConvertMapping,
+  PQLExpressionMappings
+}
 import org.apache.spark.sql.execution.columnar.expressions.{
   ExpressionConvert,
   ExpressionMappings,
@@ -72,24 +76,40 @@ class ColumnarWindowExec(
         case aggExpression: AggregateExpression =>
           val frame = wExpression.windowSpec.frameSpecification.asInstanceOf[SpecifiedWindowFrame]
           val aggregateFunc = aggExpression.aggregateFunction
-          val functionCall = operations.buildAggregateFunction(
-            withNewAggName(aggExpression.aggregateFunction.prettyName),
-            aggExpression.aggregateFunction.children
-              .map(ExpressionConvert.convertToNativeJson(_, true))
-              .toArray,
-          )
+          val functionCall =
+            if (AggregateExpressionConvertMapping.expressionsMap
+                  .contains(aggregateFunc.getClass)) {
+              AggregateExpressionConvertMapping.expressionsMap
+                .apply(aggregateFunc.getClass)
+                .convert(aggregateFunc, operations)
+            } else {
+              val functionName =
+                if (PQLExpressionMappings.expressionsMap
+                      .contains(aggregateFunc.getClass)) {
+                  val substraitAggFuncName =
+                    PQLExpressionMappings.expressionsMap.apply(aggregateFunc.getClass)
+                  if (substraitAggFuncName.equals("calc_crop_to_null")) {
+                    count = count + 1
+                  }
+                  if (count > 1) {
+                    throw new UnsupportedOperationException(
+                      s"Not currently supported: $aggregateFunc.")
+                  }
+                  substraitAggFuncName
+                } else {
+                  aggExpression.aggregateFunction.prettyName
+                }
+
+              operations.buildAggregateFunction(
+                withNewAggName(functionName),
+                aggExpression.aggregateFunction.children
+                  .map(ExpressionConvert.convertToNativeJson(_, true))
+                  .toArray,
+                false,
+                aggExpression.aggregateFunction.dataType.catalogString)
+            }
+
           val frameJson = toNativeFrame(operations, frame)
-          if (ExpressionMappings.expressionsMap
-                .contains(aggregateFunc.getClass)) {
-            val substraitAggFuncName =
-              ExpressionMappings.expressionsMap.get(aggregateFunc.getClass)
-            if (substraitAggFuncName.get.equals("calc_crop_to_null")) {
-              count = count + 1
-            }
-            if (count > 1) {
-              throw new UnsupportedOperationException(s"Not currently supported: $aggregateFunc.")
-            }
-          }
 
           operations.windowFunction(functionCall, frameJson, false)
 
