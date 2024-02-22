@@ -4,9 +4,9 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.sp</groupId>
-  <artifactId>nebula</artifactId>
+  <artifactId>starry</artifactId>
   <version>0.0.1-SNAPSHOT</version>
-  <name>nebula engine</name>
+  <name>starry engine</name>
   <packaging>pom</packaging>
   <properties>
     <scala.version>2.12.15</scala.version>
@@ -82,7 +82,7 @@
   </properties>
 
   <modules>
-    <module>nebula-core</module>
+    <module>starry-core</module>
   </modules>
 
   <repositories>
