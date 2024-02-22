@@ -8,7 +8,7 @@ import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, ShuffledHashJoinExec}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.Column
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction, Average, AverageBase, Final, Partial}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction, Average, AverageBase, Final, Partial, Complete}
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.columnar.extension.plan.ColumnarSupport
 import org.apache.spark.sql.types.{DataType, DecimalType}
@@ -299,7 +299,7 @@ case class ColumnarRewriteRule() extends Rule[SparkPlan] {
         applyPostProjectToAgg(aggExec)
       case Some(Partial) =>
         applyPreProjectToAgg(aggExec)
-      case None =>
+      case Some(Complete) | None =>
         applyPostProjectToAgg(applyPreProjectToAgg(aggExec))
       case _ =>
         aggExec

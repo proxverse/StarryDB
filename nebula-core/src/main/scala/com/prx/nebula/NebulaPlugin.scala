@@ -4,6 +4,7 @@ import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext, SparkPlugin}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.optimizer.CollapseProject
 import org.apache.spark.sql.execution.columnar.extension.rule.{AggregateFunctionRewriteRule, PreProjectRewriteRule}
 import org.apache.spark.sql.execution.columnar.extension.{ColumnarTransitionRule, JoinSelectionOverrides, PreRuleReplaceRowToColumnar, VeloxColumnarPostRule}
 import org.apache.spark.sql.execution.columnar.extension.utils.NativeLibUtil
@@ -79,7 +80,8 @@ object Nebula {
         e.injectColumnar(spark =>
           ColumnarTransitionRule(PreRuleReplaceRowToColumnar(spark), VeloxColumnarPostRule())))
       .getOrCreate()
-    spark.sqlContext.experimental.extraOptimizations = Seq(new PreProjectRewriteRule(spark))
+    spark.sqlContext.experimental.extraOptimizations =
+      Seq(PreProjectRewriteRule(spark), CollapseProject)
     spark
   }
 }

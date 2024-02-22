@@ -45,46 +45,46 @@ import scala.collection.JavaConverters._
 
 case class PreProjectRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
   override def apply(plan: LogicalPlan): LogicalPlan = plan.resolveOperatorsUp {
-//    case aggregate: Aggregate if aggregate.getTagValue(TreeNodeTag("processed")).isEmpty =>
-//      val maybeType = PhysicalAggregation.unapply(aggregate)
-//      if (maybeType.isDefined) {
-//        val (groupingExpressions, aggExpressions, resultExpressions, child) =
-//          maybeType.get
-//        val preProject = new util.ArrayList[Expression]()
-//        val newAgg = aggExpressions
-//          .map(_.asInstanceOf[AggregateExpression])
-//          .map(processAggregateExpression(_, preProject))
-//
-//        val tuples = newAgg.map(e => (e.resultAttribute, alias(e)))
-//        val aggNamed = tuples.map(_._2)
-//        val aggToNamed = tuples.toMap
-//        val newGroup = groupingExpressions.map(
-//          rewrite(_, preProject, ColumnarSupport.AGG_PROJECT_GROUP_PREFIX)
-//            .asInstanceOf[NamedExpression])
-//
-//        val a = newGroup.flatMap(_.references) ++ newAgg.flatMap(_.references)
-//
-//        val b = preProject.asScala
-//          .map(_.asInstanceOf[NamedExpression].toAttribute)
-//          .toSet
-//        val attributes = a.filterNot(e => b.contains(e))
-//        val preProjectExec =
-//          Project(attributes ++ preProject.asScala.map(_.asInstanceOf[NamedExpression]), child)
-//
-//        val newResult = resultExpressions.map { e =>
-//          e.transformDown {
-//            case e: AttributeReference if aggToNamed.contains(e) =>
-//              aggToNamed.apply(e).toAttribute
-//            case other => other
-//          }
-//        }
-//        val aggregate1 = Aggregate(newGroup, newGroup ++ aggNamed, preProjectExec)
-//        aggregate1.setTagValue(TreeNodeTag("processed"), "true")
-//        Project(newResult.map(_.asInstanceOf[NamedExpression]), aggregate1)
-//      } else {
-//        aggregate.setTagValue(TreeNodeTag("processed"), "true")
-//        aggregate
-//      }
+    case aggregate: Aggregate if aggregate.getTagValue(TreeNodeTag("processed")).isEmpty =>
+      val maybeType = PhysicalAggregation.unapply(aggregate)
+      if (maybeType.isDefined) {
+        val (groupingExpressions, aggExpressions, resultExpressions, child) =
+          maybeType.get
+        val preProject = new util.ArrayList[Expression]()
+        val newAgg = aggExpressions
+          .map(_.asInstanceOf[AggregateExpression])
+          .map(processAggregateExpression(_, preProject))
+
+        val tuples = newAgg.map(e => (e.resultAttribute, alias(e)))
+        val aggNamed = tuples.map(_._2)
+        val aggToNamed = tuples.toMap
+        val newGroup = groupingExpressions.map(
+          rewrite(_, preProject, ColumnarSupport.AGG_PROJECT_GROUP_PREFIX)
+            .asInstanceOf[NamedExpression])
+
+        val a = newGroup.flatMap(_.references) ++ newAgg.flatMap(_.references)
+
+        val b = preProject.asScala
+          .map(_.asInstanceOf[NamedExpression].toAttribute)
+          .toSet
+        val attributes = a.filterNot(e => b.contains(e))
+        val preProjectExec =
+          Project(attributes ++ preProject.asScala.map(_.asInstanceOf[NamedExpression]), child)
+
+        val newResult = resultExpressions.map { e =>
+          e.transformDown {
+            case e: AttributeReference if aggToNamed.contains(e) =>
+              aggToNamed.apply(e).toAttribute
+            case other => other
+          }
+        }
+        val aggregate1 = Aggregate(newGroup, newGroup ++ aggNamed, preProjectExec)
+        aggregate1.setTagValue(TreeNodeTag("processed"), "true")
+        Project(newResult.map(_.asInstanceOf[NamedExpression]), aggregate1)
+      } else {
+        aggregate.setTagValue(TreeNodeTag("processed"), "true")
+        aggregate
+      }
     case expand: Expand
         if !expand.projections.flatten.forall(e =>
           e.isInstanceOf[AttributeReference] || e.isInstanceOf[Literal]) =>
