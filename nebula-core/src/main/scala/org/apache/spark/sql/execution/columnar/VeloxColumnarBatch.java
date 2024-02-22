@@ -99,11 +99,6 @@ public class VeloxColumnarBatch extends ColumnarBatch {
   public void setNumRows(int numRows) {
     this.numRows = numRows;
     nativeColumnarBatch.setNumRows(numRows);
-    for (ColumnVector veloxColumnVector : columns) {
-      if (veloxColumnVector instanceof VeloxWritableColumnVector) {
-        ((VeloxWritableColumnVector) veloxColumnVector).resizeToAppendElementsSizeIfNeed(numRows);
-      }
-    }
   }
 
 

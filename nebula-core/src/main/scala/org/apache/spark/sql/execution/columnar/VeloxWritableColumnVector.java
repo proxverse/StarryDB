@@ -833,18 +833,6 @@ public class VeloxWritableColumnVector extends WritableColumnVector {
     return null;
   }
 
-  public void resizeToAppendElementsSizeIfNeed(int numRows) {
-    reserveInternal(numRows);
-    // 基本类型 + struct type 类型的 child 需要 resize,其他不需要
-    if (!(isArray() || type instanceof MapType || type instanceof StringType
-        || type instanceof BinaryType) && childColumns != null) {
-      for (ColumnVector child : childColumns) {
-        if (!child.equals(this)) {
-          ((VeloxWritableColumnVector) child).resizeToAppendElementsSizeIfNeed(numRows);
-        }
-      }
-    }
-  }
   native long getOffsetAddress(long ptr);
 
   native long getSizeAddress(long ptr);
