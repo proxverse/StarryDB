@@ -120,7 +120,7 @@ object NativeExpressionExtension extends Logging {
     extensionNameSig: Seq[NameSig],
     extensionAggregateSig: Seq[AggregateSig]) = {
     if (NebulaConf.expressionExtensionClass.isEmpty) {
-      (Nil, Nil)
+      (Nil, Nil, Nil)
     } else {
       try {
         val extensionConfClass = Utils.classForName(NebulaConf.expressionExtensionClass.get)
