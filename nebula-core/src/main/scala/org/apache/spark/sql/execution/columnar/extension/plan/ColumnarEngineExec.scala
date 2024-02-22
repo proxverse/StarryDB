@@ -29,9 +29,15 @@ import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.util
+import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.JavaConverters._
 
-case class ColumnarEngineExec(child: SparkPlan) extends SparkPlan with ColumnarToRowTransition {
+object ColumnarEngineExec {
+  val transformStageCounter = new AtomicInteger(0)
+}
+case class ColumnarEngineExec(child: SparkPlan)(val columnarStageId: Int)
+    extends SparkPlan
+    with ColumnarToRowTransition {
 
   override def supportsColumnar: Boolean = true
 
@@ -44,6 +50,30 @@ case class ColumnarEngineExec(child: SparkPlan) extends SparkPlan with ColumnarT
   override lazy val metrics: Map[String, SQLMetric] = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
     "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "number of input batches"))
+
+  override def nodeName: String = s"WholeStageCodegen Columnar ($columnarStageId)"
+
+  override def generateTreeString(
+      depth: Int,
+      lastChildren: Seq[Boolean],
+      append: String => Unit,
+      verbose: Boolean,
+      prefix: String = "",
+      addSuffix: Boolean = false,
+      maxFields: Int,
+      printNodeId: Boolean,
+      indent: Int = 0): Unit = {
+    child.generateTreeString(
+      depth,
+      lastChildren,
+      append,
+      verbose,
+      if (printNodeId) "* " else s"*($columnarStageId) ",
+      false,
+      maxFields,
+      printNodeId,
+      indent)
+  }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     prepareVectorRDD()
@@ -83,7 +113,7 @@ case class ColumnarEngineExec(child: SparkPlan) extends SparkPlan with ColumnarT
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): ColumnarEngineExec =
-    copy(child = newChild)
+    copy(child = newChild)(columnarStageId)
 
   override def doExecuteBroadcast[T](): broadcast.Broadcast[T] = {
     children.head.executeBroadcast()
