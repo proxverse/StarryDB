@@ -30,7 +30,8 @@ case class ColumnarTransformRule() extends Rule[SparkPlan] {
 
   def canHashBuild(exprs: Seq[Expression]): Boolean = {
     if (exprs.forall(
-          tp => tp.dataType.isInstanceOf[AtomicType] && !tp.dataType.isInstanceOf[DecimalType])) {
+//          tp => tp.dataType.isInstanceOf[AtomicType] && !tp.dataType.isInstanceOf[DecimalType])) {
+          tp => tp.dataType.isInstanceOf[AtomicType])) {
       true
     } else {
       false
