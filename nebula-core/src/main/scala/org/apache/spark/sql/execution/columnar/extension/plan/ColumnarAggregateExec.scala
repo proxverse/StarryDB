@@ -186,11 +186,17 @@ case class ColumnarAggregateExec(
       false)
   }
 
+  // Hack the native agg func input/output references
+  // As spark agg func on different stage are using the same result id. We can
+  // use result id to link agg func on different stage.
   //               input                                  output
   // PARTIAL:       raw                            result_attr(intermediate_type)
-  // INTERMEDIAATE: result_attr(intermediate_type) result_attr(intermediate_type)
+  // INTERMEDIATE:  result_attr(intermediate_type) result_attr(intermediate_type)
   // FINAL:         result_attr(intermediate_type) result_attr(result_type)
   // SINGLE:        raw                            result_attr(result_type)
+  //
+  // Note that distinct function is created with new result id in AggUtils,
+  // We need to set result id back for distinct functions.
   //
   private def normalizeResultAttrName(aggExpr: AggregateExpression): Attribute = {
     aggExpr.resultAttribute.withName(aggExpr.aggregateFunction.prettyName)
@@ -200,9 +206,10 @@ case class ColumnarAggregateExec(
     aggExpr.mode match {
       case Final if aggExpr.isDistinct =>
         val aggAttr = aggregateAttributes(aggregateExpressions.indexOf(aggExpr))
-        normalizeResultAttrName(aggExpr).withExprId(aggAttr.exprId) :: Nil
+        normalizeResultAttrName(aggExpr)
+          .withDataType(toIntermediateType(aggExpr)).withExprId(aggAttr.exprId) :: Nil
       case PartialMerge | Final =>
-        normalizeResultAttrName(aggExpr) :: Nil
+        normalizeResultAttrName(aggExpr).withDataType(toIntermediateType(aggExpr)) :: Nil
       case _ =>
         aggExpr.aggregateFunction.children
     }

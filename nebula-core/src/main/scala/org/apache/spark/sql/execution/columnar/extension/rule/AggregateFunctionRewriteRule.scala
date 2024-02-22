@@ -18,8 +18,8 @@
 package org.apache.spark.sql.execution.columnar.extension.rule
 
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Count, HyperLogLogPlusPlus, Sum}
-import org.apache.spark.sql.catalyst.expressions.{CreateStruct, If, IsNull, Literal, Or}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Average, AverageBase, Count, HyperLogLogPlusPlus, Sum}
+import org.apache.spark.sql.catalyst.expressions.{Cast, CreateStruct, Expression, If, IsNull, Literal, Or, SupportQueryContext}
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.NebulaConf
@@ -30,6 +30,10 @@ case class AggregateFunctionRewriteRule(spark: SparkSession) extends Rule[Logica
   override def apply(plan: LogicalPlan): LogicalPlan = plan.resolveOperatorsUp {
     case a: Aggregate =>
       a.transformExpressions {
+        case avg @ AggregateExpression(Average(child, _), _, _, _, _)
+           if child.dataType.isInstanceOf[DecimalType] =>
+          avg.copy(aggregateFunction =
+            NativeAveragePlaceHolder(Cast(child, avg.dataType), avg.dataType))
         case hllExpr @ AggregateExpression(hll: HyperLogLogPlusPlus, _, _, _, _)
             if NebulaConf.isNebulaEnabled &&
               !hasDistinctAggregateFunc(a) && isDataTypeSupported(hll.child.dataType) =>
@@ -101,4 +105,31 @@ case class AggregateFunctionRewriteRule(spark: SparkSession) extends Rule[Logica
       case _ => false
     }
   }
+}
+
+
+/**
+ * average placehodler for average decimal
+ * @param child
+ * @param fixedDataType
+ */
+case class NativeAveragePlaceHolder(child: Expression, fixedDataType: DataType)
+  extends AverageBase with SupportQueryContext {
+
+  override def dataType: DataType = fixedDataType
+  override def useAnsiAdd: Boolean = true
+  override protected def withNewChildInternal(newChild: Expression): NativeAveragePlaceHolder =
+    copy(child = newChild)
+
+  override lazy val updateExpressions: Seq[Expression] = getUpdateExpressions
+
+  override lazy val mergeExpressions: Seq[Expression] = getMergeExpressions
+
+  override lazy val evaluateExpression: Expression = getEvaluateExpression(queryContext)
+  override def initQueryContext(): String = if (useAnsiAdd) {
+    origin.context
+  } else {
+    ""
+  }
+
 }

@@ -1,17 +1,6 @@
 package org.apache.spark.sql.execution.columnar.extension
 
-import org.apache.spark.sql.catalyst.expressions.{
-  Alias,
-  AttributeReference,
-  AttributeSet,
-  Expression,
-  Generator,
-  Inline,
-  Literal,
-  NamedExpression,
-  SortOrder,
-  Stack
-}
+import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, AttributeSet, Cast, Expression, Generator, Inline, Literal, NamedExpression, SortOrder, Stack, SupportQueryContext}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.columnar.expressions.{ExpressionConvert, NativeExpression}
@@ -19,15 +8,12 @@ import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, ShuffledHashJoinExec}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.Column
-import org.apache.spark.sql.catalyst.expressions.aggregate.{
-  AggregateExpression,
-  AggregateFunction,
-  Final,
-  Partial
-}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction, Average, AverageBase, Final, Partial}
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.columnar.extension.plan.ColumnarSupport
+import org.apache.spark.sql.types.{DataType, DecimalType}
 
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 case class ColumnarRewriteRule() extends Rule[SparkPlan] {
@@ -152,54 +138,8 @@ case class ColumnarRewriteRule() extends Rule[SparkPlan] {
                 newChild,
                 sortExec.testSpillFrequency))
 
-          case after: HashAggregateExec =>
-            if (after.aggregateAttributes.isEmpty) {
-              if (!after.groupingExpressions.forall(_.isInstanceOf[AttributeReference])) {
-                val (newExpr, newChild) = extractToProject(
-                  ColumnarSupport.AGG_PROJECT_AGG_PREFIX,
-                  after.groupingExpressions,
-                  after.child,
-                  true)
-                after.copy(
-                  groupingExpressions = newExpr.map(_.asInstanceOf[NamedExpression]),
-                  child = newChild)
-              } else if (!after.resultExpressions.forall(_.isInstanceOf[AttributeReference])) {
-                val newHash = after.copy(
-                  resultExpressions = after.groupingExpressions ++ after.aggregateAttributes)
-                new ProjectExec(after.resultExpressions, newHash)
-              } else {
-                after
-              }
-            } else {
-              val mode = after.aggregateExpressions.head.mode
-              if (mode == Final) {
-                val isAllOfAttr = after.resultExpressions.forall {
-                  case attributeReference: AttributeReference => true
-                  case other => false
-                }
-                if (isAllOfAttr) {
-                  after
-                } else {
-                  val newHash = after.copy(
-                    resultExpressions = after.groupingExpressions ++ after.aggregateAttributes)
-                  new ProjectExec(after.resultExpressions, newHash)
-                }
-              } else if (mode == Partial) {
-                val (newExpr, newChild) = extractToProject(
-                  ColumnarSupport.AGG_PROJECT_AGG_PREFIX,
-                  after.groupingExpressions ++ after.aggregateExpressions,
-                  after.child,
-                  true)
-                val (agg, group) = newExpr.partition(_.isInstanceOf[AggregateExpression])
-                after.copy(
-                  groupingExpressions = group.map(_.asInstanceOf[NamedExpression]),
-                  aggregateExpressions = agg.map(_.asInstanceOf[AggregateExpression]),
-                  child = newChild)
-              }
-              else {
-                after
-              }
-            }
+          case aggExec: HashAggregateExec =>
+            rewriteAggregate(aggExec)
 
           case projectExec: ProjectExec if projectExec.projectList.isEmpty =>
             projectExec.child
@@ -320,5 +260,50 @@ case class ColumnarRewriteRule() extends Rule[SparkPlan] {
     }
     val newProject = new ProjectExec(regularExpressions ++ extractedExprBuffer, plan)
     (afterRewrite, newProject)
+  }
+
+  private def applyPostProjectToAgg(aggExec: HashAggregateExec): SparkPlan = {
+    val isAllOfAttr = aggExec.resultExpressions.forall(_.isInstanceOf[AttributeReference])
+    if (isAllOfAttr) {
+      aggExec
+    } else {
+      val newHash = aggExec.copy(
+        resultExpressions = aggExec.groupingExpressions ++ aggExec.aggregateAttributes)
+      ProjectExec(aggExec.resultExpressions, newHash)
+    }
+  }
+
+  private def applyPreProjectToAgg(aggExec: HashAggregateExec): HashAggregateExec = {
+    val merelyReference = (expr: Expression) => expr.isInstanceOf[AttributeReference]
+    // no need for extra projection
+    if (aggExec.groupingExpressions.forall(merelyReference) &&
+      aggExec.aggregateExpressions.flatMap(_.children).forall(merelyReference)) {
+      return aggExec
+    }
+
+    // extract projects
+    val (newExprs, preProject) = extractToProject(
+      ColumnarSupport.AGG_PROJECT_AGG_PREFIX,
+      aggExec.groupingExpressions ++ aggExec.aggregateExpressions,
+      aggExec.child,
+      true)
+    val (newAggExprs, newGroupings) = newExprs.partition(_.isInstanceOf[AggregateExpression])
+    aggExec.copy(
+      groupingExpressions = newGroupings.map(_.asInstanceOf[NamedExpression]),
+      aggregateExpressions = newAggExprs.map(_.asInstanceOf[AggregateExpression]),
+      child = preProject)
+  }
+
+  private def rewriteAggregate(aggExec: HashAggregateExec): SparkPlan = {
+    aggExec.aggregateExpressions.headOption.map(_.mode) match {
+      case Some(Final) =>
+        applyPostProjectToAgg(aggExec)
+      case Some(Partial) =>
+        applyPreProjectToAgg(aggExec)
+      case None =>
+        applyPostProjectToAgg(applyPreProjectToAgg(aggExec))
+      case _ =>
+        aggExec
+    }
   }
 }
