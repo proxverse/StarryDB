@@ -110,6 +110,9 @@ object ColumnarBroadcastExchangeExec {
 case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
     extends BroadcastExchangeLike {
 
+
+
+
   @transient override lazy val metrics = Map(
     "dataSize" -> SQLMetrics.createSizeMetric(sparkContext, "data size"),
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),

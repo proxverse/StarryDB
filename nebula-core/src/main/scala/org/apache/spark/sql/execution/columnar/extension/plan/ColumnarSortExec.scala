@@ -21,6 +21,7 @@ import org.apache.spark.sql.execution.{SortExec, SparkPlan}
 import org.apache.spark.sql.execution.columnar.expressions.ExpressionConvert
 import org.apache.spark.sql.execution.columnar.jni.NativePlanBuilder
 import org.apache.spark.sql.execution.datasources.FilePartition
+import org.apache.spark.sql.execution.metric.SQLMetrics
 
 class ColumnarSortExec(
     sortOrder: Seq[SortOrder],
@@ -45,6 +46,10 @@ class ColumnarSortExec(
     }
     other.isInstanceOf[ColumnarSortExec]
   }
+  override lazy val extensionMetrics = Map(
+    "sortTime" -> SQLMetrics.createTimingMetric(sparkContext, "sort time"),
+    "peakMemory" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory"),
+    "spillSize" -> SQLMetrics.createSizeMetric(sparkContext, "spill size"))
 
   override def hashCode(): Int = super.hashCode()
 

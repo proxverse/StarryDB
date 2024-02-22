@@ -2,22 +2,13 @@ package org.apache.spark.sql.execution.columnar.extension.plan
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.aggregate.{
-  AggregateExpression,
-  Final,
-  Partial,
-  PartialMerge
-}
-import org.apache.spark.sql.catalyst.expressions.{
-  Attribute,
-  Expression,
-  NamedExpression,
-  aggregate
-}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Final, Partial, PartialMerge}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, NamedExpression, aggregate}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.{BaseAggregateExec, HashAggregateExec}
 import org.apache.spark.sql.execution.columnar.expressions.{ExpressionConvert, NativeExpression}
 import org.apache.spark.sql.execution.columnar.jni.NativePlanBuilder
+import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.types.DataType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -141,6 +132,10 @@ case class ColumnarAggregateExec(
     throw new UnsupportedOperationException()
   }
 
+
+  override lazy val extensionMetrics = Map(
+    "buildDataSize" -> SQLMetrics.createSizeMetric(sparkContext, "data size of build side"),
+    "buildTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to build hash map"))
   // We have to override equals because subclassing a case class like ProjectExec is not that clean
   // One of the issues is that the generated equals will see ColumnarProjectExec and ProjectExec
   // as being equal and this can result in the withNewChildren method not actually replacing
