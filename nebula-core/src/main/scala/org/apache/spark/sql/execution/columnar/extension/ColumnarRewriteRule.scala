@@ -237,13 +237,12 @@ case class ColumnarRewriteRule() extends Rule[SparkPlan] {
       case ne: NamedExpression =>
         // If a named expression is not in regularExpressions, add it to
         // extractedExprBuffer and replace it with an AttributeReference.
-        val missingExpr =
-          AttributeSet(Seq(expr)) -- (regularExpressions ++ extractedExprBuffer)
+        val missingExpr = Set(expr) -- (regularExpressions ++ extractedExprBuffer)
         if (missingExpr.nonEmpty) {
           extractedExprBuffer += ne
         }
         // alias will be cleaned in the rule CleanupAliases
-        ne
+        ne.toAttribute
 
       case e: Expression if !extractLiteral && e.foldable =>
         e // No need to create an attribute reference if it will be evaluated as a Literal.

@@ -55,7 +55,7 @@ public class NativeLibUtil {
 
     candidates.add("/native_engine/");
     candidates.add("/Users/xuyiming/native_engine/");
-    candidates.add("/Users/xianli/native_engine/");
+    candidates.add("/Users/xianli/native_lib");
 
     for (String path: candidates) {
       File libFile = new File(path + File.separator + libFileName);
