@@ -52,6 +52,9 @@ public class VeloxWritableLongDecimalVector extends VeloxWritableColumnVector {
     if (isNullAt(rowId)) {
       return null;
     }
+    if (dictionaryVector != null) {
+      return dictionaryVector.getDecimal(dictionaryIds.getDictId(rowId), precision, scale);
+    }
     byte[] array = new byte[16];
     Platform.copyMemory(null, dataAddress + 16L * rowId, array, Platform.BYTE_ARRAY_OFFSET, 16);
 

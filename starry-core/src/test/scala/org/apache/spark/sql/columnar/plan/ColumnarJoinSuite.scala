@@ -28,7 +28,7 @@ class ColumnarJoinSuite extends JoinSuite with ColumnarSharedSparkSession {
       "SPARK-28345: PythonUDF predicate should be able to pushdown to join",
       "SPARK-32649: Optimize BHJ/SHJ inner/semi join with empty hashed relation",
       "SPARK-32330: Preserve shuffled hash join build side partitioning")
-    if (testName.equals("full outer join")) {
+    if (!ignores.contains(testName)) {
       super.test(testName, testTags: _*)(testFun)
     }
   }

@@ -32,7 +32,12 @@ public class VeloxWritableShortDecimalVector extends VeloxWritableColumnVector {
 
   @Override
   public Decimal getDecimal(int rowId, int precision, int scale) {
-    if (isNullAt(rowId)) return null;
+    if (isNullAt(rowId)) {
+      return null;
+    }
+    if (dictionaryVector != null) {
+      return dictionaryVector.getDecimal(dictionaryIds.getDictId(rowId), precision, scale);
+    }
     return Decimal.createUnsafe(getLong(rowId), precision, scale);
   }
 }

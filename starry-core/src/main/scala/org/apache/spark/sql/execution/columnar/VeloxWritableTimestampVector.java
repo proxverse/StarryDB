@@ -50,6 +50,9 @@ public class VeloxWritableTimestampVector extends VeloxWritableColumnVector {
 
   @Override
   public long getLong(int rowId) {
+    if (dictionaryVector != null) {
+      return dictionaryVector.getLong(dictionaryIds.getDictId(rowId));
+    }
     long sec = Platform.getLong(null, dataAddress + 16L * rowId);
     long nano = Platform.getLong(null, dataAddress + 16L * rowId + 8);
     return sec * 1000000 + nano;
