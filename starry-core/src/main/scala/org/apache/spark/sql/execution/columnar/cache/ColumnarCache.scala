@@ -159,7 +159,6 @@ class CachedVeloxBatchSerializer extends CachedBatchSerializer {
             .map(c => new NoCloseColumnVector(c).asInstanceOf[ColumnVector])
             .toArray
           val newBatch = new VeloxColumnarBatch(vectors, veloxBatch.numRows())
-          newBatch.setAutoClose()
           newBatch
         }
     }
@@ -188,7 +187,6 @@ class CachedVeloxBatchSerializer extends CachedBatchSerializer {
             .map(c => new NoCloseColumnVector(c).asInstanceOf[ColumnVector])
             .toArray
           val newBatch = new VeloxColumnarBatch(vectors, veloxBatch.numRows())
-          newBatch.setAutoClose()
           newBatch
         }
         .flatMap(_.rowIterator().asScala)

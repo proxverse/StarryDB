@@ -2,7 +2,7 @@ package org.apache.spark.sql.execution.columnar;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import org.apache.spark.sql.execution.columnar.jni.NativeColumnarVector;
+import org.apache.spark.sql.execution.columnar.jni.NativeColumnVector;
 import org.apache.spark.sql.execution.vectorized.WritableColumnVector;
 import org.apache.spark.sql.types.ArrayType;
 import org.apache.spark.sql.types.BinaryType;
@@ -60,13 +60,13 @@ public class VeloxConstantsVector extends VeloxWritableColumnVector {
 
   long dataAddress;
 
-  protected VeloxConstantsVector(NativeColumnarVector nativeColumnarVector, DataType type) {
-    super(nativeColumnarVector.capacity(), type);
-    isNull = nativeColumnarVector.mayHasNulls();
+  protected VeloxConstantsVector(NativeColumnVector nativeColumnVector, DataType type) {
+    super(nativeColumnVector.capacity(), type);
+    isNull = nativeColumnVector.mayHasNulls();
     if (type instanceof ArrayType || type instanceof MapType || type instanceof StructType) {
-      complexTypeVector = VeloxWritableColumnVector.bindVector(nativeColumnarVector, type);
+      complexTypeVector = VeloxWritableColumnVector.bindVector(nativeColumnVector, type);
     } else {
-      dataAddress = nativeColumnarVector.dataAddress(NativeColumnarVector.DataTypeEnum.CONSTANTS);
+      dataAddress = nativeColumnVector.dataAddress(NativeColumnVector.DataTypeEnum.CONSTANTS);
       if (type instanceof StringType || type instanceof BinaryType) {
         int length = Platform.getInt(null, dataAddress);
         if (length <= 12) {

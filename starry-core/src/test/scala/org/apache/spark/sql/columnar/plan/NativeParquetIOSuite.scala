@@ -22,7 +22,7 @@ class NativeParquetIOSuite extends ParquetIOSuite with ColumnarSharedSparkSessio
     }
 //    if (testName.startsWith("read dictionary and")) {
 //      super.test(testName, testTags: _*)(testFun)
-//    }
+//    }              p
   }
 
   test("sa") {

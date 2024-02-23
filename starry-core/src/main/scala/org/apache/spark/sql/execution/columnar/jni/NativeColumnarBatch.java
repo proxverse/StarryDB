@@ -4,7 +4,7 @@ import org.apache.spark.sql.types.StructType;
 
 public class NativeColumnarBatch extends NativeClass {
 
-  public NativeColumnarBatch(NativeColumnarVector[] columns, int numRows) {
+  public NativeColumnarBatch(NativeColumnVector[] columns, int numRows) {
     setHandle(nativeCreate(columns, numRows));
   }
 
@@ -12,7 +12,7 @@ public class NativeColumnarBatch extends NativeClass {
     setHandle(handle);
   }
 
-  private native long nativeCreate(NativeColumnarVector[] columns, int numRows);
+  private native long nativeCreate(NativeColumnVector[] columns, int numRows);
 
   private native void nativeSetNumRows(int numRows);
 
@@ -31,8 +31,8 @@ public class NativeColumnarBatch extends NativeClass {
   }
 
 
-  public NativeColumnarVector rowVector() {
-    return new NativeColumnarVector(nativeRowVector());
+  public NativeColumnVector rowVector() {
+    return new NativeColumnVector(nativeRowVector());
   }
 
   public void setSchema(StructType type) {

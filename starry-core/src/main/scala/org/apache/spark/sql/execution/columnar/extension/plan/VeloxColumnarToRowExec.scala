@@ -103,7 +103,6 @@ class ColumnarToRowRDD(
           val batch = batches.next()
           numInputBatches += 1
           numOutputRows += batch.numRows()
-          batch.asInstanceOf[VeloxColumnarBatch].setAutoClose()
           batch.rowIterator().asScala.map(toUnsafe)
         }
       }

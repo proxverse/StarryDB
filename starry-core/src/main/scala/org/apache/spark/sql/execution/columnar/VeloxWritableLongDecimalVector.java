@@ -1,6 +1,6 @@
 package org.apache.spark.sql.execution.columnar;
 
-import org.apache.spark.sql.execution.columnar.jni.NativeColumnarVector;
+import org.apache.spark.sql.execution.columnar.jni.NativeColumnVector;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.Decimal;
 import org.apache.spark.unsafe.Platform;
@@ -17,16 +17,16 @@ public class VeloxWritableLongDecimalVector extends VeloxWritableColumnVector {
 
   static final boolean bigEndianPlatform = ByteOrder.nativeOrder().equals(ByteOrder.BIG_ENDIAN);
 
-  public VeloxWritableLongDecimalVector(int capacity, NativeColumnarVector nativeColumnarVector, DataType dataType) {
-    super(capacity, nativeColumnarVector, dataType);
+  public VeloxWritableLongDecimalVector(int capacity, NativeColumnVector nativeColumnVector, DataType dataType) {
+    super(capacity, nativeColumnVector, dataType);
   }
 
   public VeloxWritableLongDecimalVector(int capacity, DataType dataType) {
     super(capacity, dataType);
   }
 
-  public VeloxWritableLongDecimalVector(NativeColumnarVector nativeColumnarVector, DataType dataType) {
-    super(nativeColumnarVector, dataType);
+  public VeloxWritableLongDecimalVector(NativeColumnVector nativeColumnVector, DataType dataType) {
+    super(nativeColumnVector, dataType);
   }
 
   @Override

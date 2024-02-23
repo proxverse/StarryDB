@@ -1,6 +1,6 @@
 package org.apache.spark.sql.execution.columnar;
 
-import org.apache.spark.sql.execution.columnar.jni.NativeColumnarVector;
+import org.apache.spark.sql.execution.columnar.jni.NativeColumnVector;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.unsafe.Platform;
 
@@ -10,16 +10,16 @@ import org.apache.spark.unsafe.Platform;
  */
 public class VeloxWritableTimestampVector extends VeloxWritableColumnVector {
 
-  public VeloxWritableTimestampVector(int capacity, NativeColumnarVector nativeColumnarVector, DataType dataType) {
-    super(capacity, nativeColumnarVector, dataType);
+  public VeloxWritableTimestampVector(int capacity, NativeColumnVector nativeColumnVector, DataType dataType) {
+    super(capacity, nativeColumnVector, dataType);
   }
 
   public VeloxWritableTimestampVector(int capacity, DataType dataType) {
     super(capacity, dataType);
   }
 
-  public VeloxWritableTimestampVector(NativeColumnarVector nativeColumnarVector, DataType dataType) {
-    super(nativeColumnarVector, dataType);
+  public VeloxWritableTimestampVector(NativeColumnVector nativeColumnVector, DataType dataType) {
+    super(nativeColumnVector, dataType);
   }
 
   @Override

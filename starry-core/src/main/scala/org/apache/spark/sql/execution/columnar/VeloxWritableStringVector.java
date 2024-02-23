@@ -1,6 +1,6 @@
 package org.apache.spark.sql.execution.columnar;
 
-import org.apache.spark.sql.execution.columnar.jni.NativeColumnarVector;
+import org.apache.spark.sql.execution.columnar.jni.NativeColumnVector;
 import org.apache.spark.sql.types.DataType;
 
 
@@ -9,16 +9,16 @@ import org.apache.spark.sql.types.DataType;
  */
 public class VeloxWritableStringVector extends VeloxWritableColumnVector {
 
-  public VeloxWritableStringVector(int capacity, NativeColumnarVector nativeColumnarVector, DataType dataType) {
-    super(capacity, nativeColumnarVector, dataType);
+  public VeloxWritableStringVector(int capacity, NativeColumnVector nativeColumnVector, DataType dataType) {
+    super(capacity, nativeColumnVector, dataType);
   }
 
   public VeloxWritableStringVector(int capacity, DataType dataType) {
     super(capacity, dataType);
   }
 
-  public VeloxWritableStringVector(NativeColumnarVector nativeColumnarVector, DataType dataType) {
-    super(nativeColumnarVector, dataType);
+  public VeloxWritableStringVector(NativeColumnVector nativeColumnVector, DataType dataType) {
+    super(nativeColumnVector, dataType);
   }
 
   @Override

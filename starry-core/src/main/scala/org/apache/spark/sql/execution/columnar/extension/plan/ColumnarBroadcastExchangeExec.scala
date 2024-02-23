@@ -27,7 +27,7 @@ import org.apache.spark.sql.catalyst.plans.physical.{
   Partitioning
 }
 import org.apache.spark.sql.execution.columnar.VeloxColumnarBatch
-import org.apache.spark.sql.execution.columnar.jni.{NativeColumnarVector, NativeQueryContext}
+import org.apache.spark.sql.execution.columnar.jni.{NativeColumnVector, NativeQueryContext}
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, BroadcastExchangeLike}
 import org.apache.spark.sql.execution.joins.HashedRelationBroadcastMode
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}

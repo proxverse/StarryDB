@@ -1,6 +1,6 @@
 package org.apache.spark.sql.execution.columnar;
 
-import org.apache.spark.sql.execution.columnar.jni.NativeColumnarVector;
+import org.apache.spark.sql.execution.columnar.jni.NativeColumnVector;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.Decimal;
 import org.apache.spark.unsafe.Platform;
@@ -11,16 +11,16 @@ import org.apache.spark.unsafe.Platform;
  */
 public class VeloxWritableShortDecimalVector extends VeloxWritableColumnVector {
 
-  public VeloxWritableShortDecimalVector(int capacity, NativeColumnarVector nativeColumnarVector, DataType dataType) {
-    super(capacity, nativeColumnarVector, dataType);
+  public VeloxWritableShortDecimalVector(int capacity, NativeColumnVector nativeColumnVector, DataType dataType) {
+    super(capacity, nativeColumnVector, dataType);
   }
 
   public VeloxWritableShortDecimalVector(int capacity, DataType dataType) {
     super(capacity, dataType);
   }
 
-  public VeloxWritableShortDecimalVector(NativeColumnarVector nativeColumnarVector, DataType dataType) {
-    super(nativeColumnarVector, dataType);
+  public VeloxWritableShortDecimalVector(NativeColumnVector nativeColumnVector, DataType dataType) {
+    super(nativeColumnVector, dataType);
   }
 
   @Override
