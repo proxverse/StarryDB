@@ -64,6 +64,7 @@ public class VeloxColumnarBatch extends ColumnarBatch {
 
   public VeloxColumnarBatch(ColumnVector[] columns, int numRows) {
     super(columns, numRows);
+    count.incrementAndGet();
     NativeColumnarVector[] columnVectorAddrs = new NativeColumnarVector[columns.length];
     for (int i = 0; i < columns.length; i++) {
       ColumnVector cv = columns[i];

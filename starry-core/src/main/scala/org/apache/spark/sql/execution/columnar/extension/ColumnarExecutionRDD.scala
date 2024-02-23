@@ -18,25 +18,20 @@
 package org.apache.spark.sql.execution.columnar.extension
 
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.vectorized.ColumnarBatch
-
-import java.util
-import org.apache.spark.{Partition, SparkConf, SparkContext, TaskContext, _}
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.columnar.extension.MetricsUpdater.applyMetrics
+import org.apache.spark.sql.execution.columnar.extension.plan.CloseableColumnBatchIterator
 import org.apache.spark.sql.execution.columnar.extension.vector.ColumnarBatchInIterator
 import org.apache.spark.sql.execution.columnar.jni.NativeColumnarExecution
 import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark._
 import org.json4s
-import org.json4s.jackson.Serialization
-import org.json4s.NoTypeHints
-import org.json4s._
-import org.json4s.JsonAST.JValue
-import org.json4s.JsonDSL._
+import org.json4s.{NoTypeHints, _}
 import org.json4s.jackson.JsonMethods._
+import org.json4s.jackson.Serialization
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 import scala.util.Try
 import scala.util.matching.Regex
 
@@ -96,7 +91,7 @@ class ColumnarExecutionRDD(
         next1
       }
     }
-    new InterruptibleIterator(context, iter)
+    new CloseableColumnBatchIterator(iter)
   }
 
   override def getPartitions: Array[Partition] = {

@@ -22,6 +22,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, UnsafeProjection}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
+import org.apache.spark.sql.execution.columnar.VeloxColumnarBatch
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.execution.{ColumnarToRowTransition, SparkPlan}
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -102,8 +103,7 @@ class ColumnarToRowRDD(
           val batch = batches.next()
           numInputBatches += 1
           numOutputRows += batch.numRows()
-          batch.rowIterator().asScala.map(toUnsafe)
-          // Fallback to ColumnarToRow of vanilla Spark.
+          batch.asInstanceOf[VeloxColumnarBatch].setAutoClose()
           batch.rowIterator().asScala.map(toUnsafe)
         }
       }

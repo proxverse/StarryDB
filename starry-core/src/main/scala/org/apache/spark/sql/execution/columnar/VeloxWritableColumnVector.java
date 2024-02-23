@@ -947,11 +947,6 @@ public class VeloxWritableColumnVector extends WritableColumnVector {
     return dictionaryIds;
   }
 
-  native long reserveDictionaryIds(long address, int capacity);
-
-
-  native int getVectorSize(long objectAddress);
-
   @Override
   public void reset() {
     if (!isClosed) {
@@ -996,29 +991,5 @@ public class VeloxWritableColumnVector extends WritableColumnVector {
       }
       nativeColumnarVector.close();
     }
-  }
-
-  static native long copy(long vectorWrapperAddr);
-
-  static native void setDictionaryVector(long vectorWrapperAddr, long vectorDictAddr);
-
-  native void close(long address);
-
-  native boolean mayHasNulls(long address);
-
-
-  private void throwUnsupportedException(int requiredCapacity, Throwable cause) {
-    String message = "Cannot reserve additional contiguous bytes in the vectorized reader (" +
-        (requiredCapacity >= 0 ? "requested " + requiredCapacity + " bytes" : "integer overflow") +
-        "). As a workaround, you can reduce the vectorized reader batch size, or disable the " +
-        "vectorized reader, or disable " + SQLConf.BUCKETING_ENABLED().key() + " if you read " +
-        "from bucket table. For Parquet file format, refer to " +
-        SQLConf.PARQUET_VECTORIZED_READER_BATCH_SIZE().key() +
-        " (default " + SQLConf.PARQUET_VECTORIZED_READER_BATCH_SIZE().defaultValueString() +
-        ") and " + SQLConf.PARQUET_VECTORIZED_READER_ENABLED().key() + "; for ORC file format, " +
-        "refer to " + SQLConf.ORC_VECTORIZED_READER_BATCH_SIZE().key() +
-        " (default " + SQLConf.ORC_VECTORIZED_READER_BATCH_SIZE().defaultValueString() +
-        ") and " + SQLConf.ORC_VECTORIZED_READER_ENABLED().key() + ".";
-    throw new RuntimeException(message, cause);
   }
 }
