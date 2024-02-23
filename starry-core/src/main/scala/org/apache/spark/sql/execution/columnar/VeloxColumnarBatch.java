@@ -4,7 +4,7 @@ import org.apache.spark.TaskContext;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
 import org.apache.spark.sql.execution.columnar.jni.NativeColumnarBatch;
-import org.apache.spark.sql.execution.columnar.jni.NativeColumnarVector;
+import org.apache.spark.sql.execution.columnar.jni.NativeColumnVector;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
@@ -28,7 +28,7 @@ public class VeloxColumnarBatch extends ColumnarBatch {
 
 
   public static VeloxColumnarBatch createFromRowVectorHandle(long handle, List<Attribute> attributes) {
-    NativeColumnarVector rootVector = new NativeColumnarVector(handle);
+    NativeColumnVector rootVector = new NativeColumnVector(handle);
     ColumnVector[] columnVectors = new ColumnVector[attributes.size()];
     for (int i = 0; i < attributes.size(); i++) {
       columnVectors[i] = VeloxWritableColumnVector.bindVector(rootVector.newChildWithIndex(i), attributes.get(i).dataType());
@@ -40,12 +40,12 @@ public class VeloxColumnarBatch extends ColumnarBatch {
   }
 
   public static VeloxColumnarBatch createFromJson(byte[] json, StructType structType) {
-    VeloxColumnarBatch fromRowVector = createFromRowVector(NativeColumnarVector.deserialize(json), structType);
+    VeloxColumnarBatch fromRowVector = createFromRowVector(NativeColumnVector.deserialize(json), structType);
     fromRowVector.setSchema(structType);
     return fromRowVector;
   }
 
-  public static VeloxColumnarBatch createFromRowVector(NativeColumnarVector rootVector, StructType structType) {
+  public static VeloxColumnarBatch createFromRowVector(NativeColumnVector rootVector, StructType structType) {
     ColumnVector[] columnVectors = new ColumnVector[structType.size()];
     for (int i = 0; i < structType.size(); i++) {
       columnVectors[i] = VeloxWritableColumnVector.bindVector(rootVector.newChildWithIndex(i), structType.fields()[i].dataType());
@@ -64,7 +64,8 @@ public class VeloxColumnarBatch extends ColumnarBatch {
 
   public VeloxColumnarBatch(ColumnVector[] columns, int numRows) {
     super(columns, numRows);
-    NativeColumnarVector[] columnVectorAddrs = new NativeColumnarVector[columns.length];
+    count.incrementAndGet();
+    NativeColumnVector[] columnVectorAddrs = new NativeColumnVector[columns.length];
     for (int i = 0; i < columns.length; i++) {
       ColumnVector cv = columns[i];
       if (cv instanceof VeloxWritableColumnVector) {
@@ -102,7 +103,7 @@ public class VeloxColumnarBatch extends ColumnarBatch {
   }
 
 
-  boolean autoClose = false;
+  boolean autoClose = true;
 
   public void setAutoClose() {      // from reader batch unable to close
     autoClose = true;
@@ -168,12 +169,12 @@ public class VeloxColumnarBatch extends ColumnarBatch {
     return isClosed;
   }
 
-  public NativeColumnarBatch nativeObje() {
+  public NativeColumnarBatch nativeObject() {
     return nativeColumnarBatch;
   }
 
 
-  public NativeColumnarVector rowVector() {
+  public NativeColumnVector rowVector() {
     return nativeColumnarBatch.rowVector();
   }
 

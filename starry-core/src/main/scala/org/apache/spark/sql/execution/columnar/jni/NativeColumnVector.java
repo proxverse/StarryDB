@@ -2,7 +2,7 @@ package org.apache.spark.sql.execution.columnar.jni;
 
 import org.apache.spark.sql.types.DataType;
 
-public class NativeColumnarVector extends NativeClass {
+public class NativeColumnVector extends NativeClass {
 
   public void reset() {
     nativeReset();
@@ -24,11 +24,11 @@ public class NativeColumnarVector extends NativeClass {
   }
 
 
-  public NativeColumnarVector(DataType dataType) {
+  public NativeColumnVector(DataType dataType) {
     setHandle(nativeCreate(dataType.catalogString()));
   }
 
-  public NativeColumnarVector(long handle) {
+  public NativeColumnVector(long handle) {
     setHandle(handle);
   }
 
@@ -70,8 +70,8 @@ public class NativeColumnarVector extends NativeClass {
   private static native long nativeDeserialize(byte[] json);
 
 
-  public NativeColumnarVector reserveDictionaryIds(int capacity) {
-    return new NativeColumnarVector(nativeReserveDictionaryIds(capacity));
+  public NativeColumnVector reserveDictionaryIds(int capacity) {
+    return new NativeColumnVector(nativeReserveDictionaryIds(capacity));
   }
 
 
@@ -80,8 +80,8 @@ public class NativeColumnarVector extends NativeClass {
   }
 
 
-  public NativeColumnarVector createDictionaryVector(int capacity) {
-    return new NativeColumnarVector(nativeCreateDictionaryVector(capacity));
+  public NativeColumnVector createDictionaryVector(int capacity) {
+    return new NativeColumnVector(nativeCreateDictionaryVector(capacity));
   }
 
 
@@ -90,8 +90,8 @@ public class NativeColumnarVector extends NativeClass {
   }
 
 
-  public NativeColumnarVector newChildWithIndex(int index) {
-    return new NativeColumnarVector(nativeNewChildWithIndex(index));
+  public NativeColumnVector newChildWithIndex(int index) {
+    return new NativeColumnVector(nativeNewChildWithIndex(index));
   }
 
   public int capacity() {
@@ -115,12 +115,12 @@ public class NativeColumnarVector extends NativeClass {
     return nativeEncoding();
   }
 
-  public NativeColumnarVector valueVector() {
-    return new NativeColumnarVector(nativeValueVector());
+  public NativeColumnVector valueVector() {
+    return new NativeColumnVector(nativeValueVector());
   }
 
-  public NativeColumnarVector dictIdVector() {
-    return new NativeColumnarVector(nativeDictionaryIdVector());
+  public NativeColumnVector dictIdVector() {
+    return new NativeColumnVector(nativeDictionaryIdVector());
   }
 
 
@@ -128,8 +128,8 @@ public class NativeColumnarVector extends NativeClass {
     return  nativeSerialize();
   }
 
-  public static NativeColumnarVector deserialize(byte[] json) {
-    return new NativeColumnarVector(nativeDeserialize(json));
+  public static NativeColumnVector deserialize(byte[] json) {
+    return new NativeColumnVector(nativeDeserialize(json));
   }
 
 

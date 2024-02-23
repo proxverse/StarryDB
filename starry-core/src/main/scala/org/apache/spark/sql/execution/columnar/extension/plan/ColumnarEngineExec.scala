@@ -17,16 +17,17 @@
 package org.apache.spark.sql.execution.columnar.extension.plan
 
 import org.apache.spark.broadcast
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, UnsafeProjection}
-import org.apache.spark.sql.execution.{ColumnarToRowTransition, SparkPlan}
-import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
-import org.apache.spark.sql.errors.QueryExecutionErrors
 import org.apache.spark.sql.execution.columnar.extension.ColumnarExecutionRDD
 import org.apache.spark.sql.execution.columnar.jni.NativePlanBuilder
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
+import org.apache.spark.sql.execution.{ColumnarToRowTransition, SparkPlan}
 import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.json4s.NoTypeHints
+import org.json4s.jackson.Serialization
 
 import java.util
 import java.util.concurrent.atomic.AtomicInteger
@@ -35,7 +36,9 @@ import scala.collection.JavaConverters._
 object ColumnarEngineExec {
   val transformStageCounter = new AtomicInteger(0)
 }
-case class ColumnarEngineExec(child: SparkPlan)(val columnarStageId: Int)
+case class ColumnarEngineExec(child: SparkPlan)(
+    val columnarStageId: Int,
+    val hasMemoryRelation: Boolean = false)
     extends SparkPlan
     with ColumnarToRowTransition {
 
@@ -95,6 +98,8 @@ case class ColumnarEngineExec(child: SparkPlan)(val columnarStageId: Int)
     }
   }
 
+  @transient
+  private implicit lazy val formats = Serialization.formats(NoTypeHints)
   def prepareVectorRDD(): RDD[ColumnarBatch] = {
     val partitions = child.asInstanceOf[ColumnarSupport]
     val builder = new NativePlanBuilder
@@ -102,6 +107,7 @@ case class ColumnarEngineExec(child: SparkPlan)(val columnarStageId: Int)
     val planJson = builder.builderAndRelease()
     val nodeMetrics = new util.HashMap[String, (String, Map[String, SQLMetric])]()
     partitions.collectMetrics(nodeMetrics)
+    val map1 = sparkContext.conf.getAllWithPrefix("spark.sql").toMap
     new ColumnarExecutionRDD(
       sparkContext,
       planJson,
@@ -109,11 +115,13 @@ case class ColumnarEngineExec(child: SparkPlan)(val columnarStageId: Int)
       partitions.columnarInputRDDs.map(_._2).toArray,
       child.output,
       nodeMetrics.asScala.toMap,
-      sparkContext.getConf)
+      hasMemoryRelation,
+      map1,
+      columnarStageId)
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): ColumnarEngineExec =
-    copy(child = newChild)(columnarStageId)
+    copy(child = newChild)(columnarStageId, hasMemoryRelation)
 
   override def doExecuteBroadcast[T](): broadcast.Broadcast[T] = {
     children.head.executeBroadcast()

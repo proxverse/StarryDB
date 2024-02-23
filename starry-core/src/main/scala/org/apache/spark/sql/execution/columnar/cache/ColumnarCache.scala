@@ -19,7 +19,11 @@ package org.apache.spark.sql.execution.columnar.cache
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, UnsafeProjection}
-import org.apache.spark.sql.columnar.{CachedBatch, CachedBatchSerializer, SimpleMetricsCachedBatch}
+import org.apache.spark.sql.columnar.{
+  CachedBatch,
+  CachedBatchSerializer,
+  SimpleMetricsCachedBatch
+}
 import org.apache.spark.sql.execution.columnar.{NoCloseColumnVector, VeloxColumnarBatch}
 import org.apache.spark.sql.execution.columnar.extension.plan.RowToVeloxColumnarExec
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -28,12 +32,14 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
 import org.apache.spark.storage.StorageLevel
+import org.apache.spark.util.KnownSizeEstimation
 
 import scala.collection.JavaConverters._
 
 case class CachedVeloxBatch(veloxBatch: VeloxColumnarBatch)
     extends CachedBatch
-    with AutoCloseable {
+    with AutoCloseable
+    with KnownSizeEstimation {
   override def close(): Unit = {
     veloxBatch.close()
   }
@@ -43,8 +49,12 @@ case class CachedVeloxBatch(veloxBatch: VeloxColumnarBatch)
   }
 
   override def sizeInBytes: Long = {
-    0
 //    GlutenColumnBatchUtils.estimateFlatSize(veloxBatch.getObjectPtr)
+    100
+  }
+
+  override def estimatedSize: Long = {
+    100
   }
 }
 
@@ -149,7 +159,6 @@ class CachedVeloxBatchSerializer extends CachedBatchSerializer {
             .map(c => new NoCloseColumnVector(c).asInstanceOf[ColumnVector])
             .toArray
           val newBatch = new VeloxColumnarBatch(vectors, veloxBatch.numRows())
-          newBatch.setAutoClose()
           newBatch
         }
     }
@@ -178,7 +187,6 @@ class CachedVeloxBatchSerializer extends CachedBatchSerializer {
             .map(c => new NoCloseColumnVector(c).asInstanceOf[ColumnVector])
             .toArray
           val newBatch = new VeloxColumnarBatch(vectors, veloxBatch.numRows())
-          newBatch.setAutoClose()
           newBatch
         }
         .flatMap(_.rowIterator().asScala)

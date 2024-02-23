@@ -3,8 +3,6 @@ package org.apache.spark.sql.execution.columnar.jni;
 import org.apache.spark.sql.execution.columnar.VeloxColumnarBatch;
 import org.apache.spark.sql.types.StructType;
 
-import java.lang.annotation.Native;
-
 public class NativeExpressionConvert {
 
   public static native String nativeToVeloxTypeString(String dt);
@@ -21,7 +19,7 @@ public class NativeExpressionConvert {
 
 
   public static VeloxColumnarBatch evalWithBatch(long expr, VeloxColumnarBatch batch, StructType structType) {
-    NativeColumnarVector rootVector = new NativeColumnarVector(nativeEvalWithBatch(expr, batch.nativeObje()));
+    NativeColumnVector rootVector = new NativeColumnVector(nativeEvalWithBatch(expr, batch.nativeObject()));
     return VeloxColumnarBatch.createFromRowVector(rootVector, structType);
   }
 
@@ -32,6 +30,6 @@ public class NativeExpressionConvert {
 
   public static native void nativeReleaseHandle(long expr);
 
-  public static native long nativeCreateConstantTypedExprHanlde(String resultType, NativeColumnarVector vectorBatch);
+  public static native long nativeCreateConstantTypedExprHanlde(String resultType, NativeColumnVector vectorBatch);
 
 }

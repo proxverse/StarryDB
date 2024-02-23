@@ -18,25 +18,20 @@
 package org.apache.spark.sql.execution.columnar.extension
 
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.vectorized.ColumnarBatch
-
-import java.util
-import org.apache.spark.{Partition, SparkConf, SparkContext, TaskContext, _}
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.columnar.extension.MetricsUpdater.applyMetrics
+import org.apache.spark.sql.execution.columnar.extension.plan.CloseableColumnBatchIterator
 import org.apache.spark.sql.execution.columnar.extension.vector.ColumnarBatchInIterator
 import org.apache.spark.sql.execution.columnar.jni.NativeColumnarExecution
 import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark._
 import org.json4s
-import org.json4s.jackson.Serialization
-import org.json4s.NoTypeHints
-import org.json4s._
-import org.json4s.JsonAST.JValue
-import org.json4s.JsonDSL._
+import org.json4s.{NoTypeHints, _}
 import org.json4s.jackson.JsonMethods._
+import org.json4s.jackson.Serialization
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 import scala.util.Try
 import scala.util.matching.Regex
 
@@ -56,7 +51,9 @@ class ColumnarExecutionRDD(
     var rdds: Array[RDD[ColumnarBatch]],
     outputAttributes: Seq[Attribute],
     nodeMetrics: Map[String, (String, Map[String, SQLMetric])],
-    sparkConf: SparkConf)
+    useTableCacheMemoryPool: Boolean,
+    confMap: Map[String, String],
+    columnarStageId: Long)
     extends RDD[ColumnarBatch](sc, rdds.map(x => new OneToOneDependency(x))) {
 
   @transient
@@ -67,14 +64,24 @@ class ColumnarExecutionRDD(
     val inputIterators: Seq[Iterator[ColumnarBatch]] = (rdds zip partitions).map {
       case (rdd, partition) => rdd.iterator(partition, context)
     }
-    val beforeBuild = System.nanoTime()
-    val execution = new NativeColumnarExecution(outputAttributes.toList.asJava)
+    val execution = if (useTableCacheMemoryPool) {
+      new NativeColumnarExecution(outputAttributes.toList.asJava, "table_cache")
+    } else {
+      new NativeColumnarExecution(
+        outputAttributes.toList.asJava,
+        s"${TaskContext.get().stageId()}_${TaskContext.getPartitionId()}" +
+          s"_${TaskContext.get().taskAttemptId()}")
+    }
     val columnarNativeIterator =
       inputIterators.map { iter =>
         new ColumnarBatchInIterator(iter.asJava)
       }.toArray
-    val str = Serialization.write(sparkConf.getAllWithPrefix("spark.sql.columnar").toMap)
-    execution.init(planJson, nodeIds, columnarNativeIterator, str)
+
+    val finalMap = confMap ++ Map(
+      "task_id" -> s"${columnarStageId}_${TaskContext.get().taskAttemptId()}")
+    val confStr = Serialization.write(finalMap)
+
+    execution.init(planJson, nodeIds, columnarNativeIterator, confStr)
 
     TaskContext.get().addTaskCompletionListener[Unit] { t =>
       val metrics = parse(execution.getMetrics)
@@ -96,7 +103,7 @@ class ColumnarExecutionRDD(
         next1
       }
     }
-    new InterruptibleIterator(context, iter)
+    new CloseableColumnBatchIterator(iter)
   }
 
   override def getPartitions: Array[Partition] = {
@@ -137,7 +144,8 @@ object MetricsUpdater {
             tp._2.add(
               pattern
                 .findFirstMatchIn(nodeStatus.apply("cpuWallTiming").toString)
-                .map(_.group(1)).get
+                .map(_.group(1))
+                .get
                 .toLong / 1000000)
           case "numInputRows" => tp._2.add(nodeStatus.apply("inputRows").toString.toLong)
           case "numOutputRows" => tp._2.add(nodeStatus.apply("outputRows").toString.toLong)

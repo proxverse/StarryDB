@@ -19,7 +19,7 @@ package org.apache.spark.sql.execution
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache, RemovalNotification}
 import org.apache.spark.broadcast.TorrentBroadcast
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.execution.columnar.jni.{NativeColumnarVector, NativeExpressionConvert}
+import org.apache.spark.sql.execution.columnar.jni.{NativeColumnVector, NativeExpressionConvert}
 import org.apache.spark.sql.execution.columnar.{VeloxColumnarBatch, VeloxWritableColumnVector}
 import org.apache.spark.sql.types.{DataType, StringType, StructField, StructType}
 import org.apache.spark.sql.vectorized.ColumnVector
@@ -112,7 +112,7 @@ object ExecutorDictManager extends Logging {
     batch
   }
 
-  def fetchDictVectorAddress(bid: Long, numBlocks: Int): NativeColumnarVector = {
+  def fetchDictVectorAddress(bid: Long, numBlocks: Int): NativeColumnVector = {
     fetchDictVector(bid, numBlocks) match {
       case readableVeloxColumnVector: VeloxWritableColumnVector =>
         readableVeloxColumnVector.getNative

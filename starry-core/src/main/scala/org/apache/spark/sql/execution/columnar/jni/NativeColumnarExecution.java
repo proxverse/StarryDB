@@ -10,19 +10,18 @@ import org.apache.spark.sql.execution.columnar.extension.vector.ColumnarBatchInI
 public class NativeColumnarExecution extends NativeClass {
   List<Attribute> resultAttrs;
 
-  public NativeColumnarExecution(List<Attribute> resultAttrs) {
-    setHandle(nativeCreate());
+  public NativeColumnarExecution(List<Attribute> resultAttrs, String memoryPool) {
+    setHandle(nativeCreate(memoryPool));
     this.resultAttrs = resultAttrs;
   }
 
-  private native long nativeCreate();
+  private native long nativeCreate(String memoryPool);
 
   private native void nativeRelease();
 
   private native boolean nativeHasNext();
 
   private native long nativeNext();
-
 
   private native String nativeMetrics();
 

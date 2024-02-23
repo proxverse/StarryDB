@@ -27,6 +27,7 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, Literal, NamedExpre
 import org.apache.spark.sql.catalyst.rules.{PlanChangeLogger, Rule}
 import org.apache.spark.sql.execution.StarryConf.isStarryEnabled
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
+import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.columnar.extension.plan._
 import org.apache.spark.sql.execution.columnar.extension.rule.SingleAggregateRule
 import org.apache.spark.sql.execution.columnar.jni.NativeQueryContext
@@ -163,6 +164,11 @@ case class PreRuleReplaceRowToColumnar(session: SparkSession)
 
 case class VeloxColumnarPostRule() extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
+
+    val hasInmemoryScan = plan.collect {
+      case p: InMemoryTableScanExec if !p.relation.cacheBuilder.isCachedColumnBuffersLoaded => p
+    }.size >= 0
+
     val after = plan transformDown {
       case rc: ColumnarSupport
           if !rc.isInstanceOf[ColumnarInputAdapter] && rc
@@ -179,16 +185,18 @@ case class VeloxColumnarPostRule() extends Rule[SparkPlan] {
       case rc: ColumnarToRowExec if isStarryEnabled && rc.child.isInstanceOf[ColumnarSupport] =>
         new VeloxColumnarToRowExec(
           new ColumnarEngineExec(rc.child)(
-            ColumnarEngineExec.transformStageCounter.incrementAndGet()))
+            ColumnarEngineExec.transformStageCounter.incrementAndGet(),
+            hasInmemoryScan))
       case rc: ColumnarToRowExec if isStarryEnabled && !rc.child.isInstanceOf[ColumnarSupport] =>
         new VeloxColumnarToRowExec(rc.child)
       case rc: RowToColumnarExec =>
         new RowToVeloxColumnarExec(rc.child)
-
       case _ @ColumnarBroadcastExchangeExec(mode, child: ColumnarSupport) =>
         ColumnarBroadcastExchangeExec(
           mode,
-          ColumnarEngineExec(child)(ColumnarEngineExec.transformStageCounter.incrementAndGet()))
+          ColumnarEngineExec(child)(
+            ColumnarEngineExec.transformStageCounter.incrementAndGet(),
+            hasInmemoryScan))
       case plan => plan
     }
     after

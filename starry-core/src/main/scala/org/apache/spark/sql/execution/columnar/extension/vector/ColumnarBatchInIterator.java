@@ -35,7 +35,7 @@ public class ColumnarBatchInIterator implements AutoCloseable {
         currentBatch.close();
       }
       currentBatch = batch;
-      return ((VeloxColumnarBatch) batch).nativeObje().nativePTR();
+      return ((VeloxColumnarBatch) batch).nativeObject().nativePTR();
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

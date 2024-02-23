@@ -4,11 +4,10 @@ import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
-import org.apache.spark.sql.execution.columnar.jni.NativeColumnarVector;
+import org.apache.spark.sql.execution.columnar.jni.NativeColumnVector;
 import org.apache.spark.sql.execution.datasources.parquet.ParquetDictionary;
 import org.apache.spark.sql.execution.vectorized.Dictionary;
 import org.apache.spark.sql.execution.vectorized.WritableColumnVector;
-import org.apache.spark.sql.internal.SQLConf;
 import org.apache.spark.sql.types.ArrayType;
 import org.apache.spark.sql.types.BinaryType;
 import org.apache.spark.sql.types.ByteType;
@@ -53,7 +52,7 @@ public class VeloxWritableColumnVector extends WritableColumnVector {
 
   boolean hasNull = false;
 
-  NativeColumnarVector nativeColumnarVector;
+  NativeColumnVector nativeColumnVector;
 
   String operationType;
 
@@ -75,74 +74,74 @@ public class VeloxWritableColumnVector extends WritableColumnVector {
   }
 
 
-  public static VeloxWritableColumnVector createVector(int capacity, NativeColumnarVector nativeColumnarVector, DataType dataType) {
+  public static VeloxWritableColumnVector createVector(int capacity, NativeColumnVector nativeColumnVector, DataType dataType) {
     if (dataType.sameType(DataTypes.TimestampType)) {
-      return new VeloxWritableTimestampVector(capacity, nativeColumnarVector, dataType);
+      return new VeloxWritableTimestampVector(capacity, nativeColumnVector, dataType);
     } else if (dataType.sameType(DataTypes.StringType) || dataType.sameType(DataTypes.BinaryType)) {
-      return new VeloxWritableStringVector(capacity, nativeColumnarVector, dataType);
+      return new VeloxWritableStringVector(capacity, nativeColumnVector, dataType);
     } else if (dataType instanceof DecimalType) {
       DecimalType decimalType = (DecimalType) dataType;
       if (decimalType.precision() <= Decimal.MAX_LONG_DIGITS()) {
-        return new VeloxWritableShortDecimalVector(capacity, nativeColumnarVector, dataType);
+        return new VeloxWritableShortDecimalVector(capacity, nativeColumnVector, dataType);
       } else {
-        return new VeloxWritableLongDecimalVector(capacity, nativeColumnarVector, dataType);
+        return new VeloxWritableLongDecimalVector(capacity, nativeColumnVector, dataType);
       }
     } else {
-      return new VeloxWritableColumnVector(capacity, nativeColumnarVector, dataType);
+      return new VeloxWritableColumnVector(capacity, nativeColumnVector, dataType);
     }
   }
 
-  public static VeloxWritableColumnVector bindVector(NativeColumnarVector nativeColumnarVector, DataType dataType) {
-    String encoding = nativeColumnarVector.encoding();
+  public static VeloxWritableColumnVector bindVector(NativeColumnVector nativeColumnVector, DataType dataType) {
+    String encoding = nativeColumnVector.encoding();
     if ("CONSTANT".equals(encoding)) {
-      return new VeloxConstantsVector(nativeColumnarVector, dataType);
+      return new VeloxConstantsVector(nativeColumnVector, dataType);
     } else {
       if (dataType.sameType(DataTypes.TimestampType)) {
-        return new VeloxWritableTimestampVector(nativeColumnarVector, dataType);
+        return new VeloxWritableTimestampVector(nativeColumnVector, dataType);
       } else if (dataType.sameType(DataTypes.StringType) || dataType.sameType(DataTypes.BinaryType)) {
-        return new VeloxWritableStringVector(nativeColumnarVector, dataType);
+        return new VeloxWritableStringVector(nativeColumnVector, dataType);
       } else if (dataType instanceof DecimalType) {
         DecimalType decimalType = (DecimalType) dataType;
         if (decimalType.precision() <= Decimal.MAX_LONG_DIGITS()) {
-          return new VeloxWritableShortDecimalVector(nativeColumnarVector, dataType);
+          return new VeloxWritableShortDecimalVector(nativeColumnVector, dataType);
         } else {
-          return new VeloxWritableLongDecimalVector(nativeColumnarVector, dataType);
+          return new VeloxWritableLongDecimalVector(nativeColumnVector, dataType);
         }
       } else {
-        return new VeloxWritableColumnVector(nativeColumnarVector, dataType);
+        return new VeloxWritableColumnVector(nativeColumnVector, dataType);
       }
     }
   }
 
 
   // from  complex type
-  public VeloxWritableColumnVector(int capacity, NativeColumnarVector nativeColumnarVector, DataType dataType) {
+  public VeloxWritableColumnVector(int capacity, NativeColumnVector nativeColumnVector, DataType dataType) {
     super(capacity, dataType);
-    this.nativeColumnarVector = nativeColumnarVector;
+    this.nativeColumnVector = nativeColumnVector;
     if (!(dataType instanceof ArrayType || dataType instanceof MapType)) {
-      nativeColumnarVector.reserve(capacity);
+      nativeColumnVector.reserve(capacity);
     }
     this.operationType = "WRITER";
-    this.capacity = nativeColumnarVector.capacity();
+    this.capacity = nativeColumnVector.capacity();
     initInternal();
   }
 
   // from normal create
   public VeloxWritableColumnVector(int capacity, DataType dataType) {
     super(capacity, dataType);
-    this.nativeColumnarVector = new NativeColumnarVector(dataType);
+    this.nativeColumnVector = new NativeColumnVector(dataType);
     if (!(dataType instanceof ArrayType || dataType instanceof MapType)) {
-      nativeColumnarVector.reserve(capacity);
+      nativeColumnVector.reserve(capacity);
     }
     this.operationType = "WRITER";
-    nativeColumnarVector.reserve(capacity);
+    nativeColumnVector.reserve(capacity);
     initInternal();
   }
 
   //for read, it's can't be a  dictionary vector
-  public VeloxWritableColumnVector(NativeColumnarVector nativeColumnarVector, DataType dataType) {
-    super(nativeColumnarVector.capacity(), dataType);
-    this.nativeColumnarVector = nativeColumnarVector;
+  public VeloxWritableColumnVector(NativeColumnVector nativeColumnVector, DataType dataType) {
+    super(nativeColumnVector.capacity(), dataType);
+    this.nativeColumnVector = nativeColumnVector;
     this.operationType = "READ";
     bind();
   }
@@ -158,30 +157,30 @@ public class VeloxWritableColumnVector extends WritableColumnVector {
       DataType childType;
       childType = ((ArrayType) type).elementType();
       this.childColumns = new WritableColumnVector[1];
-      this.childColumns[0] = bindVector(nativeColumnarVector.newChildWithIndex(0), childType);
+      this.childColumns[0] = bindVector(nativeColumnVector.newChildWithIndex(0), childType);
     } else if (type instanceof StructType) {
       StructType st = (StructType) type;
       this.childColumns = new WritableColumnVector[st.fields().length];
       for (int i = 0; i < childColumns.length; ++i) {
-        this.childColumns[i] = bindVector(nativeColumnarVector.newChildWithIndex(i), st.fields()[i].dataType());
+        this.childColumns[i] = bindVector(nativeColumnVector.newChildWithIndex(i), st.fields()[i].dataType());
       }
     } else if (type instanceof MapType) {
       MapType mapType = (MapType) type;
       this.childColumns = new WritableColumnVector[2];
-      this.childColumns[0] = bindVector(nativeColumnarVector.newChildWithIndex(0), mapType.keyType());
-      this.childColumns[1] = bindVector(nativeColumnarVector.newChildWithIndex(1), mapType.valueType());
+      this.childColumns[0] = bindVector(nativeColumnVector.newChildWithIndex(0), mapType.keyType());
+      this.childColumns[1] = bindVector(nativeColumnVector.newChildWithIndex(1), mapType.valueType());
     } else if (type instanceof CalendarIntervalType) {
       throw new UnsupportedOperationException();
       // Three columns. Months as int. Days as Int. Microseconds as Long.
     } else {
       this.childColumns = null;
     }
-    if ("DICTIONARY".equals(nativeColumnarVector.encoding())) {
-      dictionaryVector = bindVector(nativeColumnarVector.valueVector(), dataType());
-      dictionaryIds = bindVector(nativeColumnarVector.dictIdVector(), DataTypes.IntegerType);
-      hasNull = nativeColumnarVector.mayHasNulls();
+    if ("DICTIONARY".equals(nativeColumnVector.encoding())) {
+      dictionaryVector = bindVector(nativeColumnVector.valueVector(), dataType());
+      dictionaryIds = bindVector(nativeColumnVector.dictIdVector(), DataTypes.IntegerType);
+      hasNull = nativeColumnVector.mayHasNulls();
       if (hasNull) {
-        this.nullAddress = nativeColumnarVector.dataAddress(NativeColumnarVector.DataTypeEnum.NULL);
+        this.nullAddress = nativeColumnVector.dataAddress(NativeColumnVector.DataTypeEnum.NULL);
       }
     } else {
       bindAddress();
@@ -208,15 +207,15 @@ public class VeloxWritableColumnVector extends WritableColumnVector {
 
   void bindAddress() {
     if (isArray() || type instanceof MapType) {
-      this.lengthAddress = nativeColumnarVector.dataAddress(NativeColumnarVector.DataTypeEnum.LENGTHS);
-      this.offsetAddress = nativeColumnarVector.dataAddress(NativeColumnarVector.DataTypeEnum.OFFSETS);
+      this.lengthAddress = nativeColumnVector.dataAddress(NativeColumnVector.DataTypeEnum.LENGTHS);
+      this.offsetAddress = nativeColumnVector.dataAddress(NativeColumnVector.DataTypeEnum.OFFSETS);
     } else if (dataType() instanceof StructType || dataType() instanceof NullType) {
     } else {
-      this.dataAddress = nativeColumnarVector.dataAddress(NativeColumnarVector.DataTypeEnum.DATA);
+      this.dataAddress = nativeColumnVector.dataAddress(NativeColumnVector.DataTypeEnum.DATA);
     }
-    hasNull = nativeColumnarVector.mayHasNulls();
+    hasNull = nativeColumnVector.mayHasNulls();
     if (hasNull) {
-      this.nullAddress = nativeColumnarVector.dataAddress(NativeColumnarVector.DataTypeEnum.NULL);
+      this.nullAddress = nativeColumnVector.dataAddress(NativeColumnVector.DataTypeEnum.NULL);
     }
   }
 
@@ -235,18 +234,18 @@ public class VeloxWritableColumnVector extends WritableColumnVector {
         childCapacity *= DEFAULT_ARRAY_LENGTH;
       }
       this.childColumns = new WritableColumnVector[1];
-      this.childColumns[0] = createVector(childCapacity, nativeColumnarVector.newChildWithIndex(0), childType);
+      this.childColumns[0] = createVector(childCapacity, nativeColumnVector.newChildWithIndex(0), childType);
     } else if (type instanceof StructType) {
       StructType st = (StructType) type;
       this.childColumns = new WritableColumnVector[st.fields().length];
       for (int i = 0; i < childColumns.length; ++i) {
-        this.childColumns[i] = createVector(capacity, nativeColumnarVector.newChildWithIndex(i), st.fields()[i].dataType());
+        this.childColumns[i] = createVector(capacity, nativeColumnVector.newChildWithIndex(i), st.fields()[i].dataType());
       }
     } else if (type instanceof MapType) {
       MapType mapType = (MapType) type;
       this.childColumns = new WritableColumnVector[2];
-      this.childColumns[0] = createVector(capacity, nativeColumnarVector.newChildWithIndex(0), mapType.keyType());
-      this.childColumns[1] = createVector(capacity, nativeColumnarVector.newChildWithIndex(1), mapType.valueType());
+      this.childColumns[0] = createVector(capacity, nativeColumnVector.newChildWithIndex(0), mapType.keyType());
+      this.childColumns[1] = createVector(capacity, nativeColumnVector.newChildWithIndex(1), mapType.valueType());
     } else if (type instanceof CalendarIntervalType) {
       throw new UnsupportedOperationException();
       // Three columns. Months as int. Days as Int. Microseconds as Long.
@@ -255,8 +254,8 @@ public class VeloxWritableColumnVector extends WritableColumnVector {
     }
   }
 
-  public NativeColumnarVector getNative() {
-    return nativeColumnarVector;
+  public NativeColumnVector getNative() {
+    return nativeColumnVector;
   }
 
 
@@ -270,7 +269,7 @@ public class VeloxWritableColumnVector extends WritableColumnVector {
     if (capacity == 0) {
       return;
     }
-    nativeColumnarVector.reserve(capacity);
+    nativeColumnVector.reserve(capacity);
     bindAddress();
     this.capacity = capacity;
   }
@@ -282,7 +281,7 @@ public class VeloxWritableColumnVector extends WritableColumnVector {
   @Override
   public void putNull(int rowId) {
     if (!hasNull) {
-      this.nullAddress = nativeColumnarVector.dataAddress(NativeColumnarVector.DataTypeEnum.NULL);
+      this.nullAddress = nativeColumnVector.dataAddress(NativeColumnVector.DataTypeEnum.NULL);
       hasNull = true;
     }
     numNulls += 1;
@@ -752,7 +751,7 @@ public class VeloxWritableColumnVector extends WritableColumnVector {
       if (stringCapacity < length) {
         // to void big string
         int aquire = Math.max(allocationSize, length);
-        stringBufferAddress = nativeColumnarVector.allocateStringData(aquire);
+        stringBufferAddress = nativeColumnVector.allocateStringData(aquire);
         stringCapacity = allocationSize;
         stringOffset = stringBufferAddress;
       }
@@ -858,7 +857,7 @@ public class VeloxWritableColumnVector extends WritableColumnVector {
   @Override
   public void setDictionary(Dictionary dictionary) {
     if (dictionary == null) {
-      nativeColumnarVector.removeDictionaryVector();
+      nativeColumnVector.removeDictionaryVector();
       if (this.dictionaryVector != null) {
         dictionaryVector.close();
         dictionaryVector = null;
@@ -879,7 +878,7 @@ public class VeloxWritableColumnVector extends WritableColumnVector {
           dictionaryVector = null;
         }
         int capacity = parquetDict.getMaxId() + 1;
-        NativeColumnarVector nativeDictionaryVector = nativeColumnarVector.createDictionaryVector(capacity);
+        NativeColumnVector nativeDictionaryVector = nativeColumnVector.createDictionaryVector(capacity);
         dictionaryVector = createVector(capacity, nativeDictionaryVector, dataType());
         loadToVelox(dictionaryVector, dictionary, capacity);
       } catch (IllegalAccessException e) {
@@ -942,15 +941,10 @@ public class VeloxWritableColumnVector extends WritableColumnVector {
 
   @Override
   public WritableColumnVector reserveDictionaryIds(int capacity) {
-    dictionaryIds = new VeloxWritableColumnVector(capacity, nativeColumnarVector.reserveDictionaryIds(capacity), DataTypes.IntegerType);
+    dictionaryIds = new VeloxWritableColumnVector(capacity, nativeColumnVector.reserveDictionaryIds(capacity), DataTypes.IntegerType);
     reserveInternal(capacity);
     return dictionaryIds;
   }
-
-  native long reserveDictionaryIds(long address, int capacity);
-
-
-  native int getVectorSize(long objectAddress);
 
   @Override
   public void reset() {
@@ -964,9 +958,9 @@ public class VeloxWritableColumnVector extends WritableColumnVector {
       stringCapacity = 0;
       nullElement = 0;
       elementsAppended = 0;
-      nativeColumnarVector.reset();
+      nativeColumnVector.reset();
       bindAddress();
-      this.capacity = nativeColumnarVector.capacity();
+      this.capacity = nativeColumnVector.capacity();
       if (dictionaryIds != null) {
         dictionaryIds.close();
       }
@@ -994,31 +988,7 @@ public class VeloxWritableColumnVector extends WritableColumnVector {
           }
         }
       }
-      nativeColumnarVector.close();
+      nativeColumnVector.close();
     }
-  }
-
-  static native long copy(long vectorWrapperAddr);
-
-  static native void setDictionaryVector(long vectorWrapperAddr, long vectorDictAddr);
-
-  native void close(long address);
-
-  native boolean mayHasNulls(long address);
-
-
-  private void throwUnsupportedException(int requiredCapacity, Throwable cause) {
-    String message = "Cannot reserve additional contiguous bytes in the vectorized reader (" +
-        (requiredCapacity >= 0 ? "requested " + requiredCapacity + " bytes" : "integer overflow") +
-        "). As a workaround, you can reduce the vectorized reader batch size, or disable the " +
-        "vectorized reader, or disable " + SQLConf.BUCKETING_ENABLED().key() + " if you read " +
-        "from bucket table. For Parquet file format, refer to " +
-        SQLConf.PARQUET_VECTORIZED_READER_BATCH_SIZE().key() +
-        " (default " + SQLConf.PARQUET_VECTORIZED_READER_BATCH_SIZE().defaultValueString() +
-        ") and " + SQLConf.PARQUET_VECTORIZED_READER_ENABLED().key() + "; for ORC file format, " +
-        "refer to " + SQLConf.ORC_VECTORIZED_READER_BATCH_SIZE().key() +
-        " (default " + SQLConf.ORC_VECTORIZED_READER_BATCH_SIZE().defaultValueString() +
-        ") and " + SQLConf.ORC_VECTORIZED_READER_ENABLED().key() + ".";
-    throw new RuntimeException(message, cause);
   }
 }

@@ -2,14 +2,12 @@ package org.apache.spark.sql.execution.columnar;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import org.apache.spark.sql.execution.columnar.jni.NativeColumnarVector;
-import org.apache.spark.sql.execution.vectorized.WritableColumnVector;
+import org.apache.spark.sql.execution.columnar.jni.NativeColumnVector;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.Decimal;
 import org.apache.spark.sql.vectorized.ColumnarArray;
 import org.apache.spark.sql.vectorized.ColumnarMap;
-import org.apache.spark.unsafe.Platform;
 import org.apache.spark.unsafe.types.UTF8String;
 
 public class VeloxDictionaryColumnVector extends VeloxWritableColumnVector {
@@ -43,10 +41,10 @@ public class VeloxDictionaryColumnVector extends VeloxWritableColumnVector {
 
   long dataAddress;
 
-  protected VeloxDictionaryColumnVector(NativeColumnarVector nativeColumnarVector, DataType type) {
-    super(nativeColumnarVector.capacity(), type);
-    dictionaryIds = VeloxWritableColumnVector.bindVector(nativeColumnarVector.dictIdVector(), DataTypes.IntegerType);
-    dictionaryVector = VeloxWritableColumnVector.bindVector(nativeColumnarVector.dictIdVector(), type);
+  protected VeloxDictionaryColumnVector(NativeColumnVector nativeColumnVector, DataType type) {
+    super(nativeColumnVector.capacity(), type);
+    dictionaryIds = VeloxWritableColumnVector.bindVector(nativeColumnVector.dictIdVector(), DataTypes.IntegerType);
+    dictionaryVector = VeloxWritableColumnVector.bindVector(nativeColumnVector.dictIdVector(), type);
   }
 
   @Override

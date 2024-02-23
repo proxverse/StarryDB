@@ -20,9 +20,6 @@ class NativeParquetIOSuite extends ParquetIOSuite with ColumnarSharedSparkSessio
         )) {
       super.test(testName, testTags: _*)(testFun)
     }
-//    if (testName.startsWith("read dictionary and")) {
-//      super.test(testName, testTags: _*)(testFun)
-//    }
   }
 
   test("sa") {

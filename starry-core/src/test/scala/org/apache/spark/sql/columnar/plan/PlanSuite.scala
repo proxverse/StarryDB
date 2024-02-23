@@ -5,31 +5,16 @@ import org.apache.spark.sql.catalyst.expressions.CaseWhen
 import org.apache.spark.sql.common.ColumnarSharedSparkSession
 import org.apache.spark.sql.execution.columnar.expressions.{ExpressionConvert, NativeExpression}
 import org.apache.spark.sql.execution.columnar.jni.{NativeExpressionConvert, NativePlanBuilder}
+import org.apache.spark.sql.execution.datasources.parquet.ParquetTest
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.functions._
 
-class PlanSuite extends ColumnarSharedSparkSession {
+class PlanSuite extends ColumnarSharedSparkSession with ParquetTest {
 
-  test("test plan builder ") {
-
-    val rows = spark.read.parquet("/Users/xuyiming/data4/warehouse/pool_1.db/t_orderevent_3/part-00000-e9da698f-6d79-4b8f-b2a5-0635101aaed4-c000.snappy.parquet")
-    .collect()
-    val c1 = 'a.boolean
-    val c4 = 'b.string
-    val c6 = 'c.string
-    val when = CaseWhen(Seq((c1, c4)), c6)
-    val structType = StructType.fromAttributes(Seq(c1, c4, c6))
-    val nativeExpression = ExpressionConvert.convertToNative(when).asInstanceOf[NativeExpression]
-    val l = NativeExpressionConvert.nativeDeserializeExpr(
-      "{\"functionName\":\"eq\",\"inputs\":[{\"fieldName\":\"dict\",\"type\":{\"type\":\"VARCHAR\",\"name\":\"Type\"},\"name\":\"FieldAccessTypedExpr\"},{\"valueVector\":\"AQAAACAAAAB7InR5cGUiOiJWQVJDSEFSIiwibmFtZSI6IlR5cGUifQEAAAAAARIAAABBQkMtwLDjIAEAAAASAAAAQUJDLTIwMjIwMTA0LTAwMDE2\",\"type\":{\"type\":\"VARCHAR\",\"name\":\"Type\"},\"name\":\"ConstantTypedExpr\"}],\"type\":{\"type\":\"BOOLEAN\",\"name\":\"Type\"},\"name\":\"CallTypedExpr\"}")
-    val builder = new NativePlanBuilder()
-    val builder1 = builder
-      .scan(structType)
-    val str1 = builder.nodeId()
-    val str = builder1
-      .project(Array("p1"), Array(nativeExpression.handle))
-      .builderAndRelease()
-
-    str
+  test("test plan builder and dictionary vector") {
+    readParquetFile(testFile("test-data/memory_leak_test.parquet")) { df =>
+      df.filter("caseid = 'ABC-20221130-33888'")
+        .collect()
+    }
   }
 }

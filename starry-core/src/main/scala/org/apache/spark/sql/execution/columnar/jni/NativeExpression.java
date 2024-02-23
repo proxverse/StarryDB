@@ -21,7 +21,7 @@ public class NativeExpression extends NativeClass {
 
 
 
-  private native long eval(NativeColumnarVector nativeColumnarBatch);
+  private native long eval(NativeColumnVector nativeColumnarBatch);
 
   private native void nativeRelease();
 
@@ -35,8 +35,8 @@ public class NativeExpression extends NativeClass {
   }
 
 
-  public VeloxColumnarBatch eval(NativeColumnarVector batch, StructType structType) {
-    return VeloxColumnarBatch.createFromRowVector(new NativeColumnarVector(eval(batch)), structType);
+  public VeloxColumnarBatch eval(NativeColumnVector batch, StructType structType) {
+    return VeloxColumnarBatch.createFromRowVector(new NativeColumnVector(eval(batch)), structType);
   }
 
   @Override
