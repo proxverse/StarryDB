@@ -24,8 +24,8 @@ public class NativeColumnVector extends NativeClass {
   }
 
 
-  public NativeColumnVector(DataType dataType) {
-    setHandle(nativeCreate(dataType.catalogString()));
+  public NativeColumnVector(DataType dataType, int capacity) {
+    setHandle(nativeCreate(dataType.catalogString(), capacity));
   }
 
   public NativeColumnVector(long handle) {
@@ -33,7 +33,7 @@ public class NativeColumnVector extends NativeClass {
   }
 
 
-  private native long nativeCreate(String dataType);
+  private native long nativeCreate(String dataType, int capacity);
 
   private native long nativeNewChildWithIndex(int index);
 

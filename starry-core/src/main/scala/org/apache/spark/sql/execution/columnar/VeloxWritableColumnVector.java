@@ -118,9 +118,6 @@ public class VeloxWritableColumnVector extends WritableColumnVector {
   public VeloxWritableColumnVector(int capacity, NativeColumnVector nativeColumnVector, DataType dataType) {
     super(capacity, dataType);
     this.nativeColumnVector = nativeColumnVector;
-    if (!(dataType instanceof ArrayType || dataType instanceof MapType)) {
-      nativeColumnVector.reserve(capacity);
-    }
     this.operationType = "WRITER";
     this.capacity = nativeColumnVector.capacity();
     initInternal();
@@ -129,12 +126,8 @@ public class VeloxWritableColumnVector extends WritableColumnVector {
   // from normal create
   public VeloxWritableColumnVector(int capacity, DataType dataType) {
     super(capacity, dataType);
-    this.nativeColumnVector = new NativeColumnVector(dataType);
-    if (!(dataType instanceof ArrayType || dataType instanceof MapType)) {
-      nativeColumnVector.reserve(capacity);
-    }
+    this.nativeColumnVector = new NativeColumnVector(dataType, capacity);
     this.operationType = "WRITER";
-    nativeColumnVector.reserve(capacity);
     initInternal();
   }
 
