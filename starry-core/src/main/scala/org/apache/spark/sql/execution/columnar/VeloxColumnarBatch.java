@@ -90,7 +90,7 @@ public class VeloxColumnarBatch extends ColumnarBatch {
     }
     this.schema = type;
     try {
-//      nativeColumnarBatch.setSchema(type);
+      nativeColumnarBatch.setSchema(type);
     } catch (Exception e) {
       LOG.error("Error set schema : " + type.catalogString(), e);
     }
