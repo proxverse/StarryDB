@@ -19,18 +19,8 @@ package org.apache.spark.sql.execution.columnar.extension.rule
 
 import org.apache.spark.sql.{Column, SparkSession}
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAlias
-import org.apache.spark.sql.catalyst.expressions.{
-  Alias,
-  AttributeReference,
-  EquivalentExpressions,
-  Expression,
-  Literal,
-  NamedExpression
-}
-import org.apache.spark.sql.catalyst.expressions.aggregate.{
-  AggregateExpression,
-  AggregateFunction
-}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, EquivalentExpressions, Expression, Literal, NamedExpression}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction}
 import org.apache.spark.sql.catalyst.planning.PhysicalAggregation
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Expand, LogicalPlan, Project}
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -42,49 +32,12 @@ import org.apache.spark.sql.execution.columnar.extension.plan.ColumnarSupport
 
 import java.util
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 case class PreProjectRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
   override def apply(plan: LogicalPlan): LogicalPlan = plan.resolveOperatorsUp {
-    case aggregate: Aggregate if aggregate.getTagValue(TreeNodeTag("processed")).isEmpty =>
-      val maybeType = PhysicalAggregation.unapply(aggregate)
-      if (maybeType.isDefined) {
-        val (groupingExpressions, aggExpressions, resultExpressions, child) =
-          maybeType.get
-        val preProject = new util.ArrayList[Expression]()
-        val newAgg = aggExpressions
-          .map(_.asInstanceOf[AggregateExpression])
-          .map(processAggregateExpression(_, preProject))
-
-        val tuples = newAgg.map(e => (e.resultAttribute, alias(e)))
-        val aggNamed = tuples.map(_._2)
-        val aggToNamed = tuples.toMap
-        val newGroup = groupingExpressions.map(
-          rewrite(_, preProject, ColumnarSupport.AGG_PROJECT_GROUP_PREFIX)
-            .asInstanceOf[NamedExpression])
-
-        val a = newGroup.flatMap(_.references) ++ newAgg.flatMap(_.references)
-
-        val b = preProject.asScala
-          .map(_.asInstanceOf[NamedExpression].toAttribute)
-          .toSet
-        val attributes = a.filterNot(e => b.contains(e))
-        val preProjectExec =
-          Project(attributes ++ preProject.asScala.map(_.asInstanceOf[NamedExpression]), child)
-
-        val newResult = resultExpressions.map { e =>
-          e.transformDown {
-            case e: AttributeReference if aggToNamed.contains(e) =>
-              aggToNamed.apply(e).toAttribute
-            case other => other
-          }
-        }
-        val aggregate1 = Aggregate(newGroup, newGroup ++ aggNamed, preProjectExec)
-        aggregate1.setTagValue(TreeNodeTag("processed"), "true")
-        Project(newResult.map(_.asInstanceOf[NamedExpression]), aggregate1)
-      } else {
-        aggregate.setTagValue(TreeNodeTag("processed"), "true")
-        aggregate
-      }
+    case aggregate: Aggregate =>
+      pushdownExprsInAgg(aggregate)
     case expand: Expand
         if !expand.projections.flatten.forall(e =>
           e.isInstanceOf[AttributeReference] || e.isInstanceOf[Literal]) =>
@@ -123,55 +76,37 @@ case class PreProjectRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] 
     e.isInstanceOf[AttributeReference] || e.isInstanceOf[Literal]
   }
 
-  private[this] def alias(expr: Expression): NamedExpression = expr match {
-    case expr: NamedExpression => expr
-    case a: AggregateExpression if a.aggregateFunction.isInstanceOf[TypedAggregateExpression] =>
-      UnresolvedAlias(a, Some(Column.generateAlias))
-    case expr: Expression => Alias(expr, toPrettySQL(expr))()
-  }
-  private def processAggregateExpression(
-      aggregateExpression: AggregateExpression,
-      preProject: java.util.ArrayList[Expression]): AggregateExpression = {
-    val function = aggregateExpression.aggregateFunction
-    val beforeSize = preProject.size()
-    val rewriteChildren =
-      function.children.map(e => rewrite(e, preProject, ColumnarSupport.AGG_PROJECT_AGG_PREFIX))
-    val newChildren = if (preProject.size() > beforeSize) {
-      rewriteChildren
-    } else {
-      function.children
-    }
-
-    val newFilter = if (aggregateExpression.filter.isDefined) {
-      Option.apply(
-        rewrite(
-          aggregateExpression.filter.get,
-          preProject,
-          ColumnarSupport.AGG_PROJECT_FILTER_PREFIX))
-    } else {
-      aggregateExpression.filter
-    }
-    new AggregateExpression(
-      function.withNewChildren(newChildren).asInstanceOf[AggregateFunction],
-      aggregateExpression.mode,
-      aggregateExpression.isDistinct,
-      newFilter,
-      aggregateExpression.resultId)
-
-  }
-
-  private def rewrite(
-      expression: Expression,
-      preProject: java.util.ArrayList[Expression],
-      prefix: String): Expression = {
+  private def pushdownExpr(expression: Expression,
+                            exprSet: mutable.HashMap[Expression, NamedExpression]): Expression = {
+    val prefix = ColumnarSupport.AGG_PROJECT_GROUP_PREFIX
     expression match {
       case attributeReference: AttributeReference =>
         attributeReference
+      case alias: Alias =>
+        exprSet.getOrElseUpdate(alias, alias).toAttribute
       case other =>
-        val alias =
-          Alias(other, s"${prefix}${preProject.size()}")()
-        preProject.add(alias)
-        alias.toAttribute
+        val alias = Alias(other, s"${prefix}${exprSet.size}")()
+        exprSet.getOrElseUpdate(other, alias).toAttribute
+    }
+  }
+
+  private def pushdownExprsInAgg(aggregate: Aggregate): Aggregate = {
+    val exprSet = new mutable.HashMap[Expression, NamedExpression]
+    val newGroupings = aggregate.groupingExpressions.map(pushdownExpr(_, exprSet))
+    val newAggExprs = aggregate.aggregateExpressions.map(_.transformUp {
+      case aggregateExpression: AggregateExpression =>
+        val newAggFunc = aggregateExpression.aggregateFunction
+          .mapChildren(pushdownExpr(_, exprSet)).asInstanceOf[AggregateFunction]
+        val newFilter = aggregateExpression.filter
+          .map(pushdownExpr(_, exprSet))
+        aggregateExpression.copy(aggregateFunction = newAggFunc, filter = newFilter)
+    }.asInstanceOf[NamedExpression])
+    if (exprSet.isEmpty) {
+      aggregate
+    } else {
+      val withProj = Project(aggregate.child.output ++ exprSet.values, aggregate.child)
+      val newAgg = aggregate.copy(newGroupings, newAggExprs, withProj)
+      newAgg
     }
   }
 
