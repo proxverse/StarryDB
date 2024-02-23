@@ -28,6 +28,7 @@ import org.apache.spark.sql.catalyst.rules.{PlanChangeLogger, Rule}
 import org.apache.spark.sql.execution.StarryConf.isStarryEnabled
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.columnar.extension.plan._
+import org.apache.spark.sql.execution.columnar.extension.rule.SingleAggregateRule
 import org.apache.spark.sql.execution.columnar.jni.NativeQueryContext
 import org.apache.spark.sql.execution.exchange.Exchange
 import org.apache.spark.sql.execution.{
@@ -73,6 +74,7 @@ case class PreRuleReplaceRowToColumnar(session: SparkSession)
     List(
       (spark: SparkSession) =>
         org.apache.spark.sql.execution.columnar.extension.rule.ConvertParquetFileFormat(spark),
+      (_: SparkSession) => SingleAggregateRule(),
       (_: SparkSession) => ColumnarRewriteRule(),
       (_: SparkSession) => ColumnarTransformRule()
 
