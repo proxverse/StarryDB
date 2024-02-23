@@ -51,7 +51,9 @@ class ColumnarExecutionRDD(
     var rdds: Array[RDD[ColumnarBatch]],
     outputAttributes: Seq[Attribute],
     nodeMetrics: Map[String, (String, Map[String, SQLMetric])],
-    sparkConf: SparkConf)
+    useTableCacheMemoryPool: Boolean,
+    confMap: Map[String, String],
+    columnarStageId: Long)
     extends RDD[ColumnarBatch](sc, rdds.map(x => new OneToOneDependency(x))) {
 
   @transient
@@ -62,14 +64,24 @@ class ColumnarExecutionRDD(
     val inputIterators: Seq[Iterator[ColumnarBatch]] = (rdds zip partitions).map {
       case (rdd, partition) => rdd.iterator(partition, context)
     }
-    val beforeBuild = System.nanoTime()
-    val execution = new NativeColumnarExecution(outputAttributes.toList.asJava)
+    val execution = if (useTableCacheMemoryPool) {
+      new NativeColumnarExecution(outputAttributes.toList.asJava, "table_cache")
+    } else {
+      new NativeColumnarExecution(
+        outputAttributes.toList.asJava,
+        s"${TaskContext.get().stageId()}_${TaskContext.getPartitionId()}" +
+          s"_${TaskContext.get().taskAttemptId()}")
+    }
     val columnarNativeIterator =
       inputIterators.map { iter =>
         new ColumnarBatchInIterator(iter.asJava)
       }.toArray
-    val str = Serialization.write(sparkConf.getAllWithPrefix("spark.sql.columnar").toMap)
-    execution.init(planJson, nodeIds, columnarNativeIterator, str)
+
+    val finalMap = confMap ++ Map(
+      "task_id" -> s"${columnarStageId}_${TaskContext.get().taskAttemptId()}")
+    val confStr = Serialization.write(finalMap)
+
+    execution.init(planJson, nodeIds, columnarNativeIterator, confStr)
 
     TaskContext.get().addTaskCompletionListener[Unit] { t =>
       val metrics = parse(execution.getMetrics)
@@ -132,7 +144,8 @@ object MetricsUpdater {
             tp._2.add(
               pattern
                 .findFirstMatchIn(nodeStatus.apply("cpuWallTiming").toString)
-                .map(_.group(1)).get
+                .map(_.group(1))
+                .get
                 .toLong / 1000000)
           case "numInputRows" => tp._2.add(nodeStatus.apply("inputRows").toString.toLong)
           case "numOutputRows" => tp._2.add(nodeStatus.apply("outputRows").toString.toLong)

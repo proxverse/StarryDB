@@ -169,7 +169,7 @@ public class VeloxColumnarBatch extends ColumnarBatch {
     return isClosed;
   }
 
-  public NativeColumnarBatch nativeObje() {
+  public NativeColumnarBatch nativeObject() {
     return nativeColumnarBatch;
   }
 

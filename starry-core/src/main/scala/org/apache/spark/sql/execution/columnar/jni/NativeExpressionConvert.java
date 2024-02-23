@@ -19,7 +19,7 @@ public class NativeExpressionConvert {
 
 
   public static VeloxColumnarBatch evalWithBatch(long expr, VeloxColumnarBatch batch, StructType structType) {
-    NativeColumnVector rootVector = new NativeColumnVector(nativeEvalWithBatch(expr, batch.nativeObje()));
+    NativeColumnVector rootVector = new NativeColumnVector(nativeEvalWithBatch(expr, batch.nativeObject()));
     return VeloxColumnarBatch.createFromRowVector(rootVector, structType);
   }
 
