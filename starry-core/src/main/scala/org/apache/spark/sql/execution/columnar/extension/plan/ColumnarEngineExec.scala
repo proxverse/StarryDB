@@ -37,8 +37,7 @@ object ColumnarEngineExec {
   val transformStageCounter = new AtomicInteger(0)
 }
 case class ColumnarEngineExec(child: SparkPlan)(
-    val columnarStageId: Int,
-    val hasMemoryRelation: Boolean = false)
+    val columnarStageId: Int)
     extends SparkPlan
     with ColumnarToRowTransition {
 
@@ -115,13 +114,12 @@ case class ColumnarEngineExec(child: SparkPlan)(
       partitions.columnarInputRDDs.map(_._2).toArray,
       child.output,
       nodeMetrics.asScala.toMap,
-      hasMemoryRelation,
       map1,
       columnarStageId)
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): ColumnarEngineExec =
-    copy(child = newChild)(columnarStageId, hasMemoryRelation)
+    copy(child = newChild)(columnarStageId)
 
   override def doExecuteBroadcast[T](): broadcast.Broadcast[T] = {
     children.head.executeBroadcast()

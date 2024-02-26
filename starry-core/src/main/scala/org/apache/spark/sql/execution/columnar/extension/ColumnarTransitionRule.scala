@@ -165,10 +165,6 @@ case class PreRuleReplaceRowToColumnar(session: SparkSession)
 case class VeloxColumnarPostRule() extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = {
 
-    val hasInmemoryScan = plan.collect {
-      case p: InMemoryTableScanExec if !p.relation.cacheBuilder.isCachedColumnBuffersLoaded => p
-    }.size >= 0
-
     val after = plan transformDown {
       case rc: ColumnarSupport
           if !rc.isInstanceOf[ColumnarInputAdapter] && rc
@@ -185,8 +181,7 @@ case class VeloxColumnarPostRule() extends Rule[SparkPlan] {
       case rc: ColumnarToRowExec if isStarryEnabled && rc.child.isInstanceOf[ColumnarSupport] =>
         new VeloxColumnarToRowExec(
           new ColumnarEngineExec(rc.child)(
-            ColumnarEngineExec.transformStageCounter.incrementAndGet(),
-            hasInmemoryScan))
+            ColumnarEngineExec.transformStageCounter.incrementAndGet()))
       case rc: ColumnarToRowExec if isStarryEnabled && !rc.child.isInstanceOf[ColumnarSupport] =>
         new VeloxColumnarToRowExec(rc.child)
       case rc: RowToColumnarExec =>
@@ -195,8 +190,7 @@ case class VeloxColumnarPostRule() extends Rule[SparkPlan] {
         ColumnarBroadcastExchangeExec(
           mode,
           ColumnarEngineExec(child)(
-            ColumnarEngineExec.transformStageCounter.incrementAndGet(),
-            hasInmemoryScan))
+            ColumnarEngineExec.transformStageCounter.incrementAndGet()))
       case plan => plan
     }
     after

@@ -17,4 +17,20 @@ class PlanSuite extends ColumnarSharedSparkSession with ParquetTest {
         .collect()
     }
   }
+
+  test("test columnar cache") {
+    readParquetFile(testFile("test-data/memory_leak_test.parquet")) { df =>
+      val rows = df.filter("caseid = 'ABC-20221130-33888'").cache.count
+      println(rows)
+    }
+  }
+  test("test columnar cache") {
+    readParquetFile(testFile("test-data/memory_leak_test.parquet")) { df =>
+      val rows = df
+        .filter("caseid = 'ABC-20221130-33888'")
+        .cache
+        .collect()
+      println(rows)
+    }
+  }
 }
