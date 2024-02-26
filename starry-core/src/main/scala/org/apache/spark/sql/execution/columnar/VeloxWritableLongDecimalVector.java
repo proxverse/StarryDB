@@ -1,9 +1,11 @@
 package org.apache.spark.sql.execution.columnar;
 
+import com.google.common.base.Preconditions;
 import org.apache.spark.sql.execution.columnar.jni.NativeColumnVector;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.Decimal;
 import org.apache.spark.unsafe.Platform;
+import scala.Array;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -29,22 +31,52 @@ public class VeloxWritableLongDecimalVector extends VeloxWritableColumnVector {
     super(nativeColumnVector, dataType);
   }
 
+  private byte[] padBytesArrayToUint128(byte[] bytes) {
+    Preconditions.checkArgument(bytes.length <= 16, "bytes length exceeded 16");
+    if (bytes.length == 16) {
+      return bytes;
+    }
+    byte[] growTo = new byte[16];
+    Array.copy(bytes, 0, growTo, 16 - bytes.length, bytes.length);
+    return growTo;
+  }
+
+  private void alignByteOrder(byte[] array) {
+    if (!bigEndianPlatform) {
+      byte tmp;
+      for(int i = 0, j = 15; i < j; i++, j--) {
+        tmp = array[i];
+        array[i] = array[j];
+        array[j] = tmp;
+      }
+    }
+  }
+
   @Override
   public void putDecimal(int rowId, Decimal value, int precision) {
     reserve(elementsAppended + 1);
     elementsAppended++;
-    BigInteger bigInteger = value.toJavaBigDecimal().unscaledValue();
+    BigInteger unscaled = value.toJavaBigDecimal().unscaledValue();
 
-    BigInteger[] parts = bigInteger.divideAndRemainder(BigInteger.ONE.shiftLeft(64));
-    long high = parts[0].longValue();
-    long low = parts[1].longValue();
-    if (bigEndianPlatform) {
-      Platform.putLong(null, dataAddress + 16L * rowId, high);
-      Platform.putLong(null, dataAddress + 16L * rowId + 8, low);
+    byte[] bytes;
+    if (unscaled.signum() < 0) {
+      BigInteger positive = unscaled.negate();
+      bytes = padBytesArrayToUint128(positive.toByteArray());
+      for (int i = 0; i < bytes.length; i++) {
+        bytes[i] = (byte) ~bytes[i];
+      }
+      for (int i = bytes.length - 1, carry = 1; i >= 0 && carry == 1; i--) {
+        int sum = (bytes[i] & 0xFF) + carry;
+        bytes[i] = (byte) sum;
+        carry = sum >> 8;
+      }
     } else {
-      Platform.putLong(null, dataAddress + 16L * rowId, low);
-      Platform.putLong(null, dataAddress + 16L * rowId + 8, high);
+      bytes = padBytesArrayToUint128(unscaled.toByteArray());
     }
+
+    alignByteOrder(bytes);
+    Platform.copyMemory(
+            bytes, Platform.BYTE_ARRAY_OFFSET, null, dataAddress + 16L * rowId, 16);
   }
 
   @Override
@@ -57,15 +89,8 @@ public class VeloxWritableLongDecimalVector extends VeloxWritableColumnVector {
     }
     byte[] array = new byte[16];
     Platform.copyMemory(null, dataAddress + 16L * rowId, array, Platform.BYTE_ARRAY_OFFSET, 16);
+    alignByteOrder(array);
 
-    if (!bigEndianPlatform) {
-      byte tmp;
-      for(int i = 0, j = 15; i < j; i++, j--) {
-        tmp = array[i];
-        array[i] = array[j];
-        array[j] = tmp;
-      }
-    }
     BigDecimal javaDecimal = new BigDecimal(new BigInteger(array), scale);
     return Decimal.apply(javaDecimal, precision, scale);
   }
