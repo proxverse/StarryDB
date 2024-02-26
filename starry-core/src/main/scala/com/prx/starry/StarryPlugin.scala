@@ -45,7 +45,7 @@ object LibLoader {
     if (isLoader) {
       return
     }
-    NativeLibUtil.loadLibrary("libvelox.dylib")
+    NativeLibUtil.loadLibrary("libstarry.dylib")
     isLoader = true
   }
 }
