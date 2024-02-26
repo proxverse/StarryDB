@@ -73,10 +73,10 @@ class CachedVeloxBatchSerializer extends CachedBatchSerializer {
     val structType = StructType.fromAttributes(schema)
 
     input.map { batch =>
-      val cacheBatch = CachedVeloxBatch(
-        VeloxColumnarBatch
-          .createFromRowVector(batch.asInstanceOf[VeloxColumnarBatch].rowVector, structType))
-      batch.close()
+      val veloxColumnarBatch = batch.asInstanceOf[VeloxColumnarBatch]
+      veloxColumnarBatch.setSchema(structType)
+      val cacheBatch = CachedVeloxBatch(veloxColumnarBatch.copy())
+      veloxColumnarBatch.close()
       cacheBatch
     }
 
@@ -107,9 +107,11 @@ class CachedVeloxBatchSerializer extends CachedBatchSerializer {
           structType,
           itr)
         .map { batch =>
-          val cacheBatch = CachedVeloxBatch(VeloxColumnarBatch
-            .createFromRowVector(batch.asInstanceOf[VeloxColumnarBatch].rowVector(), structType))
-          batch.close()
+          // tobe remove, when RowToVeloxColumnarExec can specified memory pool
+          val veloxColumnarBatch = batch.asInstanceOf[VeloxColumnarBatch]
+          veloxColumnarBatch.setSchema(structType)
+          val cacheBatch = CachedVeloxBatch(veloxColumnarBatch.copy())
+          veloxColumnarBatch.close()
           cacheBatch
         }
     }

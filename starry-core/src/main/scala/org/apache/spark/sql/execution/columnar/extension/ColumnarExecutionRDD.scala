@@ -51,7 +51,6 @@ class ColumnarExecutionRDD(
     var rdds: Array[RDD[ColumnarBatch]],
     outputAttributes: Seq[Attribute],
     nodeMetrics: Map[String, (String, Map[String, SQLMetric])],
-    useTableCacheMemoryPool: Boolean,
     confMap: Map[String, String],
     columnarStageId: Long)
     extends RDD[ColumnarBatch](sc, rdds.map(x => new OneToOneDependency(x))) {
@@ -64,14 +63,12 @@ class ColumnarExecutionRDD(
     val inputIterators: Seq[Iterator[ColumnarBatch]] = (rdds zip partitions).map {
       case (rdd, partition) => rdd.iterator(partition, context)
     }
-    val execution = if (useTableCacheMemoryPool) {
-      new NativeColumnarExecution(outputAttributes.toList.asJava, "table_cache")
-    } else {
+    val execution =
       new NativeColumnarExecution(
         outputAttributes.toList.asJava,
         s"${TaskContext.get().stageId()}_${TaskContext.getPartitionId()}" +
           s"_${TaskContext.get().taskAttemptId()}")
-    }
+
     val columnarNativeIterator =
       inputIterators.map { iter =>
         new ColumnarBatchInIterator(iter.asJava)

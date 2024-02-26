@@ -138,4 +138,6 @@ trait ColumnarSupport {
         throw new UnsupportedOperationException("")
     }
   }
+
+  override def toString(): String = s"${super.toString()} node_id = ${nodeID}"
 }
