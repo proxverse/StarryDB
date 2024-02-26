@@ -23,7 +23,7 @@ object StarryConf {
     .buildConf("spark.sql.starry.datasource.asyncReaderEnabled")
     .doc("Use asynce native parquet reader")
     .booleanConf
-    .createWithDefault(false)
+    .createWithDefault(true)
 
   val COLUMNAR_FPRCE_SHUFFLED_HASH_JOIN_ENABLED = SQLConf
     .buildConf("spark.sql.starry.columnar.forceShuffledHashJoin")
