@@ -1,10 +1,9 @@
 package org.apache.spark.sql.execution.columnar.extension.rule
 
-import org.apache.spark.sql.catalyst.expressions.aggregate.{Final, Partial, Complete}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{Complete, Final, Partial}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
-import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 
 case class SingleAggregateRule() extends Rule[SparkPlan] {
 
