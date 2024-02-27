@@ -18,7 +18,7 @@ class PlanSuite extends ColumnarSharedSparkSession with ParquetTest {
     }
   }
 
-  test("test columnar cache") {
+  test("test row cache") {
     readParquetFile(testFile("test-data/memory_leak_test.parquet")) { df =>
       val rows = df.filter("caseid = 'ABC-20221130-33888'").cache.count
       println(rows)
