@@ -10,14 +10,7 @@
   <packaging>pom</packaging>
   <properties>
     <scala.version>2.12.15</scala.version>
-    <nacos.version>2.2.6.RELEASE</nacos.version>
     <java.version>1.8</java.version>
-    <mysql-connector.version>8.0.25</mysql-connector.version>
-    <ngdbc.version>2.8.14</ngdbc.version>
-    <velocity.version>2.1</velocity.version>
-    <mybatis-typehandlers.version>1.0.1</mybatis-typehandlers.version>
-    <caffeine.version>2.8.2</caffeine.version>
-    <nacos.version>2.2.6.RELEASE</nacos.version>
     <spark.version>3.3.1-prx-0.0.1-SNAPSHOT</spark.version>
     <apache.hadoop.version>3.3.4</apache.hadoop.version>
     <apache.log4j.version>2.17.0</apache.log4j.version>
@@ -26,59 +19,23 @@
     <scala.binary.version>2.12</scala.binary.version>
     <janino.version>3.0.16</janino.version>
     <validation.api.vaersion>2.0.1.Final</validation.api.vaersion>
-    <fastjson.version>1.2.83</fastjson.version>
     <commons.lang3.version>3.12.0</commons.lang3.version>
     <commons.collections4.version>4.4</commons.collections4.version>
     <common.fileupload.version>1.3.3</common.fileupload.version>
     <javax.mail.version>1.6.2</javax.mail.version>
-    <httpclient.version>4.5.13</httpclient.version>
     <netty.all.version>4.1.86.Final</netty.all.version>
     <io.netty.version>4.1.86.Final</io.netty.version>
-    <lombok.version>1.18.20</lombok.version>
-    <swagger2.version>2.9.2</swagger2.version>
-    <mybatis.plus.start.version>3.4.3.4</mybatis.plus.start.version>
     <jackson.core.asl.version>1.9.13</jackson.core.asl.version>
-    <pinyin4j.version>2.5.1</pinyin4j.version>
-    <mybatis.plus.generator.version>3.5.1</mybatis.plus.generator.version>
-    <druid.version>1.1.21</druid.version>
-    <hibernate.validator.version>6.2.0.Final</hibernate.validator.version>
     <antlr4.runtime.version>4.8</antlr4.runtime.version>
     <scalatest_2.12.version>3.2.9</scalatest_2.12.version>
-    <camunda.bpmn.model.version>7.17.0</camunda.bpmn.model.version>
-    <bpmn.layout..generator.version>0.1.5-SNAPSHOT</bpmn.layout..generator.version>
-    <swagger.ui.version>1.9.6</swagger.ui.version>
     <delta.core_2.12.version>2.1.0-SNAPSHOT</delta.core_2.12.version>
-    <backends.velox.version>1.2.8-SNAPSHOT</backends.velox.version>
-    <spark.sql.columnar.shims.version>1.2.8-SNAPSHOT</spark.sql.columnar.shims.version>
-    <arrow.memory.unsafe.version>8.0.0</arrow.memory.unsafe.version>
-    <protobuf.version>3.16.3</protobuf.version>
     <junit.jupiter.version>5.6.2</junit.jupiter.version>
-    <oauth2.starter.version>2.2.0.RELEASE</oauth2.starter.version>
-    <spring.webflux.version>5.2.8.RELEASE</spring.webflux.version>
-    <sleuth.version>2.2.6.RELEASE</sleuth.version>
-    <oracle.jdbc.version>19.8.0.0</oracle.jdbc.version>
-    <mysql.jdbc.version>10.2.1.jre8</mysql.jdbc.version>
-    <postgresql.jdbc.version>42.4.2</postgresql.jdbc.version>
-    <db2.jdbc.version>11.5.7.0</db2.jdbc.version>
-    <hive.jdbc.version>2.3.9</hive.jdbc.version>
-    <esdk.obs.java.bundle.version>3.21.8</esdk.obs.java.bundle.version>
-    <cos.api.version>5.6.54</cos.api.version>
-    <mapstruct.version>1.4.1.Final</mapstruct.version>
-    <dom4j.version>1.6.1</dom4j.version>
-    <jython.standalone.version>2.7.0</jython.standalone.version>
-    <dynamic.datasource.version>3.5.0</dynamic.datasource.version>
-    <hutool.version>5.3.2</hutool.version>
-    <!--这里表单上写的是24.1.1，但找不到这个版本-->
-    <guava.version>24.1.1-jre</guava.version>
-    <jersey.2.34.version>2.34</jersey.2.34.version>
-    <jettison.version>1.5.2</jettison.version>
-    <snakeyaml.1.32.version>1.32</snakeyaml.1.32.version>
-    <mockito-scala.version>1.16.3</mockito-scala.version>
-    <cn.dev33.version>1.35.0.RC</cn.dev33.version>
-    <commons-io>2.11.0</commons-io>
     <parquet.test.deps.scope>test</parquet.test.deps.scope>
     <parquet.version>1.12.2</parquet.version>
     <parquet.hadoop.version>1.12.2-prx-SNAPSHOT</parquet.hadoop.version>
+    <!--这里表单上写的是24.1.1，但找不到这个版本-->
+    <mockito-scala.version>1.16.3</mockito-scala.version>
+    <scalatest-maven-plugin.version>2.2.0</scalatest-maven-plugin.version>
   </properties>
 
   <modules>
@@ -403,42 +360,6 @@
         <groupId>org.codehaus.janino</groupId>
         <artifactId>commons-compiler</artifactId>
         <version>${janino.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.glutenproject</groupId>
-        <artifactId>backends-velox</artifactId>
-        <version>${backends.velox.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.glutenproject</groupId>
-        <artifactId>gluten-data</artifactId>
-        <version>${backends.velox.version}</version>
-      </dependency>
-
-
-      <dependency>
-        <groupId>org.apache.arrow</groupId>
-        <artifactId>arrow-memory-unsafe</artifactId>
-        <version>${arrow.memory.unsafe.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.arrow</groupId>
-        <artifactId>arrow-c-data</artifactId>
-        <version>${arrow.memory.unsafe.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.google.protobuf</groupId>
-        <artifactId>protobuf-java</artifactId>
-        <version>${protobuf.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>com.google.protobuf</groupId>
-        <artifactId>protobuf-java-util</artifactId>
-        <version>${protobuf.version}</version>
       </dependency>
 
 
