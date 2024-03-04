@@ -17,6 +17,8 @@
 
 package org.apache.spark.sql.execution.joins
 
+import com.prx.starry.Starry
+
 import scala.reflect.ClassTag
 import org.apache.spark.{AccumulatorSuite, SparkConf}
 import org.apache.spark.sql.{Dataset, QueryTest, Row, SparkSession}
@@ -57,36 +59,7 @@ abstract class BroadcastJoinSuiteBase extends QueryTest with SQLTestUtils
    */
   override def beforeAll(): Unit = {
     super.beforeAll()
-    val conf = new SparkConf()
-    conf.set("spark.sql.parquet.outputTimestampType", "TIMESTAMP_MILLIS")
-    conf.set("spark.sql.adaptive.enabled", "false")
-    conf.set("spark.sql.files.openCostInBytes", "100M")
-    conf.set("spark.plugins", "io.glutenproject.GlutenPlugin")
-    conf.set("spark.gluten.sql.columnar.backend.lib", "velox")
-    conf.set("spark.gluten.sql.columnar.libpath", "/Users/xuyiming/native_engine")
-    conf.set("spark.gluten.sql.columnar.broadcastexchange", "true")
-    conf.set("spark.gluten.sql.columnar.filescan", "false")
-    conf.set("spark.gluten.sql.columnar.broadcastJoin", "true")
-    // conf.set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
-    conf.set("spark.memory.offHeap.enabled", "true")
-    conf.set("spark.sql.columnVector.offheap.enabled", "true")
-    conf.set("spark.memory.offHeap.size", "4G")
-    conf.set("spark.gluten.sql.enable.native.parquetReader", "true")
-    conf.set("spark.sql.parquet.enableNestedColumnVectorizedReader", "true")
-    conf.set("spark.sql.shuffle.partitions", "1")
-    conf.set("spark.sql.testkey", "true")
-    conf.set("spark.gluten.enabled", "false")
-    val _spark = SparkSession
-        .builder()
-        .config(conf)
-        .master("local[2]")
-        .withExtensions(e => e.injectPlannerStrategy(JoinSelectionOverrides))
-        .withExtensions(e =>
-          e.injectColumnar(spark =>
-            ColumnarTransitionRule(PreRuleReplaceRowToColumnar(spark), VeloxColumnarPostRule())))
-        .appName("test-sql-context")
-        .getOrCreate()
-    spark = _spark
+    spark = Starry.starrySession()
   }
 
   override def afterAll(): Unit = {
