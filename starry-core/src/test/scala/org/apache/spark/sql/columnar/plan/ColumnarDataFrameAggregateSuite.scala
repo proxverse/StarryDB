@@ -1,7 +1,8 @@
 package org.apache.spark.sql.columnar.plan
 
 import org.apache.spark.sql.common.ColumnarSharedSparkSession
-import org.apache.spark.sql.functions.{count, count_distinct, sum, sum_distinct}
+import org.apache.spark.sql.functions.{avg, count, count_distinct, lit, sum, sum_distinct}
+import org.apache.spark.sql.test.SQLTestData.DecimalData
 import org.apache.spark.sql.{DataFrameAggregateSuite, Row}
 import org.scalactic.source.Position
 import org.scalatest.Tag
@@ -40,8 +41,7 @@ class ColumnarDataFrameAggregateSuite
 
   test("mulitily count distinct") {
     checkAnswer(
-      testData2.agg(sum($"a"), count_distinct($"a"), count_distinct($"b")),
-      Row(2, 1, 2, 2, 1)
-    )
+      testData2.groupBy($"b").agg($"b", avg($"a")),
+      Seq(Row(3, 4, 6, 7, 9)))
   }
 }

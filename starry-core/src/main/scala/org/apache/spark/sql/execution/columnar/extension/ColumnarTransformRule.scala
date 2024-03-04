@@ -10,7 +10,7 @@ import org.apache.spark.sql.execution.columnar.extension.plan._
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, ShuffledHashJoinExec}
 import org.apache.spark.sql.execution.window.WindowExec
-import org.apache.spark.sql.types.{AtomicType, DecimalType}
+import org.apache.spark.sql.types.AtomicType
 
 case class ColumnarTransformRule() extends Rule[SparkPlan] {
 
@@ -104,6 +104,7 @@ case class ColumnarTransformRule() extends Rule[SparkPlan] {
 
         case (filterExec: ExpandExec, after: ExpandExec) =>
           new ColumnarExpandExec(after.projections, after.output, after.child)
+
 
         case (_: HashAggregateExec, after: HashAggregateExec) if canTransform(after) =>
           ColumnarAggregateExec(after)

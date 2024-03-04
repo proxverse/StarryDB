@@ -100,6 +100,7 @@ object ColumnarAggregateExec {
       hashAggregateExec.aggregateAttributes,
       hashAggregateExec.child)
   }
+
 }
 
 case class ColumnarAggregateExec(

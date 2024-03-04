@@ -18,12 +18,13 @@
 package org.apache.spark.sql.execution.columnar.extension.rule
 
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Average, AverageBase, Count, HyperLogLogPlusPlus, Sum}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, ApproximatePercentile, Average, AverageBase, Count, HyperLogLogPlusPlus, Percentile, Sum}
 import org.apache.spark.sql.catalyst.expressions.{Cast, CreateStruct, Expression, If, IsNull, Literal, Or, SupportQueryContext}
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.StarryConf
 import org.apache.spark.sql.execution.columnar.expressions.HLLAdapter
+import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.types._
 
 case class AggregateFunctionRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
@@ -33,7 +34,21 @@ case class AggregateFunctionRewriteRule(spark: SparkSession) extends Rule[Logica
         case avg @ AggregateExpression(Average(child, _), _, _, _, _)
            if child.dataType.isInstanceOf[DecimalType] =>
           avg.copy(aggregateFunction =
-            NativeAveragePlaceHolder(Cast(child, avg.dataType), avg.dataType))
+            new NativeFunctionPlaceHolder(
+              avg.aggregateFunction,
+              Cast(child, avg.dataType) :: Nil,
+              avg.dataType))
+
+        case agg@AggregateExpression(percentile: ApproximatePercentile, _, _, _, _) =>
+          val accuracy =
+            1.0 / percentile.accuracyExpression.eval().asInstanceOf[Number].longValue
+          agg.copy(aggregateFunction =
+            new NativeFunctionPlaceHolder(
+              percentile,
+              percentile.children.take(2) ++ Seq(lit(accuracy).expr),
+              percentile.dataType,
+              "approx_percentile"))
+
         case hllExpr @ AggregateExpression(hll: HyperLogLogPlusPlus, _, _, _, _)
             if StarryConf.isStarryEnabled &&
               !hasDistinctAggregateFunc(a) && isDataTypeSupported(hll.child.dataType) =>
@@ -108,28 +123,4 @@ case class AggregateFunctionRewriteRule(spark: SparkSession) extends Rule[Logica
 }
 
 
-/**
- * average placehodler for average decimal
- * @param child
- * @param fixedDataType
- */
-case class NativeAveragePlaceHolder(child: Expression, fixedDataType: DataType)
-  extends AverageBase with SupportQueryContext {
 
-  override def dataType: DataType = fixedDataType
-  override def useAnsiAdd: Boolean = true
-  override protected def withNewChildInternal(newChild: Expression): NativeAveragePlaceHolder =
-    copy(child = newChild)
-
-  override lazy val updateExpressions: Seq[Expression] = getUpdateExpressions
-
-  override lazy val mergeExpressions: Seq[Expression] = getMergeExpressions
-
-  override lazy val evaluateExpression: Expression = getEvaluateExpression(queryContext)
-  override def initQueryContext(): String = if (useAnsiAdd) {
-    origin.context
-  } else {
-    ""
-  }
-
-}

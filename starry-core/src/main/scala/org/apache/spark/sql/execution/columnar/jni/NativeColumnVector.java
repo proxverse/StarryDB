@@ -60,6 +60,8 @@ public class NativeColumnVector extends NativeClass {
 
   private native long nativeValueVector();
 
+  private native long nativeDictVector();
+
   private native long nativeDictionaryIdVector();
 
   private native String nativeEncoding();
@@ -119,6 +121,10 @@ public class NativeColumnVector extends NativeClass {
 
   public NativeColumnVector valueVector() {
     return new NativeColumnVector(nativeValueVector());
+  }
+
+  public NativeColumnVector dictVector() {
+    return new NativeColumnVector(nativeDictVector());
   }
 
   public NativeColumnVector dictIdVector() {

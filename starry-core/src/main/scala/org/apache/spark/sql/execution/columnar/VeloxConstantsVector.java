@@ -58,13 +58,16 @@ public class VeloxConstantsVector extends VeloxWritableColumnVector {
 
   VeloxWritableColumnVector complexTypeVector;
 
+  NativeColumnVector nativeColumnVector;
+
   long dataAddress;
 
   protected VeloxConstantsVector(NativeColumnVector nativeColumnVector, DataType type) {
     super(nativeColumnVector.capacity(), type);
+    this.nativeColumnVector = nativeColumnVector;
     isNull = nativeColumnVector.mayHasNulls();
     if (type instanceof ArrayType || type instanceof MapType || type instanceof StructType) {
-      complexTypeVector = VeloxWritableColumnVector.bindVector(nativeColumnVector, type);
+      complexTypeVector = VeloxWritableColumnVector.bindVector(nativeColumnVector.valueVector(), type);
     } else {
       dataAddress = nativeColumnVector.dataAddress(NativeColumnVector.DataTypeEnum.CONSTANTS);
       if (type instanceof StringType || type instanceof BinaryType) {
@@ -120,6 +123,7 @@ public class VeloxConstantsVector extends VeloxWritableColumnVector {
       if (complexTypeVector != null) {
         complexTypeVector.close();
       }
+      nativeColumnVector.close();
       super.close();
     }
   }
@@ -237,6 +241,11 @@ public class VeloxConstantsVector extends VeloxWritableColumnVector {
   @Override
   public int getArrayOffset(int rowId) {
     return complexTypeVector.getArrayOffset(0);
+  }
+
+  @Override
+  public WritableColumnVector arrayData() {
+    return complexTypeVector.getChild(0);
   }
 
   /**

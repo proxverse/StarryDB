@@ -39,15 +39,6 @@ import org.apache.spark.sql.execution.{
   SparkPlan
 }
 
-class ColumnarExtensions extends (SparkSessionExtensions => Unit) {
-  def apply(e: SparkSessionExtensions): Unit = {
-    e.injectColumnar(spark =>
-      ColumnarTransitionRule(PreRuleReplaceRowToColumnar(spark), VeloxColumnarPostRule()))
-//    e.injectPlannerStrategy(spark => AggregateSelectionStrategy)
-  }
-
-}
-
 case class ColumnarTransitionRule(pre: Rule[SparkPlan], post: Rule[SparkPlan])
     extends ColumnarRule {
 
@@ -121,29 +112,6 @@ case class PreRuleReplaceRowToColumnar(session: SparkSession)
     logInfo(s"preColumnarTransitions afterOverriden plan:\n${overridden.toString}")
     logInfo(s"preTransform SparkPlan took: ${(System.nanoTime() - startTime) / 1000000.0} ms.")
     overridden
-  }
-
-  def needsPreProjection(
-      groupingExpressions: Seq[NamedExpression],
-      aggregateExpressions: Seq[AggregateExpression]): Boolean = {
-    for (expr <- groupingExpressions) {
-      if (!expr.isInstanceOf[Attribute]) {
-        return true
-      }
-    }
-    for (expr <- aggregateExpressions) {
-      expr.mode match {
-        case Partial | PartialMerge =>
-          for (aggChild <- expr.aggregateFunction.children) {
-            if (!aggChild.isInstanceOf[Attribute] && !aggChild.isInstanceOf[Literal]) {
-              return true
-            }
-          }
-        // Do not need to consider pre-projection for Final Agg.
-        case _ =>
-      }
-    }
-    false
   }
 
   override def apply(plan: SparkPlan): SparkPlan =

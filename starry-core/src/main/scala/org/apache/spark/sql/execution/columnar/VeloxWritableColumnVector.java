@@ -169,7 +169,7 @@ public class VeloxWritableColumnVector extends WritableColumnVector {
       this.childColumns = null;
     }
     if ("DICTIONARY".equals(nativeColumnVector.encoding())) {
-      dictionaryVector = bindVector(nativeColumnVector.valueVector(), dataType());
+      dictionaryVector = bindVector(nativeColumnVector.dictVector(), dataType());
       dictionaryIds = bindVector(nativeColumnVector.dictIdVector(), DataTypes.IntegerType);
       hasNull = nativeColumnVector.mayHasNulls();
       if (hasNull) {

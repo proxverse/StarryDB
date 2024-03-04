@@ -272,6 +272,7 @@ case class ColumnarRewriteRule() extends Rule[SparkPlan] {
     }
   }
 
+  // TODO remove this
   private def applyPreProjectToAgg(aggExec: HashAggregateExec): HashAggregateExec = {
     val merelyReference = (expr: Expression) => expr.isInstanceOf[AttributeReference]
     // no need for extra projection
@@ -284,8 +285,7 @@ case class ColumnarRewriteRule() extends Rule[SparkPlan] {
     val (newExprs, preProject) = extractToProject(
       ColumnarSupport.AGG_PROJECT_AGG_PREFIX,
       aggExec.groupingExpressions ++ aggExec.aggregateExpressions,
-      aggExec.child,
-      true)
+      aggExec.child)
     val (newAggExprs, newGroupings) = newExprs.partition(_.isInstanceOf[AggregateExpression])
     aggExec.copy(
       groupingExpressions = newGroupings.map(_.asInstanceOf[NamedExpression]),
