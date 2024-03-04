@@ -5,8 +5,16 @@ import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext,
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.optimizer.CollapseProject
-import org.apache.spark.sql.execution.columnar.extension.rule.{AggregateFunctionRewriteRule, PreProjectRewriteRule}
-import org.apache.spark.sql.execution.columnar.extension.{ColumnarTransitionRule, JoinSelectionOverrides, PreRuleReplaceRowToColumnar, VeloxColumnarPostRule}
+import org.apache.spark.sql.execution.columnar.extension.rule.{
+  AggregateFunctionRewriteRule,
+  PreProjectRewriteRule
+}
+import org.apache.spark.sql.execution.columnar.extension.{
+  ColumnarTransitionRule,
+  JoinSelectionOverrides,
+  PreRuleReplaceRowToColumnar,
+  VeloxColumnarPostRule
+}
 import org.apache.spark.sql.execution.columnar.extension.utils.NativeLibUtil
 
 import java.util
@@ -46,7 +54,12 @@ object LibLoader {
     if (isLoader) {
       return
     }
-    NativeLibUtil.loadLibrary("libstarry.dylib")
+    try {
+      NativeLibUtil.loadLibrary("libstarry.dylib")
+    } catch {
+      case runtimeException: RuntimeException =>
+        NativeLibUtil.loadLibrary("libstarry.so")
+    }
     isLoader = true
   }
 }
