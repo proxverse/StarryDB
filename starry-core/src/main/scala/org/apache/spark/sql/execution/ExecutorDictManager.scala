@@ -66,13 +66,11 @@ object ExecutorDictManager extends Logging {
     })
 
   private def eval(dict: ExecutionDict) = {
-    var exprHandle = 0L
     try {
       val start = System.currentTimeMillis()
       val batch = dictCache.get((dict.dict, dict.numBlocks))
-      exprHandle = NativeExpressionConvert.nativeDeserializeExpr(dict.nativeExpression)
       val schema = StructType(Seq(StructField("dict", dict.dataType)))
-      val result = NativeExpressionConvert.evalWithBatch(exprHandle, batch, schema)
+      val result = NativeExpressionConvert.evalWithBatch(dict.nativeExpression, batch, schema)
       log.info(
         s"create dict vector take time ${System.currentTimeMillis() - start}," +
           s" total bytes${totalBytes.addAndGet(-1)}")
@@ -81,8 +79,6 @@ object ExecutorDictManager extends Logging {
       case e: Throwable =>
         e.printStackTrace()
         null
-    } finally {
-      NativeExpressionConvert.nativeReleaseHandle(exprHandle)
     }
   }
 

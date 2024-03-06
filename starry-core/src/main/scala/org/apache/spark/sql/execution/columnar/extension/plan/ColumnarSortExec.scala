@@ -17,11 +17,10 @@
 package org.apache.spark.sql.execution.columnar.extension.plan
 
 import org.apache.spark.sql.catalyst.expressions.SortOrder
-import org.apache.spark.sql.execution.{SortExec, SparkPlan}
-import org.apache.spark.sql.execution.columnar.expressions.ExpressionConvert
 import org.apache.spark.sql.execution.columnar.jni.NativePlanBuilder
 import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.metric.SQLMetrics
+import org.apache.spark.sql.execution.{SortExec, SparkPlan}
 
 class ColumnarSortExec(
     sortOrder: Seq[SortOrder],
@@ -61,9 +60,7 @@ class ColumnarSortExec(
   }
 
   override def makePlanInternal(operations: NativePlanBuilder): Unit = {
-    val fieldAccessJSon = sortOrder.map(_.child).map { e =>
-      ExpressionConvert.convertToNativeJson(e, true)
-    }
+    val fieldAccessJSon = sortOrder.map(_.child).map(toNativeExpressionJson)
     operations.sort(fieldAccessJSon.toArray, sortOrder.toArray, false)
 
   }

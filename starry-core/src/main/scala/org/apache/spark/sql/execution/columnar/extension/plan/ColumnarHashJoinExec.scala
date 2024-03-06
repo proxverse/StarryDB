@@ -1,17 +1,17 @@
 package org.apache.spark.sql.execution.columnar.extension.plan
 
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression, NamedExpression}
-import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
-import org.apache.spark.sql.execution.columnar.expressions.{ExpressionConvert, NativeExpression}
+import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.columnar.expressions.ExpressionConvert
 import org.apache.spark.sql.execution.columnar.jni.NativePlanBuilder
-import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.joins.ShuffledHashJoinExec
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.vectorized.ColumnarBatch
 
 class ColumnarHashJoinExec(
     leftKeys: Seq[Expression],
@@ -107,14 +107,10 @@ class ColumnarHashJoinExec(
       case other =>
         throw new UnsupportedOperationException()
     }
-    val buildKeysHandle = buildKeys
-      .map(e => toNativeExpression(e).handle)
-      .toArray
-    val streamKeysHandle = streamedKeys
-      .map(e => toNativeExpression(e).handle)
-      .toArray
-    val conditionHandle = if (condition.isEmpty) { 0 } else {
-      toNativeExpression(condition.get).handle
+    val buildKeysHandle = buildKeys.map(toNativeExpressionJson).toArray
+    val streamKeysHandle = streamedKeys.map(toNativeExpressionJson).toArray
+    val conditionHandle = if (condition.isEmpty) { null } else {
+      toNativeExpressionJson(condition.get)
     }
 
     operations.join(

@@ -1,24 +1,17 @@
 package org.apache.spark.sql.execution.columnar.extension.plan
 
-import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
-import org.apache.spark.sql.execution.columnar.expressions.convert.{
-  AggregateExpressionConvertMapping,
-  PQLExpressionMappings
-}
-import org.apache.spark.sql.execution.columnar.expressions.{
-  ExpressionConvert,
-  ExpressionMappings,
-  NativeExpression
-}
-import org.apache.spark.sql.execution.columnar.extension.plan.ColumnarWindowExec.toNativeFrame
-import org.apache.spark.sql.execution.columnar.jni.{NativeExpressionConvert, NativePlanBuilder}
+import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.columnar.expressions.ExpressionConvert
+import org.apache.spark.sql.execution.columnar.expressions.convert.{AggregateExpressionConvertMapping, PQLExpressionMappings}
 import org.apache.spark.sql.execution.columnar.extension.plan.BoundType.{Following, Preceding}
-import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.sql.execution.columnar.extension.plan.ColumnarWindowExec.toNativeFrame
+import org.apache.spark.sql.execution.columnar.jni.NativePlanBuilder
 import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.window.WindowExec
+import org.apache.spark.sql.vectorized.ColumnarBatch
 
 class ColumnarWindowExec(
     windowExpression: Seq[NamedExpression],
@@ -103,7 +96,7 @@ class ColumnarWindowExec(
               operations.buildAggregateFunction(
                 withNewAggName(functionName),
                 aggExpression.aggregateFunction.children
-                  .map(ExpressionConvert.convertToNativeJson(_, true))
+                  .map(toNativeExpressionJson)
                   .toArray,
                 false,
                 aggExpression.aggregateFunction.dataType.catalogString)
@@ -116,15 +109,13 @@ class ColumnarWindowExec(
         case wf @ (RowNumber() | Rank(_) | DenseRank(_) | CumeDist() | PercentRank(_)) =>
           val frame = wExpression.windowSpec.frameSpecification.asInstanceOf[SpecifiedWindowFrame]
           val frameJson = toNativeFrame(operations, frame)
-          val expression = ExpressionConvert
-            .convertToNativeJson(wf, true)
+          val expression = toNativeExpressionJson(wf)
           operations.windowFunction(expression, frameJson, false)
         case wf @ (Lead(_, _, _, _) | Lag(_, _, _, _)) =>
           val offset_wf = wf.asInstanceOf[FrameLessOffsetWindowFunction]
           val frame = offset_wf.frame.asInstanceOf[SpecifiedWindowFrame]
           val frameJson = toNativeFrame(operations, frame)
-          val expression = ExpressionConvert
-            .convertToNativeJson(wf, true)
+          val expression = toNativeExpressionJson(wf)
           wf match {
             case lead: Lead =>
               operations.windowFunction(expression, frameJson, lead.ignoreNulls)
@@ -136,8 +127,7 @@ class ColumnarWindowExec(
         case wf: NthValue =>
           val frame = wExpression.windowSpec.frameSpecification.asInstanceOf[SpecifiedWindowFrame]
           val frameJson = toNativeFrame(operations, frame)
-          val expression = ExpressionConvert
-            .convertToNativeJson(wf, true)
+          val expression = toNativeExpressionJson(wf)
           operations.windowFunction(expression, frameJson, wf.ignoreNulls)
         case _ =>
           throw new UnsupportedOperationException(
@@ -146,21 +136,12 @@ class ColumnarWindowExec(
       }
     }.toArray
 
-    val expressions1 = partitionSpec
-      .map(ExpressionConvert.convertToNative(_, true).asInstanceOf[NativeExpression])
-    val partitionsKeys =
-      expressions1.map(t => NativeExpressionConvert.nativeSerializeExpr(t.handle)).toArray
-    expressions1.foreach(t => NativeExpressionConvert.nativeReleaseHandle(t.handle))
-    val expressions2 = orderSpec
-      .map(_.child)
-      .map(ExpressionConvert.convertToNative(_, true).asInstanceOf[NativeExpression])
-    val orderKeys =
-      expressions2.map(t => NativeExpressionConvert.nativeSerializeExpr(t.handle)).toArray
+    val partitionsKeys = partitionSpec.map(toNativeExpressionJson).toArray
+    val orderKeys = orderSpec.map(_.child).map(toNativeExpressionJson).toArray
     val windowColumnNames = windowExpression
       .map(_.toAttribute)
       .map(e => ExpressionConvert.toNativeAttrIdName(e))
       .toArray
-    expressions2.foreach(t => NativeExpressionConvert.nativeReleaseHandle(t.handle))
     operations.window(
       partitionsKeys,
       orderKeys,
@@ -245,22 +226,6 @@ object ColumnarWindowExec {
 
   }
 
-  def windowFunction(expression: Expression): String = expression match {
-    case wf @ (RowNumber() | Rank(_) | DenseRank(_) | CumeDist() | PercentRank(_)) =>
-      val substraitFunc = ExpressionMappings.expressionsMap.get(wf.getClass)
-      if (substraitFunc.isEmpty) {
-        throw new UnsupportedOperationException(
-          s"not currently supported: ${wf.getClass.getName}.")
-      }
-      ""
-    case wf @ (Lead(_, _, _, _) | Lag(_, _, _, _)) =>
-      val expression1 = ExpressionConvert
-        .convertToNative(wf, true)
-        .asInstanceOf[NativeExpression]
-      val str = NativeExpressionConvert.nativeSerializeExpr(expression1.handle)
-      NativeExpressionConvert.nativeReleaseHandle(expression1.handle)
-      str
-  }
   private def toNativeFrame(
       operations: NativePlanBuilder,
       frame: SpecifiedWindowFrame): String = {

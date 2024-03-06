@@ -1,12 +1,12 @@
 package org.apache.spark.sql.execution.columnar.extension.plan
 
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
-import org.apache.spark.sql.execution.{ExpandExec, FilterExec, SparkPlan}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.execution.columnar.expressions.{ExpressionConvert, NativeExpression}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
+import org.apache.spark.sql.execution.columnar.expressions.ExpressionConvert
 import org.apache.spark.sql.execution.columnar.jni.NativePlanBuilder
-import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.sql.execution.datasources.FilePartition
+import org.apache.spark.sql.execution.{ExpandExec, SparkPlan}
+import org.apache.spark.sql.vectorized.ColumnarBatch
 
 class ColumnarExpandExec(
     projections: Seq[Seq[Expression]],
@@ -49,10 +49,7 @@ class ColumnarExpandExec(
       projections
         .map(
           _.map(
-            ExpressionConvert
-              .convertToNative(_, true)
-              .asInstanceOf[NativeExpression]
-              .handle).toArray)
+            toNativeExpressionJson).toArray)
         .toArray
     operations.expand(projects, output.map(ExpressionConvert.toNativeAttrIdName).toArray)
   }

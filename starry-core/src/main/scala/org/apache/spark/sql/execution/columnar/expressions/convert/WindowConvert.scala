@@ -1,11 +1,7 @@
 package org.apache.spark.sql.execution.columnar.expressions.convert
 
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.execution.columnar.expressions.{
-  ExpressionNamingProcess,
-  NativeExpression
-}
-import org.apache.spark.sql.execution.columnar.jni.NativeExpressionConvert
+import org.apache.spark.sql.execution.columnar.expressions.ExpressionNamingProcess
 import org.apache.spark.sql.types.{LongType, NullType}
 
 object WindowConvert extends ExpressionConvertTrait {
@@ -50,13 +46,12 @@ object WindowConvert extends ExpressionConvertTrait {
         Seq.empty
       case ohter => expression.children
     }
-    NativeExpression(
-      NativeExpressionConvert
-        .nativeCreateCallTypedExprHanlde(
-          functionName,
-          expression.dataType.catalogString,
-          children.map(_.asInstanceOf[NativeExpression].handle).toArray),
-      expression)
+    convertToNativeCall(
+      functionName,
+      expression.dataType,
+      children,
+      expression
+    )
   }
 
   override def lookupFunctionName(expression: Expression): Option[String] = expression match {

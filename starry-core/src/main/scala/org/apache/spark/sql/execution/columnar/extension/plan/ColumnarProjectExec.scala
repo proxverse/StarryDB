@@ -44,8 +44,8 @@ class ColumnarProjectExec(project: Seq[NamedExpression], child: SparkPlan)
   override def makePlanInternal(operations: NativePlanBuilder): Unit = {
     val alias = output.map(ExpressionConvert.toNativeAttrIdName).toArray
     val newProject =
-      projectList.map(e => toNativeExpression(e))
-    operations.project(alias, newProject.map(_.handle).toArray)
+      projectList.map(toNativeExpressionJson)
+    operations.project(alias, newProject.toArray)
 
   }
 

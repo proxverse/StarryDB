@@ -108,14 +108,10 @@ class ColumnarBroadcastHashJoinExec(
       case other =>
         throw new UnsupportedOperationException()
     }
-    val buildKeysHandle = buildKeys
-        .map(e => toNativeExpression(e).handle)
-        .toArray
-    val streamKeysHandle = streamedKeys
-        .map(e => toNativeExpression(e).handle)
-        .toArray
-    val conditionHandle = if (condition.isEmpty) { 0 } else {
-      toNativeExpression(condition.get).handle
+    val buildKeysHandle = buildKeys.map(toNativeExpressionJson).toArray
+    val streamKeysHandle = streamedKeys.map(toNativeExpressionJson).toArray
+    val conditionHandle = if (condition.isEmpty) { null } else {
+      toNativeExpressionJson(condition.get)
     }
     operations.join(
       toVeloxJoinType(joinType, buildSide),

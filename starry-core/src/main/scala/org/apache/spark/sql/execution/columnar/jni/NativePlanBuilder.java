@@ -13,27 +13,27 @@ public class NativePlanBuilder extends NativeClass {
 
   private native void nativeJavaScan(String schema);
 
-  private native void nativeFilter(long condition);
+  private native void nativeFilter(String condition);
 
-  private native void nativeProject(String[] alias, long[] exprs);
+  private native void nativeProject(String[] alias, String[] exprs);
 
 
   private native void nativeShuffledHashJoin(String joinType,
                                              boolean nullAware,
-                                             long[] leftKeys,
-                                             long[] rightKeys,
-                                             long filter,
+                                             String[] leftKeys,
+                                             String[] rightKeys,
+                                             String filter,
                                              String rightPlan,
                                              String output);
 
 
   private native void nativeAggregation(String step,
-                                        long[] group,
+                                        String[] group,
                                         String[] aggNames,
                                         String[] agg,
                                         boolean ignoreNullKey);
 
-  private native void nativeExpand(long[][] projects,
+  private native void nativeExpand(String[][] projects,
                                    String[] alias);
 
 
@@ -48,7 +48,7 @@ public class NativePlanBuilder extends NativeClass {
                                              boolean useMergeFunc);
 
   private native String nativeResolveAggType(String functionName,
-                                             long[] argsType,
+                                             String[] argsType,
                                              String step);
 
   private native String nativeAggregationFunction(String functionName,
@@ -100,19 +100,17 @@ public class NativePlanBuilder extends NativeClass {
 
 
   // for native call , don't delete
+  public NativePlanBuilder project(String[] alias, String[] exprs) {
+    nativeProject(alias, exprs);
+    return this;
+  }
 
   public NativePlanBuilder scan(StructType schema) {
     nativeJavaScan(schema.catalogString());
     return this;
   }
 
-
-  public NativePlanBuilder project(String[] alias, long[] exprs) {
-    nativeProject(alias, exprs);
-    return this;
-  }
-
-  public NativePlanBuilder filter(long condition) {
+  public NativePlanBuilder filter(String condition) {
     nativeFilter(condition);
     return this;
   }
@@ -123,12 +121,12 @@ public class NativePlanBuilder extends NativeClass {
   }
 
 
-  public NativePlanBuilder expand(long[][] project, String[] alias) {
+  public NativePlanBuilder expand(String[][] project, String[] alias) {
     nativeExpand(project, alias);
     return this;
   }
 
-  public NativePlanBuilder join(String joinType, boolean nullAware, long[] leftKeys, long[] rightKeys, long filter, String rightPlan, String output) {
+  public NativePlanBuilder join(String joinType, boolean nullAware, String[] leftKeys, String[] rightKeys, String filter, String rightPlan, String output) {
     nativeShuffledHashJoin(joinType, nullAware, leftKeys, rightKeys, filter, rightPlan, output);
     return this;
   }
@@ -154,14 +152,14 @@ public class NativePlanBuilder extends NativeClass {
   }
 
   public DataType resolveAggType(String functionName,
-                                 long[] argsType,
+                                 String[] argsType,
                                  String step) {
     return VeloxTypeResolver.parseDataType(nativeResolveAggType(functionName, argsType, step));
   }
 
 
   public void aggregate(String step,
-                        long[] group,
+                        String[] group,
                         String[] aggNames,
                         String[] agg,
                         boolean ignoreNullKey) {

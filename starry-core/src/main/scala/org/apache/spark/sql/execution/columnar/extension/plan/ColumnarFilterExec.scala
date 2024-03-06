@@ -1,12 +1,11 @@
 package org.apache.spark.sql.execution.columnar.extension.plan
 
-import org.apache.spark.sql.catalyst.expressions.{Expression, NamedExpression}
-import org.apache.spark.sql.execution.{FilterExec, ProjectExec, SparkPlan}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.execution.columnar.expressions.{ExpressionConvert, NativeExpression}
+import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.execution.columnar.jni.NativePlanBuilder
-import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.sql.execution.datasources.FilePartition
+import org.apache.spark.sql.execution.{FilterExec, SparkPlan}
+import org.apache.spark.sql.vectorized.ColumnarBatch
 
 class ColumnarFilterExec(condition: Expression, child: SparkPlan)
     extends FilterExec(condition, child)
@@ -43,9 +42,7 @@ class ColumnarFilterExec(condition: Expression, child: SparkPlan)
 
 
   override def makePlanInternal(operations: NativePlanBuilder): Unit = {
-    val newProject =
-      toNativeExpression(condition)
-    operations.filter(newProject.handle)
+    operations.filter(toNativeExpressionJson(condition))
   }
 
 }

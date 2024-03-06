@@ -5,7 +5,7 @@ import org.apache.spark.sql.catalyst.rules.{Rule, UnknownRuleId}
 import org.apache.spark.sql.catalyst.trees.AlwaysProcess
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
-import org.apache.spark.sql.execution.columnar.expressions.{ExpressionConvert, NativeExpression, Unnest}
+import org.apache.spark.sql.execution.columnar.expressions.{ExpressionConvert, Unnest}
 import org.apache.spark.sql.execution.columnar.extension.plan._
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, ShuffledHashJoinExec}
@@ -15,17 +15,11 @@ import org.apache.spark.sql.types.AtomicType
 case class ColumnarTransformRule() extends Rule[SparkPlan] {
 
   private def canTransform(projectExec: ProjectExec): Boolean = {
-    val expressions = projectExec.projectList.map(ExpressionConvert.convertToNative(_))
-    val bool = expressions.forall(_.isInstanceOf[NativeExpression])
-    expressions.foreach(e => ExpressionConvert.releaseHandle(e))
-    bool
+    projectExec.projectList.forall(ExpressionConvert.nativeEvaluable)
   }
 
   private def canTransform(projectExec: FilterExec): Boolean = {
-    val expressions = ExpressionConvert.convertToNative(projectExec.condition)
-    val boolean = expressions.isInstanceOf[NativeExpression]
-    ExpressionConvert.releaseHandle(expressions)
-    boolean
+    ExpressionConvert.nativeEvaluable(projectExec.condition)
   }
 
   def canHashBuild(exprs: Seq[Expression]): Boolean = {

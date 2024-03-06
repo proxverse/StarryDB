@@ -1,10 +1,9 @@
 package org.apache.spark.sql.execution.columnar.expressions.convert
 
-import org.apache.spark.sql.catalyst.expressions.{Expression, In, InSet, Literal}
 import org.apache.spark.sql.catalyst.expressions
+import org.apache.spark.sql.catalyst.expressions.{Expression, In, InSet, Literal}
 import org.apache.spark.sql.catalyst.util.ArrayData
-import org.apache.spark.sql.execution.columnar.expressions.{ExpressionConvert, NativeExpression}
-import org.apache.spark.sql.execution.columnar.jni.NativeExpressionConvert
+import org.apache.spark.sql.execution.columnar.expressions.{ExpressionConvert, NativeJsonExpression}
 import org.apache.spark.sql.types.{ArrayType, BooleanType}
 
 object PredicateConvert {}
@@ -32,29 +31,26 @@ object InConvert extends ExpressionConvertTrait {
     }
     val values =
       if (in.list
-            .map(_.asInstanceOf[NativeExpression])
-            .forall(_.transformed.isInstanceOf[Literal])) {
+            .map(_.asInstanceOf[NativeJsonExpression])
+            .forall(_.original.isInstanceOf[Literal])) {
         in.list
           .map(
-            _.asInstanceOf[NativeExpression].transformed.asInstanceOf[expressions.Literal].value)
+            _.asInstanceOf[NativeJsonExpression].original.asInstanceOf[expressions.Literal].value)
           .toArray
       } else {
         throw new UnsupportedOperationException("Unsupport in with other column")
       }
 
-    val setExpression = ExpressionConvert.convertToNative(
+    val setExpression = ExpressionConvert.nativeConstant(
       Literal
         .create(ArrayData.toArrayData(values), ArrayType.apply(in.value.dataType)))
-    NativeExpression(
-      NativeExpressionConvert
-        .nativeCreateCallTypedExprHanlde(
-          functionName,
-          expression.dataType.catalogString,
-          in.value.map(_.asInstanceOf[NativeExpression].handle).toArray ++ Array(
-            setExpression
-              .asInstanceOf[NativeExpression]
-              .handle)),
-      in)
+    convertToNativeCall(
+      functionName,
+      expression.dataType,
+      in.value.map(_.asInstanceOf[NativeJsonExpression]).toArray ++
+        Array(setExpression.asInstanceOf[NativeJsonExpression]),
+      in
+    )
   }
 
 }
@@ -81,19 +77,15 @@ object InSetConvert extends ExpressionConvertTrait {
     if (set.child.isInstanceOf[ArrayType]) {
       throw new UnsupportedOperationException("Unsupport in set with ArrayType")
     }
-    val setExpression = ExpressionConvert.convertToNative(
+    val setExpression = ExpressionConvert.nativeConstant(
       Literal
         .create(ArrayData.toArrayData(set.hset.toArray), ArrayType.apply(set.child.dataType)))
-    NativeExpression(
-      NativeExpressionConvert
-        .nativeCreateCallTypedExprHanlde(
-          functionName,
-          expression.dataType.catalogString,
-          expression.children.map(_.asInstanceOf[NativeExpression].handle).toArray ++ Array(
-            setExpression
-              .asInstanceOf[NativeExpression]
-              .handle)),
-      expression)
+    convertToNativeCall(
+      functionName,
+      expression.dataType,
+      expression.children ++ Seq(setExpression),
+      expression
+    )
   }
 
   override def lookupFunctionName(expression: Expression): Option[String] =

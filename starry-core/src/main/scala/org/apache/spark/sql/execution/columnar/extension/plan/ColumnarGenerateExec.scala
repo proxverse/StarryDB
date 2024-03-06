@@ -1,12 +1,11 @@
 package org.apache.spark.sql.execution.columnar.extension.plan
 
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Generator, NamedExpression}
-import org.apache.spark.sql.execution.{GenerateExec, ProjectExec, SparkPlan}
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Generator}
 import org.apache.spark.sql.execution.columnar.expressions.ExpressionConvert
 import org.apache.spark.sql.execution.columnar.jni.NativePlanBuilder
+import org.apache.spark.sql.execution.{GenerateExec, SparkPlan}
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.sql.execution.datasources.FilePartition
 
 class ColumnarGenerateExec(
     generator: Generator,
@@ -44,11 +43,10 @@ class ColumnarGenerateExec(
 
   override def makePlanInternal(operations: NativePlanBuilder): Unit = {
     val unnestVariables =
-      generator.children.map(ExpressionConvert.convertToNativeJson(_, true)).toArray
+      generator.children.map(toNativeExpressionJson).toArray
     val replicateVariables =
-      requiredChildOutput.map(ExpressionConvert.convertToNativeJson(_, true)).toArray
+      requiredChildOutput.map(toNativeExpressionJson).toArray
     val unnestNames = generatorOutput.map(ExpressionConvert.toNativeAttrIdName).toArray
-    val ordinalityName = Array.empty[String]
     operations.unnest(replicateVariables, unnestVariables, unnestNames, null)
 
   }

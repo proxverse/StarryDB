@@ -6,7 +6,7 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression,
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, NamedExpression, aggregate}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.{BaseAggregateExec, HashAggregateExec}
-import org.apache.spark.sql.execution.columnar.expressions.{ExpressionConvert, NativeExpression}
+import org.apache.spark.sql.execution.columnar.expressions.ExpressionConvert
 import org.apache.spark.sql.execution.columnar.jni.NativePlanBuilder
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.types.DataType
@@ -66,28 +66,19 @@ object ColumnarAggregateExec {
       step == STEP_INTERMEDIATE && useMergeFuncHack)
   }
 
-  private def toIntermediateType(
-      aggExpr: AggregateExpression,
-      operations: NativePlanBuilder = null): DataType = {
+  private def toIntermediateType(aggExpr: AggregateExpression): DataType = {
     val children = aggExpr.aggregateFunction.children
-      .map(ExpressionConvert.convertToNative(_, true).asInstanceOf[NativeExpression].handle)
+      .map(ExpressionConvert.convertToNativeJson(_, true))
       .toArray
-    if (operations == null) {
-      // TODO move resolveAggType outside NativePlanBuilder
-      val builder = new NativePlanBuilder()
-      val ret = builder.resolveAggType(
-        toNativeAggFuncName(aggExpr.aggregateFunction.prettyName),
-        children,
-        STEP_PARTIAL)
-      builder.close()
-      ret
-    } else {
-      val ret = operations.resolveAggType(
-        toNativeAggFuncName(aggExpr.aggregateFunction.prettyName),
-        children,
-        STEP_PARTIAL)
-      ret
-    }
+
+    // TODO move resolveAggType outside NativePlanBuilder
+    val builder = new NativePlanBuilder()
+    val ret = builder.resolveAggType(
+      toNativeAggFuncName(aggExpr.aggregateFunction.prettyName),
+      children,
+      STEP_PARTIAL)
+    builder.close()
+    ret
   }
 
   def apply(hashAggregateExec: HashAggregateExec): ColumnarAggregateExec = {
@@ -156,10 +147,10 @@ case class ColumnarAggregateExec(
   override def makePlanInternal(operations: NativePlanBuilder): Unit = {
     val aggNodes = aggregateExpressions.map { aggExpr =>
       val rawInputs = aggExpr.aggregateFunction.children
-        .map(ExpressionConvert.convertToNativeJson(_, true))
+        .map(toNativeExpressionJson)
         .toArray
       val inputs = toNativeAggInput(aggExpr)
-        .map(ExpressionConvert.convertToNativeJson(_, true))
+        .map(toNativeExpressionJson)
         .toArray
       toNativeAggExprNode(
         operations,
@@ -170,13 +161,13 @@ case class ColumnarAggregateExec(
     }.toArray
     val aggNames = aggregateExpressions.map(aggExpr =>
       ExpressionConvert.toNativeAttrIdName(toNativeAggOutput(aggExpr)))
-    val group = groupingExpressions
-      .map(ExpressionConvert.convertToNative(_, true).asInstanceOf[NativeExpression].handle)
+    val groupings = groupingExpressions
+      .map(toNativeExpressionJson)
       .toArray
 
     operations.aggregate(
       if (needMergeHack) STEP_PARTIAL else step,
-      group,
+      groupings,
       aggNames.toArray,
       aggNodes,
       false)

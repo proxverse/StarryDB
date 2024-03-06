@@ -1,8 +1,7 @@
 package org.apache.spark.sql.execution.columnar.expressions.convert
 
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.execution.columnar.expressions.NativeExpression
-import org.apache.spark.sql.execution.columnar.jni.NativeExpressionConvert
+import org.apache.spark.sql.execution.columnar.expressions.NativeJsonExpression
 import org.apache.spark.sql.types.IntegerType
 
 object ComplexTypeConvert {}
@@ -32,8 +31,8 @@ object SortArrayConvert extends ExpressionConvertTrait {
     val ascendingOrder = expression
       .asInstanceOf[SortArray]
       .ascendingOrder
-      .asInstanceOf[NativeExpression]
-      .transformed
+      .asInstanceOf[NativeJsonExpression]
+      .original
       .asInstanceOf[Literal]
       .value
       .toString
@@ -46,12 +45,11 @@ object SortArrayConvert extends ExpressionConvertTrait {
   }
 
   override def convert(functionName: String, expression: Expression): Expression = {
-    NativeExpression(
-      NativeExpressionConvert
-          .nativeCreateCallTypedExprHanlde(
-            functionName,
-            expression.dataType.catalogString,
-            expression.children.dropRight(1).map(_.asInstanceOf[NativeExpression].handle).toArray),
-      expression)
+    convertToNativeCall(
+      functionName,
+      expression.dataType,
+      expression.children.dropRight(1),
+      expression
+    )
   }
 }

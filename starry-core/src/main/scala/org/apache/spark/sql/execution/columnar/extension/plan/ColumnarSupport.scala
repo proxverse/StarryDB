@@ -20,20 +20,11 @@ import org.apache.spark.broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
-import org.apache.spark.sql.catalyst.plans.{
-  ExistenceJoin,
-  FullOuter,
-  Inner,
-  JoinType,
-  LeftAnti,
-  LeftOuter,
-  LeftSemi,
-  RightOuter
-}
+import org.apache.spark.sql.catalyst.plans._
+import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.columnar.expressions.ExpressionConvert
 import org.apache.spark.sql.execution.columnar.jni.NativePlanBuilder
 import org.apache.spark.sql.execution.datasources.FilePartition
-import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.columnar.expressions.{ExpressionConvert, NativeExpression}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -85,12 +76,9 @@ trait ColumnarSupport {
         Seq((nodeID, plan.executeColumnar()))
     }
   }
-  def toNativeExpression(expression: Expression, useAlias: Boolean = true): NativeExpression = {
-    val nativeExpreesion = ExpressionConvert.convertToNative(expression, true)
-    if (!nativeExpreesion.isInstanceOf[NativeExpression]) {
-      throw new RuntimeException(s"Failed to convert expression ${expression} to native")
-    }
-    nativeExpreesion.asInstanceOf[NativeExpression]
+
+  def toNativeExpressionJson(expression: Expression): String = {
+    ExpressionConvert.convertToNativeJson(expression, true)
   }
 
   var nodeID: String = _

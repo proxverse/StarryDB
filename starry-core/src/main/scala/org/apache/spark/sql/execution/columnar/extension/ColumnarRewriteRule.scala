@@ -1,36 +1,19 @@
 package org.apache.spark.sql.execution.columnar.extension
 
-import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, AttributeSet, Cast, Expression, Generator, Inline, Literal, NamedExpression, SortOrder, Stack, SupportQueryContext}
+import org.apache.spark.sql.Column
+import org.apache.spark.sql.catalyst.expressions.aggregate._
+import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, Expression, Generator, Inline, Literal, NamedExpression, SortOrder, Stack}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.columnar.expressions.{ExpressionConvert, NativeExpression}
+import org.apache.spark.sql.execution.aggregate.HashAggregateExec
+import org.apache.spark.sql.execution.columnar.extension.plan.ColumnarSupport
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, ShuffledHashJoinExec}
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.Column
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction, Average, AverageBase, Final, Partial, Complete}
-import org.apache.spark.sql.execution.aggregate.HashAggregateExec
-import org.apache.spark.sql.execution.columnar.extension.plan.ColumnarSupport
-import org.apache.spark.sql.types.{DataType, DecimalType}
 
-import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 case class ColumnarRewriteRule() extends Rule[SparkPlan] {
-
-  private def canTransform(projectExec: ProjectExec): Boolean = {
-    val expressions = projectExec.projectList.map(ExpressionConvert.convertToNative(_))
-    val bool = expressions.forall(_.isInstanceOf[NativeExpression])
-    expressions.foreach(e => ExpressionConvert.releaseHandle(e.asInstanceOf[NativeExpression]))
-    bool
-  }
-
-  private def canTransform(projectExec: FilterExec): Boolean = {
-    val expressions = ExpressionConvert.convertToNative(projectExec.condition)
-    val boolean = expressions.isInstanceOf[NativeExpression]
-    ExpressionConvert.releaseHandle(expressions)
-    boolean
-  }
 
   def hasExpression(keyExprs: Seq[Expression]): Boolean = {
     !keyExprs.forall(_.isInstanceOf[AttributeReference])

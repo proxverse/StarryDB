@@ -1,23 +1,18 @@
 package org.apache.spark.sql.execution.columnar.expressions.convert
 
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.execution.columnar.expressions.ExpressionConvert.convertToNative
-import org.apache.spark.sql.execution.columnar.expressions.NativeExpression
-import org.apache.spark.sql.execution.columnar.jni.NativeExpressionConvert
+import org.apache.spark.sql.execution.columnar.expressions.{ExpressionConvert, NativeJsonExpression}
 import org.apache.spark.sql.types.StringType
 
 object LikeConvert extends ExpressionConvertTrait {
   override def convert(nativeFunctionName: String, expression: Expression): Expression = {
-    NativeExpression(
-      NativeExpressionConvert
-        .nativeCreateCallTypedExprHanlde(
-          nativeFunctionName,
-          expression.dataType.catalogString,
-          expression.children.map(_.asInstanceOf[NativeExpression].handle).toArray ++ Array(
-            convertToNative(Literal.create(expression.asInstanceOf[Like].escapeChar))
-              .asInstanceOf[NativeExpression]
-              .handle)),
-      expression)
+    convertToNativeCall(
+      nativeFunctionName,
+      expression.dataType,
+      expression.children ++ Array(
+        ExpressionConvert.nativeConstant(Literal.create(expression.asInstanceOf[Like].escapeChar))),
+      expression
+    )
   }
 }
 object SplitConvert extends ExpressionConvertTrait {
@@ -37,7 +32,7 @@ object SplitConvert extends ExpressionConvertTrait {
   override def convert(nativeFunctionName: String, expression: Expression): Expression = {
     val stringSplit = expression.asInstanceOf[StringSplit]
     val (functionName, childrenHandle) =
-      stringSplit.regex.asInstanceOf[NativeExpression].transformed match {
+      stringSplit.regex.asInstanceOf[NativeJsonExpression].original match {
         case literal: Literal if StringUtils.isRegex(literal.value.toString) =>
           if (literal.value.toString.length > 1) {
             return stringSplit
@@ -46,12 +41,12 @@ object SplitConvert extends ExpressionConvertTrait {
             "regex_split",
             stringSplit.children
               .dropRight(1)
-              .map(_.asInstanceOf[NativeExpression].handle)
+              .map(_.asInstanceOf[NativeJsonExpression])
               .toArray)
         case other =>
           if (stringSplit.limit
-                .asInstanceOf[NativeExpression]
-                .transformed
+                .asInstanceOf[NativeJsonExpression]
+                .original
                 .asInstanceOf[Literal]
                 .value
                 .asInstanceOf[Int] < 1) {
@@ -59,23 +54,20 @@ object SplitConvert extends ExpressionConvertTrait {
               nativeFunctionName,
               stringSplit.children
                 .dropRight(1)
-                .map(_.asInstanceOf[NativeExpression].handle)
+                .map(_.asInstanceOf[NativeJsonExpression])
                 .toArray)
 
           } else {
             (
               nativeFunctionName,
-              stringSplit.children.map(_.asInstanceOf[NativeExpression].handle).toArray)
+              stringSplit.children.map(_.asInstanceOf[NativeJsonExpression]).toArray)
           }
       }
-    NativeExpression(
-      NativeExpressionConvert
-        .nativeCreateCallTypedExprHanlde(
+    convertToNativeCall(
           functionName,
-          stringSplit.dataType.catalogString,
-          childrenHandle),
-      stringSplit)
-
+          stringSplit.dataType,
+          childrenHandle,
+          stringSplit)
   }
 
 }
