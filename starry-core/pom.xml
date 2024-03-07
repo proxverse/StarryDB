@@ -287,7 +287,11 @@
         <version>${scalatest-maven-plugin.version}</version>
         <configuration>
           <testFailureIgnore>false</testFailureIgnore>
+          <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
           <junitxml>.</junitxml>
+          <filereports>WDF TestSuite.txt</filereports> <!-- Output file for test results -->
+          <!-- Add ScalaTest options here -->
+          <stdout>F</stdout> <!-- 'F' means full stack traces -->
         </configuration>
         <executions>
           <execution>
