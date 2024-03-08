@@ -1,0 +1,3 @@
+[submodule "velox"]
+	path = velox
+	url = ssh://git@gitlab.proxverse.com:32222/process-mining/velox.git
