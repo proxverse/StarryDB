@@ -68,6 +68,7 @@ object ExpressionConvertMapping {
     Sig[DenseRank](WindowConvert),
     Sig[CumeDist](WindowConvert),
     Sig[PercentRank](WindowConvert),
+    Sig[TimestampDiff](TimestampDiffConverter),
 //    Sig[Hex](Hexonvert)
 //    Sig[Cast](CastConvert)
   ) ++ NativeExpressionExtension.extensionSig

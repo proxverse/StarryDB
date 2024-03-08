@@ -22,7 +22,7 @@ import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.columnar.expressions.ExpressionConvert
+import org.apache.spark.sql.execution.columnar.expressions.ExpressionConverter
 import org.apache.spark.sql.execution.columnar.jni.NativePlanBuilder
 import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
@@ -78,7 +78,7 @@ trait ColumnarSupport {
   }
 
   def toNativeExpressionJson(expression: Expression): String = {
-    ExpressionConvert.convertToNativeJson(expression, true)
+    ExpressionConverter.convertToNativeJson(expression, true)
   }
 
   var nodeID: String = _

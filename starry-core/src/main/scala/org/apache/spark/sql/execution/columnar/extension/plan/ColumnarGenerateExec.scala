@@ -2,7 +2,7 @@ package org.apache.spark.sql.execution.columnar.extension.plan
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Generator}
-import org.apache.spark.sql.execution.columnar.expressions.ExpressionConvert
+import org.apache.spark.sql.execution.columnar.expressions.ExpressionConverter
 import org.apache.spark.sql.execution.columnar.jni.NativePlanBuilder
 import org.apache.spark.sql.execution.{GenerateExec, SparkPlan}
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -46,7 +46,7 @@ class ColumnarGenerateExec(
       generator.children.map(toNativeExpressionJson).toArray
     val replicateVariables =
       requiredChildOutput.map(toNativeExpressionJson).toArray
-    val unnestNames = generatorOutput.map(ExpressionConvert.toNativeAttrIdName).toArray
+    val unnestNames = generatorOutput.map(ExpressionConverter.toNativeAttrIdName).toArray
     operations.unnest(replicateVariables, unnestVariables, unnestNames, null)
 
   }

@@ -4,7 +4,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.columnar.expressions.ExpressionConvert
+import org.apache.spark.sql.execution.columnar.expressions.ExpressionConverter
 import org.apache.spark.sql.execution.columnar.expressions.convert.{AggregateExpressionConvertMapping, PQLExpressionMappings}
 import org.apache.spark.sql.execution.columnar.extension.plan.BoundType.{Following, Preceding}
 import org.apache.spark.sql.execution.columnar.extension.plan.ColumnarWindowExec.toNativeFrame
@@ -140,7 +140,7 @@ class ColumnarWindowExec(
     val orderKeys = orderSpec.map(_.child).map(toNativeExpressionJson).toArray
     val windowColumnNames = windowExpression
       .map(_.toAttribute)
-      .map(e => ExpressionConvert.toNativeAttrIdName(e))
+      .map(e => ExpressionConverter.toNativeAttrIdName(e))
       .toArray
     operations.window(
       partitionsKeys,

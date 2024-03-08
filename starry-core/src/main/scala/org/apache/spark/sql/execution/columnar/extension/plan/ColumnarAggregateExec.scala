@@ -2,11 +2,11 @@ package org.apache.spark.sql.execution.columnar.extension.plan
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Final, Partial, PartialMerge}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Final, Partial, PartialMerge, Complete}
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, NamedExpression, aggregate}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.{BaseAggregateExec, HashAggregateExec}
-import org.apache.spark.sql.execution.columnar.expressions.ExpressionConvert
+import org.apache.spark.sql.execution.columnar.expressions.ExpressionConverter
 import org.apache.spark.sql.execution.columnar.jni.NativePlanBuilder
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.types.DataType
@@ -48,7 +48,7 @@ object ColumnarAggregateExec {
       rawInputs: Array[String],
       useMergeFuncHack: Boolean): String = {
     val mask = if (aggExpr.filter.isDefined) {
-      ExpressionConvert.convertToNativeJson(aggExpr.filter.get, true)
+      ExpressionConverter.convertToNativeJson(aggExpr.filter.get, true)
     } else {
       null
     }
@@ -68,7 +68,7 @@ object ColumnarAggregateExec {
 
   private def toIntermediateType(aggExpr: AggregateExpression): DataType = {
     val children = aggExpr.aggregateFunction.children
-      .map(ExpressionConvert.convertToNativeJson(_, true))
+      .map(ExpressionConverter.convertToNativeJson(_, true))
       .toArray
 
     // TODO move resolveAggType outside NativePlanBuilder
@@ -160,7 +160,7 @@ case class ColumnarAggregateExec(
         needMergeHack && !aggExpr.isDistinct)
     }.toArray
     val aggNames = aggregateExpressions.map(aggExpr =>
-      ExpressionConvert.toNativeAttrIdName(toNativeAggOutput(aggExpr)))
+      ExpressionConverter.toNativeAttrIdName(toNativeAggOutput(aggExpr)))
     val groupings = groupingExpressions
       .map(toNativeExpressionJson)
       .toArray
@@ -209,7 +209,7 @@ case class ColumnarAggregateExec(
         normalizeResultAttrName(aggExpr)
           .withDataType(toIntermediateType(aggExpr))
           .withExprId(aggAttr.exprId)
-      case Final if aggExpr.isDistinct =>
+      case Final | Complete if aggExpr.isDistinct =>
         aggregateAttributes(aggregateExpressions.indexOf(aggExpr))
       case PartialMerge | Partial =>
         normalizeResultAttrName(aggExpr).withDataType(toIntermediateType(aggExpr))

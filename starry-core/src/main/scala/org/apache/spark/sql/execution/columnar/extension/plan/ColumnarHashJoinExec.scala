@@ -5,7 +5,7 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.columnar.expressions.ExpressionConvert
+import org.apache.spark.sql.execution.columnar.expressions.ExpressionConverter
 import org.apache.spark.sql.execution.columnar.jni.NativePlanBuilder
 import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.joins.ShuffledHashJoinExec
@@ -45,7 +45,7 @@ class ColumnarHashJoinExec(
         a =>
           a.name.startsWith(ColumnarSupport.JOIN_LEFT_PREFIX) || a.name.startsWith(
             ColumnarSupport.JOIN_RIGHT_PREFIX))
-      .map(a => a.withName(ExpressionConvert.toNativeAttrIdName(a)))
+      .map(a => a.withName(ExpressionConverter.toNativeAttrIdName(a)))
   }
   override def supportsColumnar: Boolean =
     true

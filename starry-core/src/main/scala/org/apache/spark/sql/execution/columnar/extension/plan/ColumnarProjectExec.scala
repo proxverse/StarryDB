@@ -2,7 +2,7 @@ package org.apache.spark.sql.execution.columnar.extension.plan
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.NamedExpression
-import org.apache.spark.sql.execution.columnar.expressions.ExpressionConvert
+import org.apache.spark.sql.execution.columnar.expressions.ExpressionConverter
 import org.apache.spark.sql.execution.columnar.jni.NativePlanBuilder
 import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
@@ -42,7 +42,7 @@ class ColumnarProjectExec(project: Seq[NamedExpression], child: SparkPlan)
   }
 
   override def makePlanInternal(operations: NativePlanBuilder): Unit = {
-    val alias = output.map(ExpressionConvert.toNativeAttrIdName).toArray
+    val alias = output.map(ExpressionConverter.toNativeAttrIdName).toArray
     val newProject =
       projectList.map(toNativeExpressionJson)
     operations.project(alias, newProject.toArray)

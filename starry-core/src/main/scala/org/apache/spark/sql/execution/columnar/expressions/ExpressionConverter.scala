@@ -12,7 +12,7 @@ import org.apache.spark.sql.types._
 
 import java.util.regex.Pattern
 
-object ExpressionConvert extends Logging {
+object ExpressionConverter extends Logging {
 
   private val nullTypeTransform: PartialFunction[Expression, Expression] = {
     case cast: Cast if cast.child.dataType.sameType(NullType) =>

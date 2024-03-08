@@ -5,7 +5,7 @@ import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
-import org.apache.spark.sql.execution.columnar.expressions.ExpressionConvert
+import org.apache.spark.sql.execution.columnar.expressions.ExpressionConverter
 import org.apache.spark.sql.execution.columnar.jni.NativePlanBuilder
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -41,7 +41,7 @@ case class ColumnarInputAdapter(child: SparkPlan) extends UnaryExecNode with Col
 
   override def makePlan(operations: NativePlanBuilder): Unit = {
     operations.scan(StructType.fromAttributes(child.output.map(e =>
-      e.withName(ExpressionConvert.toNativeAttrIdName(e)))))
+      e.withName(ExpressionConverter.toNativeAttrIdName(e)))))
     nodeID = operations.nodeId()
   }
 

@@ -1,7 +1,7 @@
 package org.apache.spark.sql.execution.columnar.expressions.convert
 
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.execution.columnar.expressions.{ExpressionConvert, NativeJsonExpression}
+import org.apache.spark.sql.execution.columnar.expressions.{ExpressionConverter, NativeJsonExpression}
 import org.apache.spark.sql.types.StringType
 
 object LikeConvert extends ExpressionConvertTrait {
@@ -10,7 +10,7 @@ object LikeConvert extends ExpressionConvertTrait {
       nativeFunctionName,
       expression.dataType,
       expression.children ++ Array(
-        ExpressionConvert.nativeConstant(Literal.create(expression.asInstanceOf[Like].escapeChar))),
+        ExpressionConverter.nativeConstant(Literal.create(expression.asInstanceOf[Like].escapeChar))),
       expression
     )
   }

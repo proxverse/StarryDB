@@ -2,7 +2,7 @@ package org.apache.spark.sql.execution.columnar.extension.plan
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
-import org.apache.spark.sql.execution.columnar.expressions.ExpressionConvert
+import org.apache.spark.sql.execution.columnar.expressions.ExpressionConverter
 import org.apache.spark.sql.execution.columnar.jni.NativePlanBuilder
 import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.{ExpandExec, SparkPlan}
@@ -51,7 +51,7 @@ class ColumnarExpandExec(
           _.map(
             toNativeExpressionJson).toArray)
         .toArray
-    operations.expand(projects, output.map(ExpressionConvert.toNativeAttrIdName).toArray)
+    operations.expand(projects, output.map(ExpressionConverter.toNativeAttrIdName).toArray)
   }
 
 }

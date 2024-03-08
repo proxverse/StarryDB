@@ -5,7 +5,7 @@ import org.apache.spark.sql.catalyst.rules.{Rule, UnknownRuleId}
 import org.apache.spark.sql.catalyst.trees.AlwaysProcess
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
-import org.apache.spark.sql.execution.columnar.expressions.{ExpressionConvert, Unnest}
+import org.apache.spark.sql.execution.columnar.expressions.{ExpressionConverter, Unnest}
 import org.apache.spark.sql.execution.columnar.extension.plan._
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, ShuffledHashJoinExec}
@@ -15,11 +15,11 @@ import org.apache.spark.sql.types.AtomicType
 case class ColumnarTransformRule() extends Rule[SparkPlan] {
 
   private def canTransform(projectExec: ProjectExec): Boolean = {
-    projectExec.projectList.forall(ExpressionConvert.nativeEvaluable)
+    projectExec.projectList.forall(ExpressionConverter.nativeEvaluable)
   }
 
   private def canTransform(projectExec: FilterExec): Boolean = {
-    ExpressionConvert.nativeEvaluable(projectExec.condition)
+    ExpressionConverter.nativeEvaluable(projectExec.condition)
   }
 
   def canHashBuild(exprs: Seq[Expression]): Boolean = {

@@ -3,7 +3,7 @@ package org.apache.spark.sql.execution.columnar.expressions.convert
 import org.apache.spark.sql.catalyst.expressions
 import org.apache.spark.sql.catalyst.expressions.{Expression, In, InSet, Literal}
 import org.apache.spark.sql.catalyst.util.ArrayData
-import org.apache.spark.sql.execution.columnar.expressions.{ExpressionConvert, NativeJsonExpression}
+import org.apache.spark.sql.execution.columnar.expressions.{ExpressionConverter, NativeJsonExpression}
 import org.apache.spark.sql.types.{ArrayType, BooleanType}
 
 object PredicateConvert {}
@@ -41,14 +41,13 @@ object InConvert extends ExpressionConvertTrait {
         throw new UnsupportedOperationException("Unsupport in with other column")
       }
 
-    val setExpression = ExpressionConvert.nativeConstant(
+    val setExpression = ExpressionConverter.nativeConstant(
       Literal
         .create(ArrayData.toArrayData(values), ArrayType.apply(in.value.dataType)))
     convertToNativeCall(
       functionName,
       expression.dataType,
-      in.value.map(_.asInstanceOf[NativeJsonExpression]).toArray ++
-        Array(setExpression.asInstanceOf[NativeJsonExpression]),
+      in.value :: setExpression :: Nil,
       in
     )
   }
@@ -77,7 +76,7 @@ object InSetConvert extends ExpressionConvertTrait {
     if (set.child.isInstanceOf[ArrayType]) {
       throw new UnsupportedOperationException("Unsupport in set with ArrayType")
     }
-    val setExpression = ExpressionConvert.nativeConstant(
+    val setExpression = ExpressionConverter.nativeConstant(
       Literal
         .create(ArrayData.toArrayData(set.hset.toArray), ArrayType.apply(set.child.dataType)))
     convertToNativeCall(
