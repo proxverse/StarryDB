@@ -42,14 +42,6 @@
     <module>starry-core</module>
   </modules>
 
-  <repositories>
-    <repository>
-      <id>nexus-repo</id>
-      <name>sp-repo</name>
-      <url>http://172.16.51.187:8081/repository/maven-public/</url>
-    </repository>
-  </repositories>
-
   <dependencyManagement>
     <dependencies>
       <dependency>
@@ -439,9 +431,60 @@
 
     </dependencies>
   </dependencyManagement>
+
+  <distributionManagement>
+    <snapshotRepository>
+      <id>nexus-snapshots</id>
+      <url>http://172.16.51.187:8081/repository/maven-snapshots/</url>
+    </snapshotRepository>
+    <repository>
+      <id>nexus-release</id>
+      <url>http://172.16.51.187:8081/repository/maven-releases/</url>
+    </repository>
+  </distributionManagement>
+  <repositories>
+    <repository>
+      <id>nexus-repo</id>
+      <name>sp-repo</name>
+      <url>http://172.16.51.187:8081/repository/maven-public/</url>
+    </repository>
+  </repositories>
   <build>
     <plugins>
-
+      <plugin>
+        <groupId>org.sonatype.plugins</groupId>
+        <artifactId>nexus-staging-maven-plugin</artifactId>
+        <version>1.5.1</version>
+        <executions>
+          <execution>
+            <id>default-deploy</id>
+            <phase>deploy</phase>
+            <goals>
+              <goal>deploy</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <serverId>nexus</serverId>
+          <nexusUrl>http://172.16.51.187:8081/repository/maven-public/</nexusUrl>
+          <skipStaging>true</skipStaging>
+        </configuration>
+      </plugin>
+      <plugin>
+        <artifactId>maven-source-plugin</artifactId>
+        <version>2.1</version>
+        <configuration>
+          <attach>true</attach>
+        </configuration>
+        <executions>
+          <execution>
+            <phase>compile</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
 
