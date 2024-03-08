@@ -10,7 +10,7 @@ public class NativeExpressionConvert {
 
   public static native String nativeCreateConstantTypedExpr(String resultType, NativeColumnVector vectorBatch);
 
-  public static native String nativeCreateCallTypedExpr(String functionName, String resultType, String[] args);
+  public static native String nativeCreateCallTypedExpr(String functionName, String resultType, String[] args, boolean skipResolve);
 
   public static native long nativeEvalWithBatch(String expr, NativeColumnarBatch batch);
 

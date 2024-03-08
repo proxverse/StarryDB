@@ -77,12 +77,14 @@ object ExpressionConverter extends Logging {
   }
 
   def nativeCall(funcName: String, retType: DataType,
-                         args: Array[String], call: Expression): ColumnarExpression = {
+                 args: Array[String], call: Expression,
+                 skipResolve: Boolean = false): ColumnarExpression = {
     NativeJsonExpression(
       NativeExpressionConvert.nativeCreateCallTypedExpr(
         funcName,
         retType.catalogString,
-        args),
+        args,
+        skipResolve),
       call
     )
   }
@@ -98,7 +100,7 @@ object ExpressionConverter extends Logging {
       case o if ExpressionConvertMapping.expressionsMap.contains(o.getClass) =>
         ExpressionConvertMapping.expressionsMap
           .apply(o.getClass)
-          .convert(nativeFunctionName.get, o)
+          .convert(functionName, o)
       case other =>
         if (!expression.children.forall(_.isInstanceOf[NativeJsonExpression])) {
           logInfo(s"children has normal expression, skip transform ${expression}")

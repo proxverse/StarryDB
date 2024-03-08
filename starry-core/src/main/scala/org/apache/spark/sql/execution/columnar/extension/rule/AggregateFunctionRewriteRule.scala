@@ -18,7 +18,7 @@
 package org.apache.spark.sql.execution.columnar.extension.rule
 
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, ApproximatePercentile, Average, AverageBase, Count, HyperLogLogPlusPlus, Percentile, Sum}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, ApproximatePercentile, Average, AverageBase, CollectList, Count, HyperLogLogPlusPlus, Percentile, Sum}
 import org.apache.spark.sql.catalyst.expressions.{Cast, CreateStruct, Expression, If, IsNull, Literal, Or, SupportQueryContext}
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan}
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -31,6 +31,14 @@ case class AggregateFunctionRewriteRule(spark: SparkSession) extends Rule[Logica
   override def apply(plan: LogicalPlan): LogicalPlan = plan.resolveOperatorsUp {
     case a: Aggregate =>
       a.transformExpressions {
+        case avg @ AggregateExpression(CollectList(child, _, _), _, _, _, _) =>
+          avg.copy(aggregateFunction =
+            new NativeFunctionPlaceHolder(
+              avg.aggregateFunction,
+              child :: Nil,
+              avg.dataType,
+              "array_agg"))
+
         case avg @ AggregateExpression(Average(child, _), _, _, _, _)
            if child.dataType.isInstanceOf[DecimalType] =>
           avg.copy(aggregateFunction =

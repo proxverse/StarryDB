@@ -31,7 +31,7 @@ object ExpressionMappings {
   final val MAX = "max"
   final val STDDEV_SAMP = "stddev_samp"
   final val STDDEV_POP = "stddev_pop"
-  final val COLLECT_LIST = "collect_list"
+  final val COLLECT_LIST = "array_agg"
   final val BLOOM_FILTER_AGG = "bloom_filter_agg"
   final val VAR_SAMP = "var_samp"
   final val VAR_POP = "var_pop"
@@ -467,7 +467,6 @@ object ExpressionMappings {
     NameSig[Last](LAST),
     NameSig[First](FIRST),
     NameSig[CollectList](COLLECT_LIST),
-    NameSig[ColumnarCollectList](COLLECT_LIST),
     NameSig[ArrayIntersect](ARRAY_INTERSECT),
     NameSig[EqualNullSafe](EQUAL_NULL_SAFE))
 

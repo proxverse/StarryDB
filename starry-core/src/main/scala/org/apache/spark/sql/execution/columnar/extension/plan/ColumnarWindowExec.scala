@@ -5,7 +5,6 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.columnar.expressions.ExpressionConverter
-import org.apache.spark.sql.execution.columnar.expressions.convert.{AggregateExpressionConvertMapping, PQLExpressionMappings}
 import org.apache.spark.sql.execution.columnar.extension.plan.BoundType.{Following, Preceding}
 import org.apache.spark.sql.execution.columnar.extension.plan.ColumnarWindowExec.toNativeFrame
 import org.apache.spark.sql.execution.columnar.jni.NativePlanBuilder
@@ -63,45 +62,12 @@ class ColumnarWindowExec(
     var count = 0
     val windowFunctionJsons = windowExpression.map { windowExpr =>
       val aliasExpr = windowExpr.asInstanceOf[Alias]
-      val columnName = s"${aliasExpr.name}_${aliasExpr.exprId.id}"
       val wExpression = aliasExpr.child.asInstanceOf[WindowExpression]
       wExpression.windowFunction match {
         case aggExpression: AggregateExpression =>
           val frame = wExpression.windowSpec.frameSpecification.asInstanceOf[SpecifiedWindowFrame]
           val aggregateFunc = aggExpression.aggregateFunction
-          val functionCall =
-            if (AggregateExpressionConvertMapping.expressionsMap
-                  .contains(aggregateFunc.getClass)) {
-              AggregateExpressionConvertMapping.expressionsMap
-                .apply(aggregateFunc.getClass)
-                .convert(aggregateFunc, operations)
-            } else {
-              val functionName =
-                if (PQLExpressionMappings.expressionsMap
-                      .contains(aggregateFunc.getClass)) {
-                  val substraitAggFuncName =
-                    PQLExpressionMappings.expressionsMap.apply(aggregateFunc.getClass)
-                  if (substraitAggFuncName.equals("calc_crop_to_null")) {
-                    count = count + 1
-                  }
-                  if (count > 1) {
-                    throw new UnsupportedOperationException(
-                      s"Not currently supported: $aggregateFunc.")
-                  }
-                  substraitAggFuncName
-                } else {
-                  aggExpression.aggregateFunction.prettyName
-                }
-
-              operations.buildAggregateFunction(
-                withNewAggName(functionName),
-                aggExpression.aggregateFunction.children
-                  .map(toNativeExpressionJson)
-                  .toArray,
-                false,
-                aggExpression.aggregateFunction.dataType.catalogString)
-            }
-
+          val functionCall = toNativeExpressionJson(aggregateFunc)
           val frameJson = toNativeFrame(operations, frame)
 
           operations.windowFunction(functionCall, frameJson, false)

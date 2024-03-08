@@ -13,7 +13,7 @@ trait NativeExpressionExtensionTrait {
 
   val SCALAR_SIGS: Seq[Sig] = Nil
 
-  val AGGREGATE_SIGS: Seq[AggregateSig] = Nil
+  val AGGREGATE_SIGS: Seq[Sig] = Nil
 
 }
 
@@ -71,7 +71,7 @@ object ExpressionConvertMapping {
     Sig[TimestampDiff](TimestampDiffConverter),
 //    Sig[Hex](Hexonvert)
 //    Sig[Cast](CastConvert)
-  ) ++ NativeExpressionExtension.extensionSig
+  ) ++ NativeExpressionExtension.extensionSig ++ NativeExpressionExtension.extensionAggregateSig
   val AGGREGATE_SIGS: Seq[Sig] = Seq()
   val WINDOW_SIGS: Seq[Sig] = Seq()
   def expressionsMap: Map[Class[_], ExpressionConvertTrait] =
@@ -84,21 +84,7 @@ object ExpressionConvertMapping {
   }
 }
 
-object AggregateExpressionConvertMapping {
-  lazy val AGGREGATE_SIGS: Seq[AggregateSig] = NativeExpressionExtension.extensionAggregateSig
-  def expressionsMap: Map[Class[_], AggregateExpressionConvertTrait] =
-    defaultExpressionsMap
-
-  private lazy val defaultExpressionsMap: Map[Class[_], AggregateExpressionConvertTrait] = {
-    (AGGREGATE_SIGS)
-      .map(s => (s.expClass, s.convert))
-      .toMap[Class[_], AggregateExpressionConvertTrait]
-  }
-}
-
 case class Sig(expClass: Class[_], convert: ExpressionConvertTrait)
-
-case class AggregateSig(expClass: Class[_], convert: AggregateExpressionConvertTrait)
 
 object Sig {
   def apply[T <: Expression: ClassTag](convert: ExpressionConvertTrait): Sig = {
@@ -119,7 +105,7 @@ object NativeExpressionExtension extends Logging {
   lazy val (
     extensionSig: Seq[Sig],
     extensionNameSig: Seq[NameSig],
-    extensionAggregateSig: Seq[AggregateSig]) = {
+    extensionAggregateSig: Seq[Sig]) = {
     if (StarryConf.expressionExtensionClass.isEmpty) {
       (Nil, Nil, Nil)
     } else {

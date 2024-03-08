@@ -16,60 +16,13 @@
  */
 package org.apache.spark.sql.execution.columnar.expressions
 
-import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.analysis.{TypeCheckResult, TypeCoercion}
-import org.apache.spark.sql.catalyst.expressions.{ArrayPosition, AttributeReference, BinaryExpression, Expression, ExpressionDescription, ImplicitCastInputTypes, Literal, NullIntolerant, TernaryExpression}
-import org.apache.spark.sql.catalyst.expressions.aggregate.ImperativeAggregate
-import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, CodeGenerator, ExprCode}
+import org.apache.spark.sql.catalyst.expressions.codegen.{CodeGenerator, CodegenContext, ExprCode}
+import org.apache.spark.sql.catalyst.expressions.{Expression, ExpressionDescription, ImplicitCastInputTypes, NullIntolerant, TernaryExpression}
 import org.apache.spark.sql.catalyst.util.{ArrayData, TypeUtils}
-import org.apache.spark.sql.types.{AbstractDataType, ArrayType, DataType, LongType, StructType}
+import org.apache.spark.sql.types.{AbstractDataType, ArrayType, DataType, LongType}
 
-case class ColumnarCollectList(
-    child: Expression,
-    mutableAggBufferOffset: Int = 0,
-    inputAggBufferOffset: Int = 0)
-  extends ImperativeAggregate {
 
-  def this(child: Expression) = this(child, 0, 0)
-
-  override def dataType: DataType = ArrayType(child.dataType, containsNull = true)
-
-  override def withNewMutableAggBufferOffset(newMutableAggBufferOffset: Int): ImperativeAggregate =
-    copy(mutableAggBufferOffset = newMutableAggBufferOffset)
-
-  override def withNewInputAggBufferOffset(newInputAggBufferOffset: Int): ImperativeAggregate =
-    copy(inputAggBufferOffset = newInputAggBufferOffset)
-
-  override def prettyName: String = "columnar_collect_list"
-
-  final override lazy val aggBufferAttributes: Seq[AttributeReference] = {
-    // Underlying storage type for the aggregation buffer object
-    Seq(AttributeReference("buf", dataType)())
-  }
-
-  final override lazy val inputAggBufferAttributes: Seq[AttributeReference] =
-    aggBufferAttributes.map(_.newInstance())
-
-  final override def aggBufferSchema: StructType = StructType.fromAttributes(aggBufferAttributes)
-
-  override def initialize(mutableAggBuffer: InternalRow): Unit =
-    throw new UnsupportedOperationException()
-
-  override def update(mutableAggBuffer: InternalRow, inputRow: InternalRow): Unit =
-    throw new UnsupportedOperationException()
-
-  override def merge(mutableAggBuffer: InternalRow, inputAggBuffer: InternalRow): Unit =
-    throw new UnsupportedOperationException()
-
-  override def nullable: Boolean = false
-
-  override def eval(input: InternalRow): Any = throw new UnsupportedOperationException()
-
-  override def children: Seq[Expression] = child :: Nil
-
-  override protected def withNewChildrenInternal(newChildren: IndexedSeq[Expression]): Expression =
-    ColumnarCollectList(newChildren.head, mutableAggBufferOffset, inputAggBufferOffset)
-}
 
 @ExpressionDescription(
   usage = """

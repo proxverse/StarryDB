@@ -51,12 +51,6 @@ public class NativePlanBuilder extends NativeClass {
                                              String[] argsType,
                                              String step);
 
-  private native String nativeAggregationFunction(String functionName,
-                                                  String[] argsType,
-                                                  boolean needResolve,
-                                                  String returnType);
-
-
   private native String nativeBuilder();
 
   protected native long nativeCreate();
@@ -143,13 +137,6 @@ public class NativePlanBuilder extends NativeClass {
     return nativeBuildAggregate(functionName, inputs, rawInputs, step, mask, sortingKeys, sortOrders, distinct, useMergeFunc);
   }
 
-
-  public String buildAggregateFunction(String functionName,
-                                       String[] argsType,
-                                       boolean needResolve,
-                                       String returnType) {
-    return nativeAggregationFunction(functionName, argsType, needResolve, returnType);
-  }
 
   public DataType resolveAggType(String functionName,
                                  String[] argsType,

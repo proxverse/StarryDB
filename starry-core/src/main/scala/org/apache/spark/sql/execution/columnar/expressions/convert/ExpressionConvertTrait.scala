@@ -22,14 +22,17 @@ trait ExpressionConvertTrait {
     ExpressionNamingProcess.defaultLookupFunctionName(expression)
   }
 
-  protected final def convertToNativeCall(funcName: String, retType: DataType,
-                          args: Seq[Expression], call: Expression): Expression = {
+  protected final def convertToNativeCall(
+                         funcName: String, retType: DataType,
+                         args: Seq[Expression], call: Expression,
+                         skipResolve: Boolean = false): Expression = {
     Preconditions.checkArgument(args.forall(_.isInstanceOf[NativeJsonExpression]))
     ExpressionConverter.nativeCall(
       funcName,
       retType,
       args.map(_.asInstanceOf[NativeJsonExpression].native).toArray,
-      call
+      call,
+      skipResolve
     )
   }
 
