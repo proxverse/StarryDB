@@ -36,28 +36,6 @@ import org.apache.spark.util.KnownSizeEstimation
 
 import scala.collection.JavaConverters._
 
-case class CachedVeloxBatch(veloxBatch: VeloxColumnarBatch)
-    extends CachedBatch
-    with AutoCloseable
-    with KnownSizeEstimation {
-  override def close(): Unit = {
-    veloxBatch.close()
-  }
-
-  override def numRows: Int = {
-    veloxBatch.numRows()
-  }
-
-  override def sizeInBytes: Long = {
-//    GlutenColumnBatchUtils.estimateFlatSize(veloxBatch.getObjectPtr)
-    100
-  }
-
-  override def estimatedSize: Long = {
-    100
-  }
-}
-
 case class DefaultCachedBatch(numRows: Int, buffers: Array[Array[Byte]], stats: InternalRow)
     extends SimpleMetricsCachedBatch
 
@@ -75,7 +53,7 @@ class CachedVeloxBatchSerializer extends CachedBatchSerializer {
     input.map { batch =>
       val veloxColumnarBatch = batch.asInstanceOf[VeloxColumnarBatch]
       veloxColumnarBatch.setSchema(structType)
-      val cacheBatch = CachedVeloxBatch(veloxColumnarBatch.copy())
+      val cacheBatch = new CachedVeloxBatch(veloxColumnarBatch.copy(), structType)
       veloxColumnarBatch.close()
       cacheBatch
     }
@@ -110,7 +88,7 @@ class CachedVeloxBatchSerializer extends CachedBatchSerializer {
           // tobe remove, when RowToVeloxColumnarExec can specified memory pool
           val veloxColumnarBatch = batch.asInstanceOf[VeloxColumnarBatch]
           veloxColumnarBatch.setSchema(structType)
-          val cacheBatch = CachedVeloxBatch(veloxColumnarBatch.copy())
+          val cacheBatch = new CachedVeloxBatch(veloxColumnarBatch.copy(), structType)
           veloxColumnarBatch.close()
           cacheBatch
         }
