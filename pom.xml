@@ -9,7 +9,7 @@
   <name>starry engine</name>
   <packaging>pom</packaging>
   <properties>
-    <scala.version>2.12.15</scala.version>
+    <scala.version>2.12.18</scala.version>
     <java.version>1.8</java.version>
     <spark.version>3.3.1-prx-0.0.1-SNAPSHOT</spark.version>
     <apache.hadoop.version>3.3.4</apache.hadoop.version>

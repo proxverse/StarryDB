@@ -16,21 +16,18 @@
  */
 package org.apache.spark.sql.execution.vectorized
 
+import com.prx.starry.Starry
 import org.apache.spark.SparkConf
 import org.apache.spark.serializer.{JavaSerializer, KryoSerializer}
-import org.apache.spark.sql.QueryTest
-import org.apache.spark.sql.common.{ColumnarSharedSparkSession, ValidateFunSuite}
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.columnar.{ColumnBatchUtils, VeloxColumnarBatch}
 import org.apache.spark.sql.execution.columnar.cache.CachedVeloxBatch
 import org.apache.spark.sql.execution.datasources.parquet.ParquetTest
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 
-class CacheSuite
-  extends QueryTest
-  with ParquetTest
-  with ValidateFunSuite
-  with ColumnarSharedSparkSession {
+class CacheSuite extends ParquetTest {
+
 
   test("PostMergeAggregateExpression: test rewrite") {
 
@@ -48,12 +45,6 @@ class CacheSuite
         .count()
       val rows = cachedFrame.collect() // test column to row
       spark.sharedState.cacheManager.clearCache()
-//        val batches = VeloxColumnarBatch.map.asScala.filterNot(_.isClosed())
-//        assert(batches.isEmpty)
-//        val batches1 = WritableVeloxColumnVector.map.asScala.filterNot(_.isClosed())
-//        assert(batches1.isEmpty)
-//        val batches2 = ReadableVeloxColumnVector.map.asScala.filterNot(_.isClosed())
-//        assert(batches2.isEmpty)
 
     }
   }
@@ -66,18 +57,18 @@ class CacheSuite
       frame1.count()
       val variants = frame
         .select(col("SHIPMODE")
-          .as("a")).collect()
+          .as("a"))
+        .collect()
 
       val schema = StructType(Seq(StructField("t", StringType)))
       val batch = ColumnBatchUtils.createWriterableColumnBatch(variants.length, schema)
       val start = System.currentTimeMillis()
       Range(0, variants.length)
-        .foreach {
-          i =>
-            batch
-              .column(0)
-              .asInstanceOf[WritableColumnVector]
-              .putByteArray(i, variants.apply(i).getString(0).getBytes())
+        .foreach { i =>
+          batch
+            .column(0)
+            .asInstanceOf[WritableColumnVector]
+            .putByteArray(i, variants.apply(i).getString(0).getBytes())
         }
       batch.setNumRows(variants.length)
 
@@ -87,14 +78,11 @@ class CacheSuite
       val batch2 = instance.deserialize[CachedVeloxBatch](instance.serialize(batch1))
 
       Range(0, variants.length)
-        .foreach {
-          i =>
-            variants.apply(i).getString(0) == batch2.veloxBatch.getRow(i).getString(0)
+        .foreach { i =>
+          assert(variants.apply(i).getString(0) == batch2.veloxBatch.getRow(i).getString(0))
         }
-      println(batch2)
     }
   }
-
 
   test("PostMergeAggregateExpression: kryo seri") {
     withTable("bucket_table") {
@@ -111,12 +99,11 @@ class CacheSuite
       val schema = StructType(Seq(StructField("t", StringType)))
       val batch = ColumnBatchUtils.createWriterableColumnBatch(variants.length, schema)
       Range(0, variants.length)
-        .foreach {
-          i =>
-            batch
-              .column(0)
-              .asInstanceOf[WritableColumnVector]
-              .putByteArray(i, variants.apply(i).getString(0).getBytes())
+        .foreach { i =>
+          batch
+            .column(0)
+            .asInstanceOf[WritableColumnVector]
+            .putByteArray(i, variants.apply(i).getString(0).getBytes())
         }
       batch.setNumRows(variants.length)
 
@@ -126,11 +113,11 @@ class CacheSuite
       val batch2 = instance.deserialize[CachedVeloxBatch](instance.serialize(batch1))
 
       Range(0, variants.length)
-        .foreach {
-          i =>
-            variants.apply(i).getString(0) == batch2.veloxBatch.getRow(i).getString(0)
+        .foreach { i =>
+          assert(variants.apply(i).getString(0) == batch2.veloxBatch.getRow(i).getString(0))
         }
-      println(batch2)
     }
   }
+
+  override protected def spark: SparkSession = Starry.starrySession()
 }
