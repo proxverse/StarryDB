@@ -175,9 +175,20 @@ public class VeloxColumnarBatch extends ColumnarBatch {
   }
 
   public VeloxColumnarBatch copy() {
+    if (schema == null) {
+      throw new UnsupportedOperationException("The copied batch must has schema");
+    }
     NativeColumnVector rowVector = rowVector();
     VeloxColumnarBatch fromRowVector = createFromJson(rowVector.serialize(),
         schema);
+    rowVector.close();
+    return fromRowVector;
+  }
+
+  public VeloxColumnarBatch copy(StructType structType) {
+    NativeColumnVector rowVector = rowVector();
+    VeloxColumnarBatch fromRowVector = createFromJson(rowVector.serialize(),
+        structType);
     rowVector.close();
     return fromRowVector;
   }
