@@ -2,7 +2,7 @@ package org.apache.spark.sql.execution.columnar.extension.plan
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Final, Partial, PartialMerge, Complete}
+import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, NamedExpression, aggregate}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.{BaseAggregateExec, HashAggregateExec}
@@ -54,7 +54,7 @@ object ColumnarAggregateExec {
     }
     val funcName = toNativeAggFuncName(aggExpr.aggregateFunction.prettyName)
     val step = toNativeAggStep(aggExpr)
-    operations.buildAggregate(
+    ExpressionConverter.nativeAggregateExpressionJson(
       funcName,
       inputs,
       rawInputs,
@@ -70,15 +70,10 @@ object ColumnarAggregateExec {
     val children = aggExpr.aggregateFunction.children
       .map(ExpressionConverter.convertToNativeJson(_, true))
       .toArray
-
-    // TODO move resolveAggType outside NativePlanBuilder
-    val builder = new NativePlanBuilder()
-    val ret = builder.resolveAggType(
+    ExpressionConverter.resolveNativeAggType(
       toNativeAggFuncName(aggExpr.aggregateFunction.prettyName),
       children,
       STEP_PARTIAL)
-    builder.close()
-    ret
   }
 
   def apply(hashAggregateExec: HashAggregateExec): ColumnarAggregateExec = {

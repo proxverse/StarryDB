@@ -6,7 +6,10 @@ import org.apache.spark.sql.catalyst.analysis.TypeCoercion.implicitCast
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.columnar.VeloxWritableColumnVector
 import org.apache.spark.sql.execution.columnar.expressions.convert.ExpressionConvertMapping
-import org.apache.spark.sql.execution.columnar.extension.plan.VeloxRowToColumnConverter
+import org.apache.spark.sql.execution.columnar.extension.plan.{
+  VeloxRowToColumnConverter,
+  VeloxTypeResolver
+}
 import org.apache.spark.sql.execution.columnar.jni.NativeExpressionConvert
 import org.apache.spark.sql.types._
 
@@ -59,8 +62,7 @@ object ExpressionConverter extends Logging {
 
   def nativeField(name: String, expr: Expression): ColumnarExpression = {
     NativeJsonExpression(
-      NativeExpressionConvert.nativeCreateFieldAccessTypedExpr(
-        name, expr.dataType.catalogString),
+      NativeExpressionConvert.nativeCreateFieldAccessTypedExpr(name, expr.dataType.catalogString),
       expr)
   }
 
@@ -71,22 +73,22 @@ object ExpressionConverter extends Logging {
     val vector = VeloxWritableColumnVector.createVector(1, lit.dataType)
     converter.append(row, 0, vector)
     val json = NativeExpressionConvert.nativeCreateConstantTypedExpr(
-      lit.dataType.catalogString, vector.getNative)
+      lit.dataType.catalogString,
+      vector.getNative)
     vector.close()
     NativeJsonExpression(json, lit)
   }
 
-  def nativeCall(funcName: String, retType: DataType,
-                 args: Array[String], call: Expression,
-                 skipResolve: Boolean = false): ColumnarExpression = {
+  def nativeCall(
+      funcName: String,
+      retType: DataType,
+      args: Array[String],
+      call: Expression,
+      skipResolve: Boolean = false): ColumnarExpression = {
     NativeJsonExpression(
-      NativeExpressionConvert.nativeCreateCallTypedExpr(
-        funcName,
-        retType.catalogString,
-        args,
-        skipResolve),
-      call
-    )
+      NativeExpressionConvert
+        .nativeCreateCallTypedExpr(funcName, retType.catalogString, args, skipResolve),
+      call)
   }
 
   private def functionCall(expression: Expression): Expression = {
@@ -112,8 +114,7 @@ object ExpressionConverter extends Logging {
             expression.dataType,
             other.children.map(_.asInstanceOf[NativeJsonExpression].native).toArray,
             expression.withNewChildren(
-              other.children.map(_.asInstanceOf[NativeJsonExpression].original))
-          )
+              other.children.map(_.asInstanceOf[NativeJsonExpression].original)))
         } catch {
           case e =>
             logInfo("Error for convert expression", e)
@@ -170,6 +171,36 @@ object ExpressionConverter extends Logging {
 
   def nativeEvaluable(expression: Expression): Boolean = {
     convertToNative(expression).isInstanceOf[NativeJsonExpression]
+  }
+
+  def resolveNativeAggType(
+      functionName: String,
+      argsType: Array[String],
+      step: String): DataType = {
+    VeloxTypeResolver.parseDataType(
+      NativeExpressionConvert.nativeResolveAggType(functionName, argsType, step))
+  }
+
+  def nativeAggregateExpressionJson(
+      functionName: String,
+      inputs: Array[String],
+      rawInputs: Array[String],
+      step: String,
+      mask: String,
+      sortingKeys: Array[String],
+      sortOrders: Array[String],
+      distinct: Boolean,
+      useMergeFunc: Boolean): String = {
+    NativeExpressionConvert.nativeBuildAggregationNode(
+      functionName,
+      inputs,
+      rawInputs,
+      step,
+      mask,
+      sortingKeys,
+      sortOrders,
+      distinct,
+      useMergeFunc)
   }
 
   private val NON_ALPHANUMERIC_PATTERN = Pattern.compile("[^a-zA-Z0-9]")

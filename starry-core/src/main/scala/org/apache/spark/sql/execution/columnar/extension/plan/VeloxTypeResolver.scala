@@ -1,6 +1,6 @@
 package org.apache.spark.sql.execution.columnar.extension.plan
 
-import org.apache.spark.sql.types.{ArrayType, BinaryType, DataType, LongType, StructField, StructType}
+import org.apache.spark.sql.types.{ArrayType, BinaryType, DataType, LongType, StringType, StructField, StructType}
 import org.json4s.JArray
 import org.json4s.JsonAST.{JObject, JString, JValue}
 import org.json4s.jackson.JsonMethods.parse
@@ -21,12 +21,12 @@ object VeloxTypeResolver {
       ("name", JString("type")),
       ("type", typeStr: JString),
     ) =>
-      if (typeStr.values == "bigint") {
-        LongType
-      } else if (typeStr.values == "varbinary") {
-        BinaryType
-      } else {
-        DataType.parseDataType(typeStr)
+      typeStr.values match {
+        case "bigint" => LongType
+        case "varbinary" => BinaryType
+        case "varchar" => StringType
+        case _ =>
+          DataType.parseDataType(typeStr)
       }
     case JSortedObject(
       ("ctypes", JArray(ctypes)),

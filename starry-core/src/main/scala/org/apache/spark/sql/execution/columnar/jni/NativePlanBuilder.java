@@ -2,8 +2,6 @@ package org.apache.spark.sql.execution.columnar.jni;
 
 import org.apache.spark.sql.catalyst.expressions.SortOrder;
 import org.apache.spark.sql.execution.columnar.util.PlanUtils;
-import org.apache.spark.sql.execution.columnar.extension.plan.VeloxTypeResolver;
-import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.StructType;
 
 public class NativePlanBuilder extends NativeClass {
@@ -35,21 +33,6 @@ public class NativePlanBuilder extends NativeClass {
 
   private native void nativeExpand(String[][] projects,
                                    String[] alias);
-
-
-  private native String nativeBuildAggregate(String functionName,
-                                             String[] inputs,
-                                             String[] rawInputs,
-                                             String step,
-                                             String mask,
-                                             String[] sortingKeys,
-                                             String[] sortOrders,
-                                             boolean distinct,
-                                             boolean useMergeFunc);
-
-  private native String nativeResolveAggType(String functionName,
-                                             String[] argsType,
-                                             String step);
 
   private native String nativeBuilder();
 
@@ -124,26 +107,6 @@ public class NativePlanBuilder extends NativeClass {
     nativeShuffledHashJoin(joinType, nullAware, leftKeys, rightKeys, filter, rightPlan, output);
     return this;
   }
-
-  public String buildAggregate(String functionName,
-                               String[] inputs,
-                               String[] rawInputs,
-                               String step,
-                               String mask,
-                               String[] sortingKeys,
-                               String[] sortOrders,
-                               boolean distinct,
-                               boolean useMergeFunc) {
-    return nativeBuildAggregate(functionName, inputs, rawInputs, step, mask, sortingKeys, sortOrders, distinct, useMergeFunc);
-  }
-
-
-  public DataType resolveAggType(String functionName,
-                                 String[] argsType,
-                                 String step) {
-    return VeloxTypeResolver.parseDataType(nativeResolveAggType(functionName, argsType, step));
-  }
-
 
   public void aggregate(String step,
                         String[] group,
