@@ -28,7 +28,6 @@ public class ColumnBatchUtils {
       columnVectors[i] = createVector(capacity, dataType);
     }
     VeloxColumnarBatch veloxColumnarBatch = new VeloxColumnarBatch(columnVectors);
-    veloxColumnarBatch.setSchema(structType);
     return veloxColumnarBatch;
   }
 

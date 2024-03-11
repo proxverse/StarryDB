@@ -52,7 +52,7 @@ class CachedVeloxBatchSerializer extends CachedBatchSerializer {
 
     input.map { batch =>
       val veloxColumnarBatch = batch.asInstanceOf[VeloxColumnarBatch]
-      veloxColumnarBatch.setSchema(structType)
+      veloxColumnarBatch.setSchema(structType) // used to copy
       val cacheBatch = new CachedVeloxBatch(veloxColumnarBatch.copy(), structType)
       veloxColumnarBatch.close()
       cacheBatch
@@ -87,7 +87,7 @@ class CachedVeloxBatchSerializer extends CachedBatchSerializer {
         .map { batch =>
           // tobe remove, when RowToVeloxColumnarExec can specified memory pool
           val veloxColumnarBatch = batch.asInstanceOf[VeloxColumnarBatch]
-          veloxColumnarBatch.setSchema(structType)
+          veloxColumnarBatch.setSchema(structType) // used to copy
           val cacheBatch = new CachedVeloxBatch(veloxColumnarBatch.copy(), structType)
           veloxColumnarBatch.close()
           cacheBatch

@@ -18,8 +18,27 @@
 package org.apache.spark.sql.execution.columnar.extension.rule
 
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, ApproximatePercentile, Average, AverageBase, CollectList, Count, HyperLogLogPlusPlus, Percentile, Sum}
-import org.apache.spark.sql.catalyst.expressions.{Cast, CreateStruct, Expression, If, IsNull, Literal, Or, SupportQueryContext}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{
+  AggregateExpression,
+  ApproximatePercentile,
+  Average,
+  AverageBase,
+  CollectList,
+  Count,
+  HyperLogLogPlusPlus,
+  Percentile,
+  Sum
+}
+import org.apache.spark.sql.catalyst.expressions.{
+  Cast,
+  CreateStruct,
+  Expression,
+  If,
+  IsNull,
+  Literal,
+  Or,
+  SupportQueryContext
+}
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.StarryConf
@@ -28,79 +47,86 @@ import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.types._
 
 case class AggregateFunctionRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
-  override def apply(plan: LogicalPlan): LogicalPlan = plan.resolveOperatorsUp {
-    case a: Aggregate =>
-      a.transformExpressions {
-        case avg @ AggregateExpression(CollectList(child, _, _), _, _, _, _) =>
-          avg.copy(aggregateFunction =
-            new NativeFunctionPlaceHolder(
-              avg.aggregateFunction,
-              child :: Nil,
-              avg.dataType,
-              "array_agg"))
+  override def apply(plan: LogicalPlan): LogicalPlan = {
+    if (!StarryConf.isStarryEnabled) {
+      return plan
+    }
+    plan.resolveOperatorsUp {
+      case a: Aggregate =>
+        a.transformExpressions {
+          case avg @ AggregateExpression(CollectList(child, _, _), _, _, _, _) =>
+            avg.copy(
+              aggregateFunction = new NativeFunctionPlaceHolder(
+                avg.aggregateFunction,
+                child :: Nil,
+                avg.dataType,
+                "array_agg"))
 
-        case avg @ AggregateExpression(Average(child, _), _, _, _, _)
-           if child.dataType.isInstanceOf[DecimalType] =>
-          avg.copy(aggregateFunction =
-            new NativeFunctionPlaceHolder(
-              avg.aggregateFunction,
-              Cast(child, avg.dataType) :: Nil,
-              avg.dataType))
+          case avg @ AggregateExpression(Average(child, _), _, _, _, _)
+              if child.dataType.isInstanceOf[DecimalType] =>
+            avg.copy(
+              aggregateFunction = new NativeFunctionPlaceHolder(
+                avg.aggregateFunction,
+                Cast(child, avg.dataType) :: Nil,
+                avg.dataType))
 
-        case agg@AggregateExpression(percentile: ApproximatePercentile, _, _, _, _) =>
-          val accuracy =
-            1.0 / percentile.accuracyExpression.eval().asInstanceOf[Number].longValue
-          agg.copy(aggregateFunction =
-            new NativeFunctionPlaceHolder(
-              percentile,
-              percentile.children.take(2) ++ Seq(lit(accuracy).expr),
-              percentile.dataType,
-              "approx_percentile"))
+          case agg @ AggregateExpression(percentile: ApproximatePercentile, _, _, _, _) =>
+            val accuracy =
+              1.0 / percentile.accuracyExpression.eval().asInstanceOf[Number].longValue
+            agg.copy(
+              aggregateFunction = new NativeFunctionPlaceHolder(
+                percentile,
+                percentile.children.take(2) ++ Seq(lit(accuracy).expr),
+                percentile.dataType,
+                "approx_percentile"))
 
-        case hllExpr @ AggregateExpression(hll: HyperLogLogPlusPlus, _, _, _, _)
-            if StarryConf.isStarryEnabled &&
-              !hasDistinctAggregateFunc(a) && isDataTypeSupported(hll.child.dataType) =>
-          AggregateExpression(
-            HLLAdapter(
-              hll.child,
-              Literal(hll.relativeSD),
-              hll.mutableAggBufferOffset,
-              hll.inputAggBufferOffset),
-            hllExpr.mode,
-            hllExpr.isDistinct,
-            hllExpr.filter,
-            hllExpr.resultId)
+          case hllExpr @ AggregateExpression(hll: HyperLogLogPlusPlus, _, _, _, _)
+              if StarryConf.isStarryEnabled &&
+                !hasDistinctAggregateFunc(a) && isDataTypeSupported(hll.child.dataType) =>
+            AggregateExpression(
+              HLLAdapter(
+                hll.child,
+                Literal(hll.relativeSD),
+                hll.mutableAggBufferOffset,
+                hll.inputAggBufferOffset),
+              hllExpr.mode,
+              hllExpr.isDistinct,
+              hllExpr.filter,
+              hllExpr.resultId)
 
-        case ca @ AggregateExpression(count: Count, _, false, _, _) if count.children.size > 1 =>
-          val nullableChildren = count.children.filter(_.nullable)
-          val merge = if (nullableChildren.isEmpty) {
-            Literal(1, IntegerType)
-          } else {
-            If(
-              nullableChildren.map(IsNull).reduce(Or),
-              Literal(0, IntegerType),
-              Literal(1, IntegerType))
-          }
-          AggregateExpression(Sum(merge), ca.mode, ca.isDistinct, ca.filter, ca.resultId)
-        case ca @ AggregateExpression(count: Count, _, false, _, _) if count.children.size > 1 =>
-          val nullableChildren = count.children.filter(_.nullable)
-          val merge = if (nullableChildren.isEmpty) {
-            Literal(1, IntegerType)
-          } else {
-            If(
-              nullableChildren.map(IsNull).reduce(Or),
-              Literal(0, IntegerType),
-              Literal(1, IntegerType))
-          }
-          AggregateExpression(Sum(merge), ca.mode, ca.isDistinct, ca.filter, ca.resultId)
-        case ca @ AggregateExpression(count: Count, _, true, _, _) if count.children.size > 1 =>
-          AggregateExpression(
-            Count(Seq(CreateStruct.create(count.children))),
-            ca.mode,
-            ca.isDistinct,
-            ca.filter,
-            ca.resultId)
-      }
+          case ca @ AggregateExpression(count: Count, _, false, _, _)
+              if count.children.size > 1 =>
+            val nullableChildren = count.children.filter(_.nullable)
+            val merge = if (nullableChildren.isEmpty) {
+              Literal(1, IntegerType)
+            } else {
+              If(
+                nullableChildren.map(IsNull).reduce(Or),
+                Literal(0, IntegerType),
+                Literal(1, IntegerType))
+            }
+            AggregateExpression(Sum(merge), ca.mode, ca.isDistinct, ca.filter, ca.resultId)
+          case ca @ AggregateExpression(count: Count, _, false, _, _)
+              if count.children.size > 1 =>
+            val nullableChildren = count.children.filter(_.nullable)
+            val merge = if (nullableChildren.isEmpty) {
+              Literal(1, IntegerType)
+            } else {
+              If(
+                nullableChildren.map(IsNull).reduce(Or),
+                Literal(0, IntegerType),
+                Literal(1, IntegerType))
+            }
+            AggregateExpression(Sum(merge), ca.mode, ca.isDistinct, ca.filter, ca.resultId)
+          case ca @ AggregateExpression(count: Count, _, true, _, _) if count.children.size > 1 =>
+            AggregateExpression(
+              Count(Seq(CreateStruct.create(count.children))),
+              ca.mode,
+              ca.isDistinct,
+              ca.filter,
+              ca.resultId)
+        }
+    }
   }
 
   private def hasDistinctAggregateFunc(agg: Aggregate): Boolean = {
@@ -129,6 +155,3 @@ case class AggregateFunctionRewriteRule(spark: SparkSession) extends Rule[Logica
     }
   }
 }
-
-
-

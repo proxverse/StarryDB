@@ -102,6 +102,7 @@ object ExecutorDictManager extends Logging {
     val start = System.currentTimeMillis()
     val schema = StructType(Seq(StructField("dict", StringType)))
     val batch = VeloxColumnarBatch.createFromJson(dict.bytes, schema)
+    batch.setSchema(schema)
     log.info(
       s"create execution dict vector take time ${System.currentTimeMillis() - start}," +
         s" total bytes${totalBytes.addAndGet(dict.bytes.length)}")
