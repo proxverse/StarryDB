@@ -32,7 +32,7 @@ public class NativeExpressionConvert {
   }
 
   public static native String nativeResolveAggType(String functionName,
-                                             String[] argsType,
-                                             String step);
+                                                   String[] argsType,
+                                                   String step);
 
 }

@@ -155,10 +155,23 @@ object ExpressionConverter extends Logging {
         literal.dataType match {
           case NullType =>
             literal
-          case FloatType if literal.value != null && literal.value.equals(Float.NaN) =>
+          case FloatType if literal.value != null && literal.value.asInstanceOf[Float].isNaN =>
             nativeCall("float_nan", literal.dataType, Array[String](), literal)
-          case _: DoubleType if literal.value != null && literal.value.equals(Double.NaN) =>
+          case FloatType
+              if literal.value != null && literal.value.asInstanceOf[Float].isNegInfinity =>
+            nativeCall("float_negative_infinity", literal.dataType, Array[String](), literal)
+          case FloatType
+              if literal.value != null && literal.value.asInstanceOf[Float].isPosInfinity =>
+            nativeCall("float_infinity", literal.dataType, Array[String](), literal)
+          case _: DoubleType
+              if literal.value != null && literal.value.asInstanceOf[Double].isNaN =>
             nativeCall("nan", literal.dataType, Array[String](), literal)
+          case _: DoubleType
+              if literal.value != null && literal.value.asInstanceOf[Double].isNegInfinity =>
+            nativeCall("negative_infinity", literal.dataType, Array[String](), literal)
+          case _: DoubleType
+              if literal.value != null && literal.value.asInstanceOf[Double].isPosInfinity =>
+            nativeCall("infinity", literal.dataType, Array[String](), literal)
           case _ =>
             nativeConstant(literal)
         }

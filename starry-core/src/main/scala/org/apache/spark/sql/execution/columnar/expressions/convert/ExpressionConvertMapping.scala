@@ -37,6 +37,7 @@ object PQLExpressionMappings {
     NameSig[Base64]("to_base64"),
     NameSig[UnBase64]("from_base64"),
     NameSig[Levenshtein]("levenshtein_distance"),
+    NameSig[Signum]("sign"),
   ) ++ NativeExpressionExtension.extensionNameSig
   def expressionsMap: Map[Class[_], String] =
     defaultExpressionsMap
