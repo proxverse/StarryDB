@@ -79,7 +79,8 @@ object VeloxRowToColumnConverter {
       case ShortType => ShortConverter
       case IntegerType | DateType | _: YearMonthIntervalType => IntConverter
       case FloatType => FloatConverter
-      case LongType | TimestampType | TimestampNTZType | _: DayTimeIntervalType => LongConverter
+      case LongType | TimestampType | TimestampNTZType => LongConverter
+      case _: DayTimeIntervalType => DateTimeIntervalConverter
       case DoubleType => DoubleConverter
       case StringType => StringConverter
       case CalendarIntervalType => CalendarConverter
@@ -146,6 +147,11 @@ object VeloxRowToColumnConverter {
   object LongConverter extends GlutenTypeConverter {
     override def append(row: SpecializedGetters, column: Int, cv: WritableColumnVector): Unit =
       cv.appendLong(row.getLong(column))
+  }
+
+  object DateTimeIntervalConverter extends GlutenTypeConverter {
+    override def append(row: SpecializedGetters, column: Int, cv: WritableColumnVector): Unit =
+      cv.appendLong(row.getLong(column) / 1000)
   }
 
   object DoubleConverter extends GlutenTypeConverter {
