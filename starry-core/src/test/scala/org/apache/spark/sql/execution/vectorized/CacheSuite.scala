@@ -30,7 +30,6 @@ class CacheSuite extends ParquetTest {
 
 
   test("PostMergeAggregateExpression: test rewrite") {
-
     withTable("bucket_table") {
       val frame = readResourceParquetFile("performance-data")
       val frame1 = frame
@@ -45,7 +44,6 @@ class CacheSuite extends ParquetTest {
         .count()
       val rows = cachedFrame.collect() // test column to row
       spark.sharedState.cacheManager.clearCache()
-
     }
   }
 

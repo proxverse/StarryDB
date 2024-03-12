@@ -148,7 +148,7 @@ object ExpressionConverter extends Logging {
         val attrName = if (useAlias) {
           toNativeAttrIdName(attr)
         } else {
-          attr.name
+          attr.name.toLowerCase
         }
         nativeField(attrName, attr)
       case literal: Literal =>
@@ -219,7 +219,7 @@ object ExpressionConverter extends Logging {
   private val NON_ALPHANUMERIC_PATTERN = Pattern.compile("[^a-zA-Z0-9]")
 
   def toNativeAttrIdName(a: Attribute): String = {
-    NON_ALPHANUMERIC_PATTERN.matcher(s"${a.name}_${a.exprId.id}").replaceAll("_")
+    NON_ALPHANUMERIC_PATTERN.matcher(s"${a.name}_${a.exprId.id}").replaceAll("_").toLowerCase
   }
 
 }
