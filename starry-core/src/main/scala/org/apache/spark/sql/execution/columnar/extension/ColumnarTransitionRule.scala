@@ -18,26 +18,14 @@ package org.apache.spark.sql.execution.columnar.extension
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql._
-import org.apache.spark.sql.catalyst.expressions.aggregate.{
-  AggregateExpression,
-  Partial,
-  PartialMerge
-}
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Literal, NamedExpression}
 import org.apache.spark.sql.catalyst.rules.{PlanChangeLogger, Rule}
 import org.apache.spark.sql.execution.StarryConf.isStarryEnabled
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
-import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.columnar.extension.plan._
-import org.apache.spark.sql.execution.columnar.extension.rule.SingleAggregateRule
+import org.apache.spark.sql.execution.columnar.extension.rule.{CollapseProjectExec, SingleAggregateRule}
 import org.apache.spark.sql.execution.columnar.jni.NativeQueryContext
 import org.apache.spark.sql.execution.exchange.Exchange
-import org.apache.spark.sql.execution.{
-  ColumnarRule,
-  ColumnarToRowExec,
-  RowToColumnarExec,
-  SparkPlan
-}
+import org.apache.spark.sql.execution.{ColumnarRule, ColumnarToRowExec, RowToColumnarExec, SparkPlan}
 
 case class ColumnarTransitionRule(pre: Rule[SparkPlan], post: Rule[SparkPlan])
     extends ColumnarRule {
@@ -68,14 +56,8 @@ case class PreRuleReplaceRowToColumnar(session: SparkSession)
         org.apache.spark.sql.execution.columnar.extension.rule.ConvertParquetFileFormat(spark),
       (_: SparkSession) => SingleAggregateRule(),
       (_: SparkSession) => ColumnarRewriteRule(),
-      (_: SparkSession) => ColumnarTransformRule()
-
-//      (_: SparkSession) =>
-//        TransformPreOverrides(this.isTopParentExchange, this.isAdaptiveContext),
-//      (_: SparkSession) => RemoveTransformHintRule(),
-//      (_: SparkSession) => GlutenRemoveRedundantSorts) :::
-//      BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPreRules() :::
-//      SparkUtil.extendedColumnarRules(session, GlutenConfig.getConf.extendedColumnarPreRules
+      (_: SparkSession) => ColumnarTransformRule(),
+      (_: SparkSession) => CollapseProjectExec,
     )
   }
 
@@ -164,28 +146,4 @@ case class VeloxColumnarPostRule() extends Rule[SparkPlan] {
     after
   }
 
-//  private def supportColumn(plan: SparkPlan): Boolean = plan match {
-//    case plan: ColumnarSupport  => true
-//    case _ => false
-//  }
-//
-//  private def insertInputAdapter(plan: SparkPlan): SparkPlan = {
-//    plan match {
-//      case p if !supportColumn(p) =>
-//        new ColumnarInputAdapter(insertWholeStageTransformer(p))
-//      case p =>
-//        p.withNewChildren(p.children.map(insertInputAdapter))
-//    }
-//  }
-//
-//  private def insertWholeStageTransformer(plan: SparkPlan): SparkPlan = {
-//    plan match {
-//      case t if supportColumn(t) =>
-//        WholeStageTransformer(t.withNewChildren(t.children.map(insertInputAdapter)))(
-//          transformStageCounter.incrementAndGet())
-//      case other =>
-//        other.withNewChildren(other.children.map(insertWholeStageTransformer))
-//    }
-//  }
-//}
 }
