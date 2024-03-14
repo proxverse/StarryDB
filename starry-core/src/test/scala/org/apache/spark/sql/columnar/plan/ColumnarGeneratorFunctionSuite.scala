@@ -15,14 +15,40 @@ class ColumnarGeneratorFunctionSuite
   override protected def test(testName: String, testTags: Tag*)(testFun: => Any)(
       implicit pos: Position): Unit = {
 //    if ((testName.contains("generator 2 in aggregate expression"))) {
-      super.test(testName, testTags: _*)(testFun)
+    super.test(testName, testTags: _*)(testFun)
 //    }
 //    if (!(testName.contains("inline on column") || testName.contains("TimestampNTZType"))) {
 //      super.test(testName, testTags: _*)(testFun)
 //    }
   }
 
+  test("test struct + struct") {
+    val df = sql(
+      """select * from values
+        |(
+        |  1,
+        |  array(
+        |    named_struct('c1', named_struct('c3', 0, 'c4', 1), 'c2', named_struct('5', 0, 'c6', 1)),
+        |    null,
+        |    named_struct('c1', named_struct('c3', 2, 'c4', 3), 'c2', named_struct('5', 2, 'c6', 3)),
+        |           null
+        |  )
+        |)
+        |as tbl(a, b)
+         """.stripMargin)
+    df.createOrReplaceTempView("t1")
 
+//    checkAnswer(
+//      sql("select inline(b) from t1"),
+//      Row(0, 1) :: Row(null, null) :: Row(2, 3) :: Row(null, null) :: Nil)
+
+    checkAnswer(
+      sql("select a, inline(b) from t1"),
+      Row(1, Row(0, 1), Row(0, 1)) :: Row(1, null, null) :: Row(1, Row(2, 3), Row(2, 3)) :: Row(
+        1,
+        null,
+        null) :: Nil)
+  }
 
   test("2self join explode") {
     val df = Seq((1, Seq(1, 2, 3))).toDF("a", "intList")
@@ -49,7 +75,6 @@ class ColumnarGeneratorFunctionSuite
     val df2 = Seq((2, 1, 2, 3)).toDF("n", "a", "b", "c")
     checkAnswer(df2.selectExpr("stack(2, a, b, c)"), Row(1, 2) :: Row(3, null) :: Nil)
 
-
     val df = Seq((1, 2)).toDF("a", "b")
 
     checkAnswer(
@@ -68,9 +93,7 @@ class ColumnarGeneratorFunctionSuite
     checkAnswer(
       df.selectExpr("inline(array(struct(a), named_struct('a', 2)))"),
       Row(1) :: Row(2) :: Nil)
-    checkAnswer(
-      df.selectExpr("inline(array(struct(a), struct(a)))"),
-      Row(1) :: Row(1) :: Nil)
+    checkAnswer(df.selectExpr("inline(array(struct(a), struct(a)))"), Row(1) :: Row(1) :: Nil)
 
     checkAnswer(
       df.selectExpr("inline(array(struct(a, b), struct(a, b)))"),
@@ -96,9 +119,7 @@ class ColumnarGeneratorFunctionSuite
       df.selectExpr("inline(array(struct(a), named_struct('a', 2)))"),
       Row(1) :: Row(2) :: Nil)
 
-    checkAnswer(
-      df.selectExpr("struct(a)").selectExpr("inline(array(*))"),
-      Row(1) :: Nil)
+    checkAnswer(df.selectExpr("struct(a)").selectExpr("inline(array(*))"), Row(1) :: Nil)
 
     checkAnswer(
       df.selectExpr("array(struct(a), named_struct('a', b))").selectExpr("inline(*)"),

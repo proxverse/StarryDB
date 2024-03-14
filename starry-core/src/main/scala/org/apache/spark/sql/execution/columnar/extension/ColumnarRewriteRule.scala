@@ -2,10 +2,23 @@ package org.apache.spark.sql.execution.columnar.extension
 
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.catalyst.expressions.aggregate._
-import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, Expression, Generator, Inline, Literal, NamedExpression, SortOrder, Stack}
+import org.apache.spark.sql.catalyst.expressions.{
+  Alias,
+  ArraysZip,
+  AttributeReference,
+  Expression,
+  Generator,
+  GetStructField,
+  Inline,
+  Literal,
+  NamedExpression,
+  SortOrder,
+  Stack
+}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
+import org.apache.spark.sql.execution.columnar.expressions.Unnest
 import org.apache.spark.sql.execution.columnar.extension.plan.ColumnarSupport
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, ShuffledHashJoinExec}
@@ -180,6 +193,8 @@ case class ColumnarRewriteRule() extends Rule[SparkPlan] {
         }
         val expr1 = array(columns: _*).expr
         new Inline(expr1).asInstanceOf[Generator]
+      case inline @ Inline(array: ArraysZip) =>
+        new Unnest(array.children).asInstanceOf[Generator]
       case other =>
         other
     }
@@ -260,7 +275,7 @@ case class ColumnarRewriteRule() extends Rule[SparkPlan] {
     val merelyReference = (expr: Expression) => expr.isInstanceOf[AttributeReference]
     // no need for extra projection
     if (aggExec.groupingExpressions.forall(merelyReference) &&
-      aggExec.aggregateExpressions.flatMap(_.children).forall(merelyReference)) {
+        aggExec.aggregateExpressions.flatMap(_.children).forall(merelyReference)) {
       return aggExec
     }
 
