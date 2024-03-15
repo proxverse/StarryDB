@@ -65,7 +65,13 @@ class ColumnarDataFrameAggregateSuite
     checkAnswer(
       df.select(collect_set($"a"), collect_set($"b")),
       Seq(Row(Seq("1", "2", "3"), Seq("2", "4"))))
+
+    val df2 = Seq((null.asInstanceOf[String], null.asInstanceOf[String])).toDF("a", "b")
+    checkAnswer(
+      df2.select(collect_list($"a"), collect_list($"b")),
+      Seq(Row(Seq(), Seq())))
   }
+
   test("test collect_set") {
     readParquetFile(testFile("model-data/case-table")) { df =>
       checkAnswer(
