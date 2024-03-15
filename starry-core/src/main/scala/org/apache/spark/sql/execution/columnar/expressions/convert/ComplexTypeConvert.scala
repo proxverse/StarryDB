@@ -2,6 +2,7 @@ package org.apache.spark.sql.execution.columnar.expressions.convert
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.columnar.expressions.NativeJsonExpression
+import org.apache.spark.sql.execution.columnar.extension.rule.NativeFunctionPlaceHolder
 import org.apache.spark.sql.types.IntegerType
 
 object ComplexTypeConvert {}
@@ -27,29 +28,22 @@ object GetArrayItemConvert extends ExpressionConvertTrait {
 }
 
 object SortArrayConvert extends ExpressionConvertTrait {
-  override def lookupFunctionName(expression: Expression): Option[String] = {
-    val ascendingOrder = expression
+
+  override def convert(functionName: String, expression: Expression): Expression = {
+    val array = expression
       .asInstanceOf[SortArray]
-      .ascendingOrder
+    val ascendingOrder = array.ascendingOrder
       .asInstanceOf[NativeJsonExpression]
       .original
       .asInstanceOf[Literal]
       .value
       .toString
       .toBoolean
-    if (ascendingOrder) {
-      Option.apply("array_sort")
+    val functionName = if (ascendingOrder) {
+      "array_sort"
     } else {
-      Option.apply("array_sort_desc")
+      "array_sort_desc"
     }
-  }
-
-  override def convert(functionName: String, expression: Expression): Expression = {
-    convertToNativeCall(
-      functionName,
-      expression.dataType,
-      expression.children.dropRight(1),
-      expression
-    )
+     NativeFunctionPlaceHolder(array, array.base :: Nil, array.dataType, functionName)
   }
 }

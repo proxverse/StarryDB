@@ -17,7 +17,8 @@ case class SingleAggregateRule() extends Rule[SparkPlan] {
 
       if (sameGroupingNoAggExprs || partialAndFinal) {
         agg.copy(
-          aggregateExpressions = agg.aggregateExpressions.map(_.copy(mode = Complete)),
+          // must use child, it's has filter
+          aggregateExpressions = child.aggregateExpressions.map(_.copy(mode = Complete)),
           child = child.child)
       } else {
         agg

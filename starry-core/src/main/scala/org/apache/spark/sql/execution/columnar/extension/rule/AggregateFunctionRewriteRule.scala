@@ -24,16 +24,19 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.{
   Average,
   AverageBase,
   CollectList,
+  CollectSet,
   Count,
   HyperLogLogPlusPlus,
   Percentile,
   Sum
 }
 import org.apache.spark.sql.catalyst.expressions.{
+  And,
   Cast,
   CreateStruct,
   Expression,
   If,
+  IsNotNull,
   IsNull,
   Literal,
   Or,
@@ -61,6 +64,19 @@ case class AggregateFunctionRewriteRule(spark: SparkSession) extends Rule[Logica
                 child :: Nil,
                 avg.dataType,
                 "array_agg"))
+          case avg @ AggregateExpression(CollectSet(child, _, _), _, _, filter, _) =>
+            val newFilter = if (filter.isDefined) {
+              And(filter.get, IsNotNull(child))
+            } else {
+              IsNotNull(child)
+            }
+            avg.copy(
+              aggregateFunction = new NativeFunctionPlaceHolder(
+                avg.aggregateFunction,
+                child :: Nil,
+                avg.dataType.asNullable,
+                "set_agg"),
+              filter = Option.apply(newFilter))
 
           case avg @ AggregateExpression(Average(child, _), _, _, _, _)
               if child.dataType.isInstanceOf[DecimalType] =>

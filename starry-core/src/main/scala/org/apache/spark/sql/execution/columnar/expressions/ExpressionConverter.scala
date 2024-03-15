@@ -139,7 +139,10 @@ object ExpressionConverter extends Logging {
   }
 
   def convertToNativeJson(expression: Expression, useAlias: Boolean = false): String = {
-    convertToNative(expression, useAlias).asInstanceOf[NativeJsonExpression].native
+    convertToNative(expression, useAlias) match {
+      case nativeJsonExpression: NativeJsonExpression => nativeJsonExpression.native
+      case _ => throw new UnsupportedOperationException(s"Unsupported expression ${expression}")
+    }
   }
 
   def convertToNative(expression: Expression, useAlias: Boolean = false): Expression = {
@@ -176,7 +179,7 @@ object ExpressionConverter extends Logging {
             nativeConstant(literal)
         }
       case alias: Alias =>
-        alias.child
+        convertToNative(alias.child)
       case other =>
         functionCall(other)
     }

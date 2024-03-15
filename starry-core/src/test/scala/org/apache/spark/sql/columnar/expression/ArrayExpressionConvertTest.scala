@@ -82,4 +82,5 @@ class ArrayExpressionConvertTest extends ColumnarExpressionEvalHelper {
         ArrayType(ArrayType(IntegerType, containsNull = true), containsNull = false))
     checkEvaluation(array, Seq(intSeq, intSeq :+ null))
   }
+
 }

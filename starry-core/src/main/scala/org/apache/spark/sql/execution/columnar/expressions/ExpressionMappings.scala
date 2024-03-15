@@ -250,7 +250,7 @@ object ExpressionMappings {
   final val BASE64 = "to_base64"
   final val ARRAY_JOIN = "array_join"
   final val ARRAY_SORT = "array_sort"
-  final val ARRAY_ZIP = "zip_with"
+  final val ARRAY_ZIP = "zip"
   final val ARRAY_REPEAT = "repeat"
   final val ARRAY_ELEMENT_AT = "element_at"
   final val ARRAY_POSITION = "array_position"
@@ -438,7 +438,6 @@ object ExpressionMappings {
     NameSig[TimestampDiff](TIMESTAMP_DIFF),
     NameSig[ArrayJoin](ARRAY_JOIN),
     NameSig[ArraySort](ARRAY_SORT),
-    NameSig[ArraysZip](ARRAY_ZIP),
     NameSig[ArrayRepeat](ARRAY_REPEAT),
     NameSig[ArrayDistinct](ARRAY_DISTINCT),
     NameSig[ElementAt](ARRAY_ELEMENT_AT),

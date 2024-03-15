@@ -3,6 +3,7 @@ package org.apache.spark.sql.execution.columnar.expressions.convert
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.StarryConf
+import org.apache.spark.sql.execution.columnar.expressions.ExpressionMappings.ARRAY_ZIP
 import org.apache.spark.util.Utils
 
 import scala.reflect.ClassTag
@@ -42,6 +43,8 @@ object PQLExpressionMappings {
     NameSig[TimestampAddYMInterval]("plus"),
     NameSig[DateAddYMInterval]("plus"),
     NameSig[DatetimeSub]("minus"),
+    NameSig[ArraysZip]("zip"),
+
   ) ++ NativeExpressionExtension.extensionNameSig
   def expressionsMap: Map[Class[_], String] =
     defaultExpressionsMap
@@ -74,6 +77,7 @@ object ExpressionConvertMapping {
     Sig[CumeDist](WindowConvert),
     Sig[PercentRank](WindowConvert),
     Sig[TimestampDiff](TimestampDiffConverter),
+    Sig[GetArrayStructFields](GetArrayStructFieldsConverter),
 //    Sig[Hex](Hexonvert)
 //    Sig[Cast](CastConvert)
   ) ++ NativeExpressionExtension.extensionSig ++ NativeExpressionExtension.extensionAggregateSig
