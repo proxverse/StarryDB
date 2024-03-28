@@ -107,7 +107,8 @@ case class ColumnarAggregateExec(
   lazy private val isOnOneDistinctPartialDistinctAggStage = aggregateExpressions
     .exists(_.isDistinct) && step == STEP_INTERMEDIATE
   lazy private val isOnOneDistinctPartialMergeAggStage = aggregateExpressions
-    .forall(aggExpr => aggExpr.mode == PartialMerge && !aggExpr.isDistinct)
+    .forall(aggExpr => aggExpr.mode == PartialMerge && !aggExpr.isDistinct) &&
+    step == STEP_INTERMEDIATE
 
   override def supportsColumnar: Boolean = true
   // Disable code generation
