@@ -45,8 +45,7 @@ object ColumnarAggregateExec {
       operations: NativePlanBuilder,
       aggExpr: AggregateExpression,
       inputs: Array[String],
-      rawInputs: Array[String],
-      useMergeFuncHack: Boolean): String = {
+      rawInputs: Array[String]): String = {
     val mask = if (aggExpr.filter.isDefined) {
       ExpressionConverter.convertToNativeJson(aggExpr.filter.get, true)
     } else {
@@ -63,7 +62,7 @@ object ColumnarAggregateExec {
       null,
       null,
       false,
-      step == STEP_INTERMEDIATE && useMergeFuncHack)
+      aggExpr.mode == PartialMerge && !aggExpr.isDistinct)
   }
 
   private def toIntermediateType(aggExpr: AggregateExpression): DataType = {
@@ -105,8 +104,10 @@ case class ColumnarAggregateExec(
   lazy private val step = aggregateExpressions.headOption
     .map(toNativeAggStep)
     .getOrElse(STEP_SINGLE)
-  lazy private val needMergeHack = aggregateExpressions
+  lazy private val isOnOneDistinctPartialDistinctAggStage = aggregateExpressions
     .exists(_.isDistinct) && step == STEP_INTERMEDIATE
+  lazy private val isOnOneDistinctPartialMergeAggStage = aggregateExpressions
+    .forall(aggExpr => aggExpr.mode == PartialMerge && !aggExpr.isDistinct)
 
   override def supportsColumnar: Boolean = true
   // Disable code generation
@@ -151,8 +152,7 @@ case class ColumnarAggregateExec(
         operations,
         aggExpr,
         inputs,
-        rawInputs,
-        needMergeHack && !aggExpr.isDistinct)
+        rawInputs)
     }.toArray
     val aggNames = aggregateExpressions.map(aggExpr =>
       ExpressionConverter.toNativeAttrIdName(toNativeAggOutput(aggExpr)))
@@ -161,11 +161,32 @@ case class ColumnarAggregateExec(
       .toArray
 
     operations.aggregate(
-      if (needMergeHack) STEP_PARTIAL else step,
+      nativeAggStep,
       groupings,
       aggNames.toArray,
       aggNodes,
       false)
+  }
+
+  // Agg With One Distinct
+  // Spark Plan:
+  //   Final Agg
+  //     Partial Merge Agg (partial distinct func & partial merge non-distinct func)
+  //        Partial Merge Agg (non-distinct func)
+  //          Partial Agg (non-distinct func)
+  // Velox Plan:
+  //    Final Agg
+  //      Partial Agg
+  //        Final Agg
+  //          Partial Agg
+  private def nativeAggStep(): String = {
+    if (isOnOneDistinctPartialDistinctAggStage) {
+      STEP_PARTIAL
+    } else if (isOnOneDistinctPartialMergeAggStage) {
+      STEP_FINAL
+    } else {
+      step
+    }
   }
 
   // Hack the native agg func input/output references
