@@ -71,9 +71,6 @@ public class NativeColumnVector extends NativeClass {
 
   private static native long nativeDeserialize(byte[] json);
 
-  private native long nativeCopy();
-
-
   public NativeColumnVector reserveDictionaryIds(int capacity) {
     return new NativeColumnVector(nativeReserveDictionaryIds(capacity));
   }
@@ -139,11 +136,6 @@ public class NativeColumnVector extends NativeClass {
   public static NativeColumnVector deserialize(byte[] json) {
     return new NativeColumnVector(nativeDeserialize(json));
   }
-
-  public NativeColumnVector cache() {
-    return new NativeColumnVector(nativeCopy());
-  }
-
 
   @Override
   protected void releaseInternal() {
