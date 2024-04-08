@@ -131,7 +131,8 @@ object MetricsUpdater {
       nodeMetrics: Map[String, (String, Map[String, SQLMetric])],
       metrics: json4s.JValue): Unit = {
     val seqTry = Try(metrics.values.asInstanceOf[List[Map[String, Any]]])
-    seqTry.get.foreach { nodeStatus =>
+    seqTry.get.filterNot(_.apply("planNodeId").toString.equals("N/A"))// smg
+      .foreach { nodeStatus =>
       val nodeId = nodeStatus.apply("planNodeId").toString
       val tuple = nodeMetrics.apply(nodeId)
       tuple._2.foreach { tp =>

@@ -78,6 +78,7 @@ object ExpressionConvertMapping {
     Sig[PercentRank](WindowConvert),
     Sig[TimestampDiff](TimestampDiffConverter),
     Sig[GetArrayStructFields](GetArrayStructFieldsConverter),
+    Sig[DateFormatClass](DateFormatConverter),
 //    Sig[Hex](Hexonvert)
 //    Sig[Cast](CastConvert)
   ) ++ NativeExpressionExtension.extensionSig ++ NativeExpressionExtension.extensionAggregateSig

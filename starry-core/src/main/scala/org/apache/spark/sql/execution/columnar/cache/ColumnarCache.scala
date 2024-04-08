@@ -19,20 +19,15 @@ package org.apache.spark.sql.execution.columnar.cache
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, UnsafeProjection}
-import org.apache.spark.sql.columnar.{
-  CachedBatch,
-  CachedBatchSerializer,
-  SimpleMetricsCachedBatch
-}
-import org.apache.spark.sql.execution.columnar.{NoCloseColumnVector, VeloxColumnarBatch}
-import org.apache.spark.sql.execution.columnar.extension.plan.RowToVeloxColumnarExec
+import org.apache.spark.sql.columnar.{CachedBatch, CachedBatchSerializer, SimpleMetricsCachedBatch}
+import org.apache.spark.sql.execution.columnar.{ColumnBatchUtils, NoCloseColumnVector, VeloxColumnarBatch}
+import org.apache.spark.sql.execution.columnar.extension.plan.{RowToVeloxColumnarExec, VeloxRowToColumnConverter}
 import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.execution.vectorized.{OffHeapColumnVector, OnHeapColumnVector}
+import org.apache.spark.sql.execution.vectorized.{OffHeapColumnVector, OnHeapColumnVector, WritableColumnVector}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
 import org.apache.spark.storage.StorageLevel
-import org.apache.spark.util.KnownSizeEstimation
 
 import scala.collection.JavaConverters._
 
@@ -49,12 +44,10 @@ class CachedVeloxBatchSerializer extends CachedBatchSerializer {
       storageLevel: StorageLevel,
       conf: SQLConf): RDD[CachedBatch] = {
     val structType = StructType.fromAttributes(schema)
+    val batchSize = conf.columnBatchSize
 
     input.map { batch =>
-      val veloxColumnarBatch = batch.asInstanceOf[VeloxColumnarBatch]
-      val cacheBatch = new CachedVeloxBatch(veloxColumnarBatch.copy(structType), structType)
-      veloxColumnarBatch.close()
-      cacheBatch
+      copyBatch(batchSize, structType, batch)
     }
 
   }
@@ -84,12 +77,39 @@ class CachedVeloxBatchSerializer extends CachedBatchSerializer {
           structType,
           itr)
         .map { batch =>
-          // tobe remove, when RowToVeloxColumnarExec can specified memory pool
-          val veloxColumnarBatch = batch.asInstanceOf[VeloxColumnarBatch]
-          val cacheBatch = new CachedVeloxBatch(veloxColumnarBatch.copy(structType), structType)
-          veloxColumnarBatch.close()
-          cacheBatch
+          copyBatch(batchSize, structType, batch)
         }
+    }
+  }
+
+  private def copyBatch(batchSize: Int, structType: StructType, batch: ColumnarBatch) = {
+    try {
+      if (batch.numRows() < batchSize && batch.numRows() > 0) {
+        val converters = new VeloxRowToColumnConverter(structType)
+        val cb = ColumnBatchUtils.createWriterableColumnBatch(batch.numRows(), structType)
+        Range(0, batch.numRows()).foreach {
+          rowIndex =>
+            converters.convert(
+              batch.getRow(rowIndex),
+              cb
+                .asInstanceOf[VeloxColumnarBatch]
+                .getColumns
+                .map(_.asInstanceOf[WritableColumnVector]))
+        }
+        cb.setNumRows(batch.numRows())
+        new CachedVeloxBatch(cb.asInstanceOf[VeloxColumnarBatch], structType)
+      } else {
+        val veloxColumnarBatch = batch.asInstanceOf[VeloxColumnarBatch]
+        val cacheBatch = new CachedVeloxBatch(veloxColumnarBatch.copy(structType), structType)
+        cacheBatch
+      }
+    } catch {
+      case e =>
+        val veloxColumnarBatch = batch.asInstanceOf[VeloxColumnarBatch]
+        val cacheBatch = new CachedVeloxBatch(veloxColumnarBatch.copy(structType), structType)
+        cacheBatch
+    } finally {
+      batch.close()
     }
   }
 
