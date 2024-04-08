@@ -1,6 +1,6 @@
 package org.apache.spark.sql.execution.columnar.expressions.convert
 
-import com.clearspring.analytics.util.Preconditions
+import com.google.common.base.Preconditions
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.execution.columnar.expressions.{ExpressionConverter, ExpressionNamingProcess, NativeJsonExpression}
 import org.apache.spark.sql.execution.columnar.jni.NativePlanBuilder

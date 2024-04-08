@@ -24,8 +24,29 @@ trait ColumnarSharedSparkSession extends org.apache.spark.sql.test.SharedSparkSe
   override implicit def spark: SparkSession = _spark
 
   override def initializeSession(): Unit = {
-    _spark = Starry.starrySession()
+    if (_spark == null) {
+      _spark = Starry.starrySession()
+    }
   }
   override def sqlContext: SQLContext = _spark.sqlContext
 
+  override protected def afterAll(): Unit = {
+    try {
+      super.afterAll()
+    } finally {
+      try {
+        if (_spark != null) {
+          try {
+            _spark.sessionState.catalog.reset()
+          } finally {
+            _spark.stop()
+            _spark = null
+          }
+        }
+      } finally {
+        SparkSession.clearActiveSession()
+        SparkSession.clearDefaultSession()
+      }
+    }
+  }
 }
