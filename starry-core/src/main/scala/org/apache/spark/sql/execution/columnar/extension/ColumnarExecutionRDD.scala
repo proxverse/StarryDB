@@ -26,6 +26,7 @@ import org.apache.spark.sql.execution.columnar.jni.NativeColumnarExecution
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark._
+import org.apache.spark.sql.internal.SQLConf
 import org.json4s
 import org.json4s.{NoTypeHints, _}
 import org.json4s.jackson.JsonMethods._
@@ -75,7 +76,11 @@ class ColumnarExecutionRDD(
       }.toArray
 
     val finalMap = confMap ++ Map(
-      "task_id" -> s"${columnarStageId}_${TaskContext.get().taskAttemptId()}")
+      "task_id" -> s"${columnarStageId}_${TaskContext.get().taskAttemptId()}",
+      // velox query config
+      "velox.adjust_timestamp_to_session_timezone" -> "true",
+      "velox.session_timezone" -> SQLConf.get.sessionLocalTimeZone
+    )
     val confStr = Serialization.write(finalMap)
 
     execution.init(planJson, nodeIds, columnarNativeIterator, confStr)
