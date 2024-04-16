@@ -1,24 +1,24 @@
 package com.prx.starry
 
-import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext, SparkPlugin}
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.FunctionIdentifier
+import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
+import org.apache.spark.sql.catalyst.analysis.FunctionRegistryBase
+import org.apache.spark.sql.catalyst.expressions.{Expression, ExpressionInfo}
 import org.apache.spark.sql.catalyst.optimizer.CollapseProject
-import org.apache.spark.sql.execution.columnar.extension.rule.{
-  AggregateFunctionRewriteRule,
-  PreProjectRewriteRule
-}
-import org.apache.spark.sql.execution.columnar.extension.{
-  ColumnarTransitionRule,
-  JoinSelectionOverrides,
-  PreRuleReplaceRowToColumnar,
-  VeloxColumnarPostRule
-}
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.execution.columnar.expressions.aggregate.BitmapCountDistinctAggFunction
+import org.apache.spark.sql.execution.columnar.extension.rule.{AggregateFunctionRewriteRule, PreProjectRewriteRule}
 import org.apache.spark.sql.execution.columnar.extension.utils.NativeLibUtil
+import org.apache.spark.sql.execution.columnar.extension.{ColumnarTransitionRule, JoinSelectionOverrides, PreRuleReplaceRowToColumnar, VeloxColumnarPostRule}
+import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
+import org.apache.spark.{SparkConf, SparkContext}
 
 import java.util
 import java.util.Collections
+import scala.reflect.ClassTag
 
 class StarryPlugin extends SparkPlugin {
   override def driverPlugin(): DriverPlugin = {
@@ -65,6 +65,33 @@ object LibLoader {
 }
 
 object Starry {
+
+  private def functionDescription[T <: Expression : ClassTag]
+  (name: String,
+   since: Option[String] = None
+  ): (FunctionIdentifier, ExpressionInfo, FunctionBuilder) = {
+    val (expressionInfo, builder) = FunctionRegistryBase.build[T](name, since)
+    val newBuilder = (expressions: Seq[Expression]) => {
+      val expr = builder(expressions)
+      expr
+    }
+    (FunctionIdentifier(name), expressionInfo, newBuilder)
+  }
+
+
+  def injectExtensions(sparkSessionExtensions: SparkSessionExtensions): Unit = {
+    sparkSessionExtensions.injectOptimizerRule(AggregateFunctionRewriteRule)
+    sparkSessionExtensions.injectPlannerStrategy(JoinSelectionOverrides)
+    sparkSessionExtensions.injectColumnar(spark =>
+      ColumnarTransitionRule(PreRuleReplaceRowToColumnar(spark), VeloxColumnarPostRule()))
+
+    sparkSessionExtensions.injectFunction(
+      functionDescription[BitmapCountDistinctAggFunction]("bitmap_count_distinct"))
+  }
+
+  def extraOptimizations: Seq[Rule[LogicalPlan]] = PreProjectRewriteRule :: CollapseProject :: Nil
+
+
   def starrySession(otherConf: SparkConf = new SparkConf()): SparkSession = {
     val conf = new SparkConf()
     conf.set("spark.sql.parquet.outputTimestampType", "TIMESTAMP_MILLIS")
@@ -86,15 +113,9 @@ object Starry {
       .master("local[2]")
       .appName("test")
       .config(otherConf)
-      .withExtensions(e => e.injectOptimizerRule(AggregateFunctionRewriteRule))
-      //      .withExtensions(e => e.injectOptimizerRule(AggregateProjectPushdownRewriteRule))
-      .withExtensions(e => e.injectPlannerStrategy(JoinSelectionOverrides))
-      .withExtensions(e =>
-        e.injectColumnar(spark =>
-          ColumnarTransitionRule(PreRuleReplaceRowToColumnar(spark), VeloxColumnarPostRule())))
+      .withExtensions(e => injectExtensions(e))
       .getOrCreate()
-    spark.sqlContext.experimental.extraOptimizations =
-      Seq(PreProjectRewriteRule(spark), CollapseProject)
+    spark.sqlContext.experimental.extraOptimizations ++= extraOptimizations
     spark
   }
 }

@@ -18,75 +18,65 @@
 package org.apache.spark.sql.execution.columnar.extension.rule
 
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.expressions.aggregate.{
-  AggregateExpression,
-  ApproximatePercentile,
-  Average,
-  AverageBase,
-  CollectList,
-  CollectSet,
-  Count,
-  HyperLogLogPlusPlus,
-  Percentile,
-  Sum
-}
-import org.apache.spark.sql.catalyst.expressions.{
-  And,
-  Cast,
-  CreateStruct,
-  Expression,
-  If,
-  IsNotNull,
-  IsNull,
-  Literal,
-  Or,
-  SupportQueryContext
-}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction, ApproximatePercentile, Average, AverageBase, CollectList, CollectSet, Count, HyperLogLogPlusPlus, Percentile, Sum}
+import org.apache.spark.sql.catalyst.expressions.{And, Cast, CreateStruct, Expression, If, IsNotNull, IsNull, Literal, Or, SupportQueryContext}
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.StarryConf
 import org.apache.spark.sql.execution.columnar.expressions.HLLAdapter
+import org.apache.spark.sql.execution.columnar.expressions.aggregate.BitmapCountDistinctAggFunction
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.types._
 
+object AggExpr {
+  def unapply(expr: AggregateExpression): Option[AggregateFunction] = expr match {
+    case aggExpr: AggregateExpression =>
+      Some(aggExpr.aggregateFunction)
+    case _ =>
+      None
+  }
+}
+
 case class AggregateFunctionRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
+
   override def apply(plan: LogicalPlan): LogicalPlan = {
     if (!StarryConf.isStarryEnabled) {
       return plan
     }
-    plan.resolveOperatorsUp {
+    plan.transformUp {
       case a: Aggregate =>
         a.transformExpressions {
-          case avg @ AggregateExpression(CollectList(child, _, _), _, _, _, _) =>
-            avg.copy(
+          case agg @ AggExpr(bitmapCountD: BitmapCountDistinctAggFunction) =>
+            agg.copy(aggregateFunction = new NativeFunctionPlaceHolder(bitmapCountD))
+          case agg @ AggExpr(collectList: CollectList) =>
+            agg.copy(
               aggregateFunction = new NativeFunctionPlaceHolder(
-                avg.aggregateFunction,
-                child :: Nil,
-                avg.dataType,
+                collectList,
+                collectList.child :: Nil,
+                agg.dataType,
                 "array_agg"))
-          case avg @ AggregateExpression(CollectSet(child, _, _), _, _, filter, _) =>
-            val newFilter = if (filter.isDefined) {
-              And(filter.get, IsNotNull(child))
+          case agg @ AggExpr(collectSet @ CollectSet(child, _, _)) =>
+            val newFilter = if (agg.filter.isDefined) {
+              And(agg.filter.get, IsNotNull(child))
             } else {
               IsNotNull(child)
             }
-            avg.copy(
+            agg.copy(
               aggregateFunction = new NativeFunctionPlaceHolder(
-                avg.aggregateFunction,
+                collectSet,
                 child :: Nil,
-                avg.dataType.asNullable,
+                agg.dataType.asNullable,
                 "set_agg"),
               filter = Option.apply(newFilter))
 
-          case avg @ AggregateExpression(Average(child, _), _, _, _, _)
-              if child.dataType.isInstanceOf[DecimalType] =>
-            avg.copy(
+          case agg @ AggExpr(Average(child, _)) if child.dataType.isInstanceOf[DecimalType] =>
+            agg.copy(
               aggregateFunction = new NativeFunctionPlaceHolder(
-                avg.aggregateFunction,
-                Cast(child, avg.dataType) :: Nil,
-                avg.dataType))
+                agg.aggregateFunction,
+                Cast(child, agg.dataType) :: Nil,
+                agg.dataType))
 
-          case agg @ AggregateExpression(percentile: ApproximatePercentile, _, _, _, _) =>
+          case agg @ AggExpr(percentile: ApproximatePercentile) =>
             val accuracy =
               1.0 / percentile.accuracyExpression.eval().asInstanceOf[Number].longValue
             agg.copy(
@@ -96,7 +86,7 @@ case class AggregateFunctionRewriteRule(spark: SparkSession) extends Rule[Logica
                 percentile.dataType,
                 "approx_percentile"))
 
-          case hllExpr @ AggregateExpression(hll: HyperLogLogPlusPlus, _, _, _, _)
+          case hllExpr @ AggExpr(hll: HyperLogLogPlusPlus)
               if StarryConf.isStarryEnabled &&
                 !hasDistinctAggregateFunc(a) && isDataTypeSupported(hll.child.dataType) =>
             AggregateExpression(

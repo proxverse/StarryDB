@@ -1,24 +1,16 @@
 package org.apache.spark.sql.columnar.plan
 
+import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.common.ColumnarSharedSparkSession
+import org.apache.spark.sql.execution.columnar.expressions.aggregate.BitmapCountDistinctAggFunction
 import org.apache.spark.sql.execution.datasources.parquet.ParquetTest
-import org.apache.spark.sql.functions.{
-  array_sort,
-  arrays_zip,
-  avg,
-  col,
-  collect_list,
-  collect_set,
-  count,
-  count_distinct,
-  lit,
-  sum,
-  sum_distinct
-}
-import org.apache.spark.sql.test.SQLTestData.DecimalData
-import org.apache.spark.sql.{DataFrameAggregateSuite, Row}
+import org.apache.spark.sql.functions.{array_sort, arrays_zip, avg, col, collect_list, collect_set, count, count_distinct, lit, sum, sum_distinct}
+import org.apache.spark.sql.test.SQLTestData.{DecimalData, TestData2}
+import org.apache.spark.sql.{Column, DataFrameAggregateSuite, Row}
 import org.scalactic.source.Position
 import org.scalatest.Tag
+
+case class LongTestData(a: Long, b: Int)
 
 class ColumnarDataFrameAggregateSuite
     extends DataFrameAggregateSuite
@@ -81,4 +73,39 @@ class ColumnarDataFrameAggregateSuite
         Seq(Row(Seq("按票付款", "处理发票", "接收发票", "批准发票", "最终检查发票", "已检查并批准"))))
     }
   }
+
+  test("bitmap count distinct") {
+    val bitmap_count_distinct = (child: Column) =>
+      Column(BitmapCountDistinctAggFunction(child.expr).toAggregateExpression(false))
+
+    checkAnswer(
+      testData3.agg(
+        count($"a"), count($"b"), count(lit(1)), bitmap_count_distinct($"a"), bitmap_count_distinct($"b")),
+      Row(2, 1, 2, 2, 1)
+    )
+
+    checkAnswer(
+      testData3.agg("a" -> "bitmap_count_distinct"),
+      Row(2)
+    )
+
+    val longDf = spark.sparkContext.parallelize(
+        LongTestData(1L, 1) ::
+        LongTestData(1L, 1) ::
+        LongTestData(2L, 1) ::
+        LongTestData(2L, 2) ::
+        LongTestData(3L, 2) :: Nil, 2).toDF()
+    checkAnswer(
+      longDf.groupBy($"b").agg(bitmap_count_distinct($"a")),
+      Row(1, 2) :: Row(2, 2) :: Nil
+    )
+
+// bitmap_count_distinct with other distinct agg is not supported now
+//    checkAnswer(
+//      testData3.agg(count($"b"), bitmap_count_distinct($"b"), sum_distinct($"b")), // non-partial
+//      Row(1, 1, 2)
+//    )
+
+  }
+
 }

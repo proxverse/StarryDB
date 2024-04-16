@@ -36,7 +36,8 @@ import java.util
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-case class PreProjectRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
+object PreProjectRewriteRule extends Rule[LogicalPlan] {
+
   override def apply(plan: LogicalPlan): LogicalPlan = plan.resolveOperatorsUp {
     case aggregate: Aggregate =>
       pushdownExprsInAgg(aggregate)

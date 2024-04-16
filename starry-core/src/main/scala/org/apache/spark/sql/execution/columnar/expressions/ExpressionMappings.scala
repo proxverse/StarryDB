@@ -20,6 +20,7 @@ import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.expressions.{EqualNullSafe, _}
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.execution.ScalarSubquery
+import org.apache.spark.sql.execution.columnar.expressions.aggregate.BitmapCountDistinctAggFunction
 import org.apache.spark.sql.execution.columnar.expressions.convert.NameSig
 
 object ExpressionMappings {
@@ -256,6 +257,7 @@ object ExpressionMappings {
   final val ARRAY_POSITION = "array_position"
   final val ARRAY_SLICE = "slice"
   final val ARRAY_DISTINCT = "array_distinct"
+  final val BITMAP_COUNT_DISTINCT = "bitmap_count_distinct"
 
   /**
    * Mapping Spark scalar expression to Substrait function name
@@ -467,7 +469,9 @@ object ExpressionMappings {
     NameSig[First](FIRST),
     NameSig[CollectList](COLLECT_LIST),
     NameSig[ArrayIntersect](ARRAY_INTERSECT),
-    NameSig[EqualNullSafe](EQUAL_NULL_SAFE))
+    NameSig[EqualNullSafe](EQUAL_NULL_SAFE),
+    NameSig[BitmapCountDistinctAggFunction](BITMAP_COUNT_DISTINCT),
+  )
 
   /** Mapping Spark window expression to Substrait function name */
   private val WINDOW_SigS: Seq[NameSig] = Seq(

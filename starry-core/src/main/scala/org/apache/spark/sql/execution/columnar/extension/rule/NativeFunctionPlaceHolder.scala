@@ -25,6 +25,10 @@ case class NativeFunctionPlaceHolder(
     this(original, original.children, outputType, original.prettyName)
   }
 
+  def this(original: Expression) = {
+    this(original, original.children, original.dataType, original.prettyName)
+  }
+
   override protected def withNewChildrenInternal(
       newChildren: IndexedSeq[Expression]): Expression =
     copy(original, newChildren, outputType)
