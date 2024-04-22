@@ -17,7 +17,6 @@
 
 package org.apache.spark.sql.execution.columnar.extension.rule
 
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction, ApproximatePercentile, Average, AverageBase, CollectList, CollectSet, Count, HyperLogLogPlusPlus, Percentile, Sum}
 import org.apache.spark.sql.catalyst.expressions.{And, Cast, CreateStruct, Expression, If, IsNotNull, IsNull, Literal, Or, SupportQueryContext}
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan}
@@ -37,7 +36,7 @@ object AggExpr {
   }
 }
 
-case class AggregateFunctionRewriteRule(spark: SparkSession) extends Rule[LogicalPlan] {
+object AggregateFunctionRewriteRule extends Rule[LogicalPlan] {
 
   override def apply(plan: LogicalPlan): LogicalPlan = {
     if (!StarryConf.isStarryEnabled) {

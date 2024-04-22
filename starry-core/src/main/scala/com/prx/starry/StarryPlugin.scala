@@ -10,7 +10,7 @@ import org.apache.spark.sql.catalyst.optimizer.CollapseProject
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.columnar.expressions.aggregate.BitmapCountDistinctAggFunction
-import org.apache.spark.sql.execution.columnar.extension.rule.{AggregateFunctionRewriteRule, PreProjectRewriteRule}
+import org.apache.spark.sql.execution.columnar.extension.rule.{AggregateFunctionRewriteRule, CountDistinctToBitmap, PreProjectRewriteRule}
 import org.apache.spark.sql.execution.columnar.extension.utils.NativeLibUtil
 import org.apache.spark.sql.execution.columnar.extension.{ColumnarTransitionRule, JoinSelectionOverrides, PreRuleReplaceRowToColumnar, VeloxColumnarPostRule}
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
@@ -80,7 +80,7 @@ object Starry {
 
 
   def injectExtensions(sparkSessionExtensions: SparkSessionExtensions): Unit = {
-    sparkSessionExtensions.injectOptimizerRule(AggregateFunctionRewriteRule)
+    sparkSessionExtensions.injectOptimizerRule(_ => AggregateFunctionRewriteRule)
     sparkSessionExtensions.injectPlannerStrategy(JoinSelectionOverrides)
     sparkSessionExtensions.injectColumnar(spark =>
       ColumnarTransitionRule(PreRuleReplaceRowToColumnar(spark), VeloxColumnarPostRule()))
@@ -89,7 +89,11 @@ object Starry {
       functionDescription[BitmapCountDistinctAggFunction]("bitmap_count_distinct"))
   }
 
-  def extraOptimizations: Seq[Rule[LogicalPlan]] = PreProjectRewriteRule :: CollapseProject :: Nil
+  def extraOptimizations: Seq[Rule[LogicalPlan]] =
+    CountDistinctToBitmap ::
+    AggregateFunctionRewriteRule ::
+    PreProjectRewriteRule ::
+    CollapseProject :: Nil
 
 
   def starrySession(otherConf: SparkConf = new SparkConf()): SparkSession = {

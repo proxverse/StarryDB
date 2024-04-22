@@ -46,6 +46,12 @@ object StarryConf {
       .stringConf
       .createOptional
 
+  val REWRITE_COUNT_DISTINCT_AS_BITMAP = SQLConf
+    .buildConf("spark.sql.starry.expressions.rewriteCountDistinctAsBitmap")
+    .doc("rewrite count distinct as bitmap count distinct")
+    .booleanConf
+    .createWithDefault(false)
+
   def isColumnarEnabled: Boolean = SQLConf.get.getConf(COLUMNAR_ENABLED)
 
   def expressionExtensionClass: Option[String] =
@@ -60,5 +66,7 @@ object StarryConf {
     SQLConf.get.getConf(COLUMNAR_FPRCE_SHUFFLED_HASH_JOIN_ENABLED)
 
   def isStarryEnabled: Boolean = SQLConf.get.getConf(STARRY_ENABLED)
+
+  def rewriteCountDistinctAsBitmap: Boolean = SQLConf.get.getConf(REWRITE_COUNT_DISTINCT_AS_BITMAP)
 
 }
