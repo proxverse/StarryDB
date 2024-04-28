@@ -67,6 +67,10 @@ object LibLoader {
     } catch {
       case runtimeException: RuntimeException =>
         NativeLibUtil.loadLibrary("libstarry.so")
+        val str = StarryConf.getAllConfJson(conf, "spark.sql.starry")
+        if (str.nonEmpty) {
+          NativeLibUtil.init(str)
+        }
     }
     isLoader = true
   }
