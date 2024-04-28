@@ -2,10 +2,12 @@ package org.apache.spark.sql.execution.columnar.extension.rule
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{FileSourceScanExec, StarryConf, SparkPlan}
+import org.apache.spark.sql.execution.{FileSourceScanExec, SparkPlan}
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.execution.datasources.parquet.{NativeParquetFileFormat, ParquetFileFormat}
+import org.apache.spark.sql.internal.StarryConf
+
 case class ConvertParquetFileFormat(sparkSession: SparkSession) extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan =
     if (StarryConf.nativeParquetReaderEnabled) {

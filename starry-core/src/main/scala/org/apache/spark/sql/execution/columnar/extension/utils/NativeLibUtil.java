@@ -68,4 +68,6 @@ public class NativeLibUtil {
     throw new RuntimeException("Failed to load " + libFileName + " from any " +
         "candidate location:\n" + Joiner.on("\n").join(candidates));
   }
+
+  native public static void init(String conf);
 }

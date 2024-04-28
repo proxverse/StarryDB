@@ -1,6 +1,12 @@
 package org.apache.spark.sql.execution.columnar.extension
 
-import org.apache.spark.sql.catalyst.expressions.{Explode, Expression, Inline}
+import org.apache.spark.sql.catalyst.expressions.{
+  Ascending,
+  Explode,
+  Expression,
+  Inline,
+  SortOrder
+}
 import org.apache.spark.sql.catalyst.rules.{Rule, UnknownRuleId}
 import org.apache.spark.sql.catalyst.trees.AlwaysProcess
 import org.apache.spark.sql.execution._
@@ -10,7 +16,7 @@ import org.apache.spark.sql.execution.columnar.extension.plan._
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, ShuffledHashJoinExec}
 import org.apache.spark.sql.execution.window.WindowExec
-import org.apache.spark.sql.types.AtomicType
+import org.apache.spark.sql.types.{AtomicType, IntegralType, LongType}
 
 case class ColumnarTransformRule() extends Rule[SparkPlan] {
 

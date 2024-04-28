@@ -13,8 +13,11 @@ import org.apache.spark.sql.execution.columnar.expressions.aggregate.BitmapCount
 import org.apache.spark.sql.execution.columnar.extension.rule.{AggregateFunctionRewriteRule, CountDistinctToBitmap, PreProjectRewriteRule}
 import org.apache.spark.sql.execution.columnar.extension.utils.NativeLibUtil
 import org.apache.spark.sql.execution.columnar.extension.{ColumnarTransitionRule, JoinSelectionOverrides, PreRuleReplaceRowToColumnar, VeloxColumnarPostRule}
+import org.apache.spark.sql.internal.{SQLConf, StarryConf}
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import org.apache.spark.{SparkConf, SparkContext}
+import org.json4s.NoTypeHints
+import org.json4s.jackson.Serialization
 
 import java.util
 import java.util.Collections
@@ -33,7 +36,7 @@ class StarryPlugin extends SparkPlugin {
 class StarryDriverPlugin extends DriverPlugin with Logging {
 
   override def init(sc: SparkContext, pluginContext: PluginContext): util.Map[String, String] = {
-    LibLoader.loadLib()
+    LibLoader.loadLib(sc.getConf)
     Collections.emptyMap()
   }
 }
@@ -41,7 +44,7 @@ class StarryDriverPlugin extends DriverPlugin with Logging {
 class StarryExecutorPlugin extends ExecutorPlugin with Logging {
 
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
-    LibLoader.loadLib()
+    LibLoader.loadLib(ctx.conf())
     Collections.emptyMap()
   }
 }
@@ -49,13 +52,18 @@ class StarryExecutorPlugin extends ExecutorPlugin with Logging {
 object LibLoader {
 
   var isLoader = false
-
-  def loadLib(): Unit = synchronized {
+  private implicit lazy val formats = Serialization.formats(NoTypeHints)
+  def loadLib(conf: SparkConf): Unit = synchronized {
     if (isLoader) {
       return
     }
     try {
       NativeLibUtil.loadLibrary("libstarry.dylib")
+
+      val str = StarryConf.getAllConfJson(conf, "spark.sql.starry")
+      if (str.nonEmpty) {
+        NativeLibUtil.init(str)
+      }
     } catch {
       case runtimeException: RuntimeException =>
         NativeLibUtil.loadLibrary("libstarry.so")
@@ -111,6 +119,7 @@ object Starry {
     conf.set(
       "spark.sql.cache.serializer",
       "org.apache.spark.sql.execution.columnar.cache.CachedVeloxBatchSerializer")
+//      conf.set("spark.sql.starry.columnar.forceShuffledHashJoin", "false")
     val spark = SparkSession
       .builder()
       .config(conf)

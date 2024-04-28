@@ -4,8 +4,8 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression,
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreePattern
-import org.apache.spark.sql.execution.StarryConf
 import org.apache.spark.sql.execution.columnar.expressions.aggregate.BitmapCountDistinctAggFunction
+import org.apache.spark.sql.internal.StarryConf
 import org.apache.spark.sql.types.{IntegerType, LongType}
 
 object CountDistinctToBitmap extends Rule[LogicalPlan] {

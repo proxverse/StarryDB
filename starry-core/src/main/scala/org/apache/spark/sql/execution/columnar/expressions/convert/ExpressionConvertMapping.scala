@@ -2,8 +2,8 @@ package org.apache.spark.sql.execution.columnar.expressions.convert
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.execution.StarryConf
 import org.apache.spark.sql.execution.columnar.expressions.ExpressionMappings.ARRAY_ZIP
+import org.apache.spark.sql.internal.StarryConf
 import org.apache.spark.util.Utils
 
 import scala.reflect.ClassTag

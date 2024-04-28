@@ -19,7 +19,7 @@ package org.apache.spark.sql.execution.columnar.extension
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.rules.{PlanChangeLogger, Rule}
-import org.apache.spark.sql.execution.StarryConf.isStarryEnabled
+import org.apache.spark.sql.internal.StarryConf.isStarryEnabled
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.columnar.extension.plan._
 import org.apache.spark.sql.execution.columnar.extension.rule.{CollapseProjectExec, SingleAggregateRule}

@@ -21,10 +21,10 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression,
 import org.apache.spark.sql.catalyst.expressions.{And, Cast, CreateStruct, Expression, If, IsNotNull, IsNull, Literal, Or, SupportQueryContext}
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.StarryConf
 import org.apache.spark.sql.execution.columnar.expressions.HLLAdapter
 import org.apache.spark.sql.execution.columnar.expressions.aggregate.BitmapCountDistinctAggFunction
 import org.apache.spark.sql.functions.lit
+import org.apache.spark.sql.internal.StarryConf
 import org.apache.spark.sql.types._
 
 object AggExpr {

@@ -25,7 +25,8 @@ import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.execution.adaptive.{BroadcastQueryStageExec, LogicalQueryStage}
 import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
-import org.apache.spark.sql.execution.{StarryConf, SparkPlan, joins}
+import org.apache.spark.sql.execution.{SparkPlan, joins}
+import org.apache.spark.sql.internal.StarryConf
 import org.apache.spark.sql.{SparkSession, Strategy}
 
 case class JoinSelectionOverrides(session: SparkSession)
