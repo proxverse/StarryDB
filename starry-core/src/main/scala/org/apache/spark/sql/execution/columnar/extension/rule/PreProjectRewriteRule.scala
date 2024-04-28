@@ -41,41 +41,27 @@ object PreProjectRewriteRule extends Rule[LogicalPlan] {
   override def apply(plan: LogicalPlan): LogicalPlan = plan.resolveOperatorsUp {
     case aggregate: Aggregate =>
       pushdownExprsInAgg(aggregate)
-    case expand: Expand
-        if !expand.projections.flatten.forall(e =>
-          e.isInstanceOf[AttributeReference] || e.isInstanceOf[Literal]) =>
-      val equivalentAggregateExpressions = new EquivalentExpressions
-      val aggregateExpressions = expand.projections.flatten.flatMap { expr =>
-        expr.collect {
-          // addExpr() always returns false for non-deterministic expressions and do not add them.
-          case a if !isAttributeReference(a) && !equivalentAggregateExpressions.addExpr(a) =>
-            (
-              a,
-              Alias(
-                a,
-                s"${EXPAND_PROJECT_PREFIX}${equivalentAggregateExpressions.getCommonSubexpressions.size}")())
-        }
-      }
-      val aggMap = aggregateExpressions.toMap
+    case expand @ Expand(projections, _, child)
+      if !projections.flatten.forall(isAttributeOrLit) =>
 
-      val newProjections = expand.projections.map(_.map { e =>
-        e.transformDown {
-          case a if !isAttributeReference(a) =>
-            val expression = equivalentAggregateExpressions
-              .getExprState(a)
-              .map(_.expr)
-              .getOrElse(a)
-            aggMap.apply(expression).toAttribute
-        }
-      })
-      val a = Expand(
-        newProjections,
-        expand.output,
-        Project(expand.child.output ++ aggregateExpressions.map(_._2), expand.child))
-      a
+      val extraProjects = mutable.Buffer[NamedExpression]()
+      projections.flatten.filter(!isAttributeOrLit(_))
+      val newExpandProjections = projections.map{projList => projList.map {
+        case attribute: Attribute => attribute
+        case literal: Literal => literal
+        case expr =>
+          val proj = Alias(expr, s"${EXPAND_PROJECT_PREFIX}${extraProjects.length}")()
+          extraProjects += proj
+          proj.toAttribute
+      }}
+
+      expand.copy(
+        projections = newExpandProjections,
+        child = Project(child.output ++ extraProjects, child)
+      )
   }
 
-  def isAttributeReference(e: Expression): Boolean = {
+  def isAttributeOrLit(e: Expression): Boolean = {
     e.isInstanceOf[AttributeReference] || e.isInstanceOf[Literal]
   }
 
