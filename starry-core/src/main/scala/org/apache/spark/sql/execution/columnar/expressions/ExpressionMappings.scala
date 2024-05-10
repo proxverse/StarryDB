@@ -438,6 +438,7 @@ object ExpressionMappings {
     NameSig[PromotePrecision](PROMOTE_PRECISION),
     NameSig[Base64](BASE64),
     NameSig[TimestampDiff](TIMESTAMP_DIFF),
+    NameSig[org.apache.spark.sql.execution.columnar.expressions.DateDiff](TIMESTAMP_DIFF),
     NameSig[ArrayJoin](ARRAY_JOIN),
     NameSig[ArraySort](ARRAY_SORT),
     NameSig[ArrayRepeat](ARRAY_REPEAT),

@@ -80,6 +80,12 @@ object StarryConf {
     .internal()
     .booleanConf
     .createWithDefault(true)
+
+  val NEW_DATE_DIFF_ENABLED = SQLConf
+    .buildConf("spark.sql.starry.columnar.newDateDiffEnabled")
+    .internal()
+    .booleanConf
+    .createWithDefault(true)
   
   def isColumnarEnabled: Boolean = SQLConf.get.getConf(COLUMNAR_ENABLED)
 
@@ -104,6 +110,8 @@ object StarryConf {
 
   def rewriteCountDistinctAsBitmap: Boolean = SQLConf.get.getConf(REWRITE_COUNT_DISTINCT_AS_BITMAP)
 
+  def newDateDiffEnabled: Boolean =
+    SQLConf.get.getConf(NEW_DATE_DIFF_ENABLED)
   def getAllConf(sparkConf: SparkConf, prefix: String): Map[String, Any] = {
     sparkConf.getAll.toMap
       .filter(_._1.startsWith(prefix))

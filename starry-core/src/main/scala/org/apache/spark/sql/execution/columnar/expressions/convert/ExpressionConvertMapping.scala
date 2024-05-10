@@ -2,7 +2,6 @@ package org.apache.spark.sql.execution.columnar.expressions.convert
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.execution.columnar.expressions.ExpressionMappings.ARRAY_ZIP
 import org.apache.spark.sql.internal.StarryConf
 import org.apache.spark.util.Utils
 
@@ -77,6 +76,7 @@ object ExpressionConvertMapping {
     Sig[CumeDist](WindowConvert),
     Sig[PercentRank](WindowConvert),
     Sig[TimestampDiff](TimestampDiffConverter),
+    Sig[org.apache.spark.sql.execution.columnar.expressions.DateDiff](DateDiffConverter),
     Sig[GetArrayStructFields](GetArrayStructFieldsConverter),
     Sig[DateFormatClass](DateFormatConverter),
 //    Sig[Hex](Hexonvert)
