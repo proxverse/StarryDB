@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.common
 import com.prx.starry.Starry
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.{SQLContext, SparkSession}
 
 trait ColumnarSharedSparkSession extends org.apache.spark.sql.test.SharedSparkSession {
@@ -25,7 +26,7 @@ trait ColumnarSharedSparkSession extends org.apache.spark.sql.test.SharedSparkSe
 
   override def initializeSession(): Unit = {
     if (_spark == null) {
-      _spark = Starry.starrySession()
+      _spark = Starry.starrySession(sparkConf)
     }
   }
   override def sqlContext: SQLContext = _spark.sqlContext

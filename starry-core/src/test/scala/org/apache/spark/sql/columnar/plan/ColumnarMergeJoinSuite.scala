@@ -1,20 +1,25 @@
 package org.apache.spark.sql.columnar.plan
 
-import org.apache.spark.sql.catalyst.expressions.GenericRow
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.common.ColumnarSharedSparkSession
-import org.apache.spark.sql.{DataFrameAggregateSuite, JoinSuite, Row}
 import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
-import org.apache.spark.sql.functions.{avg, count, countDistinct, sum_distinct}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.{JoinSuite, Row}
 import org.scalactic.source.Position
 import org.scalatest.Tag
 
-
 import scala.collection.JavaConverters._
 
-class ColumnarJoinSuite extends JoinSuite with ColumnarSharedSparkSession {
+class ColumnarMergeJoinSuite extends JoinSuite with ColumnarSharedSparkSession {
   import testImplicits._
+
+  override protected def sparkConf: SparkConf = {
+    val conf = new SparkConf()
+    conf.set("spark.sql.starry.columnar.forceShuffledHashJoin", "false")
+    conf
+  }
+
   override protected def test(testName: String, testTags: Tag*)(testFun: => Any)(
       implicit pos: Position): Unit = {
     val ignores = Seq(

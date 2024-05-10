@@ -24,6 +24,13 @@ public class NativePlanBuilder extends NativeClass {
                                              String rightPlan,
                                              String output);
 
+  private native void nativeMergeJoin(String joinType,
+                                             String[] leftKeys,
+                                             String[] rightKeys,
+                                             String filter,
+                                             String rightPlan,
+                                             String output);
+
 
   private native void nativeAggregation(String step,
                                         String[] group,
@@ -103,8 +110,13 @@ public class NativePlanBuilder extends NativeClass {
     return this;
   }
 
-  public NativePlanBuilder join(String joinType, boolean nullAware, String[] leftKeys, String[] rightKeys, String filter, String rightPlan, String output) {
+  public NativePlanBuilder hashJoin(String joinType, boolean nullAware, String[] leftKeys, String[] rightKeys, String filter, String rightPlan, String output) {
     nativeShuffledHashJoin(joinType, nullAware, leftKeys, rightKeys, filter, rightPlan, output);
+    return this;
+  }
+
+  public NativePlanBuilder MergeJoin(String joinType, String[] leftKeys, String[] rightKeys, String filter, String rightPlan, String output) {
+    nativeMergeJoin(joinType, leftKeys, rightKeys, filter, rightPlan, output);
     return this;
   }
 

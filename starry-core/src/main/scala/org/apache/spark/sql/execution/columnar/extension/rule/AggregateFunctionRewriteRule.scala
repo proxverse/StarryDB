@@ -17,8 +17,8 @@
 
 package org.apache.spark.sql.execution.columnar.extension.rule
 
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction, ApproximatePercentile, Average, AverageBase, CollectList, CollectSet, Count, HyperLogLogPlusPlus, Percentile, Sum}
-import org.apache.spark.sql.catalyst.expressions.{And, Cast, CreateStruct, Expression, If, IsNotNull, IsNull, Literal, Or, SupportQueryContext}
+import org.apache.spark.sql.catalyst.expressions.aggregate._
+import org.apache.spark.sql.catalyst.expressions.{And, Cast, CreateStruct, If, IsNotNull, IsNull, Literal, Or}
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.columnar.expressions.HLLAdapter
@@ -130,6 +130,22 @@ object AggregateFunctionRewriteRule extends Rule[LogicalPlan] {
               ca.isDistinct,
               ca.filter,
               ca.resultId)
+
+          case agg @ AggregateExpression(count: Max, _, _, _, _)
+              if count.aggBufferAttributes.exists(_.dataType.sameType(StringType)) =>
+            agg.copy(
+              aggregateFunction = new NativeFunctionPlaceHolder(
+                agg.aggregateFunction,
+                count.child :: Nil,
+                agg.dataType))
+
+          case agg @ AggregateExpression(count: Min, _, _, _, _)
+            if count.aggBufferAttributes.exists(_.dataType.sameType(StringType)) =>
+            agg.copy(
+              aggregateFunction = new NativeFunctionPlaceHolder(
+                agg.aggregateFunction,
+                count.child :: Nil,
+                agg.dataType))
         }
     }
   }

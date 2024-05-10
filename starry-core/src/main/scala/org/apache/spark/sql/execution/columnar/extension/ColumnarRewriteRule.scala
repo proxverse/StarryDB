@@ -21,7 +21,11 @@ import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.columnar.expressions.Unnest
 import org.apache.spark.sql.execution.columnar.extension.plan.ColumnarSupport
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
-import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, ShuffledHashJoinExec}
+import org.apache.spark.sql.execution.joins.{
+  BroadcastHashJoinExec,
+  ShuffledHashJoinExec,
+  SortMergeJoinExec
+}
 import org.apache.spark.sql.functions._
 
 import scala.collection.mutable.ArrayBuffer
@@ -32,6 +36,10 @@ case class ColumnarRewriteRule() extends Rule[SparkPlan] {
     !keyExprs.forall(_.isInstanceOf[AttributeReference])
   }
   private def needTransform(projectExec: ShuffledHashJoinExec): Boolean = {
+    hasExpression(projectExec.leftKeys) || hasExpression(projectExec.rightKeys)
+  }
+
+  private def needTransform(projectExec: SortMergeJoinExec): Boolean = {
     hasExpression(projectExec.leftKeys) || hasExpression(projectExec.rightKeys)
   }
 
@@ -68,6 +76,32 @@ case class ColumnarRewriteRule() extends Rule[SparkPlan] {
               rightKeys,
               shuffledHashJoinExec.joinType,
               shuffledHashJoinExec.buildSide,
+              shuffledHashJoinExec.condition,
+              left,
+              right,
+              shuffledHashJoinExec.isSkewJoin)
+          case shuffledHashJoinExec: SortMergeJoinExec if needTransform(shuffledHashJoinExec) =>
+            // join push 到exchange 后面,减少 exchange的压力,就是看起来有点奇怪
+            val (leftKeys, left) = if (!hasExpression(shuffledHashJoinExec.leftKeys)) {
+              (shuffledHashJoinExec.leftKeys, shuffledHashJoinExec.left)
+            } else {
+              extractToProject(
+                ColumnarSupport.JOIN_LEFT_PREFIX,
+                shuffledHashJoinExec.leftKeys,
+                shuffledHashJoinExec.left)
+            }
+            val (rightKeys, right) = if (!hasExpression(shuffledHashJoinExec.rightKeys)) {
+              (shuffledHashJoinExec.rightKeys, shuffledHashJoinExec.right)
+            } else {
+              extractToProject(
+                ColumnarSupport.JOIN_RIGHT_PREFIX,
+                shuffledHashJoinExec.rightKeys,
+                shuffledHashJoinExec.right)
+            }
+            SortMergeJoinExec(
+              leftKeys,
+              rightKeys,
+              shuffledHashJoinExec.joinType,
               shuffledHashJoinExec.condition,
               left,
               right,

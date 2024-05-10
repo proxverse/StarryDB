@@ -7,16 +7,25 @@ import org.apache.spark.sql.catalyst.expressions.{
   Inline,
   SortOrder
 }
+import org.apache.spark.sql.catalyst.optimizer.BuildRight
+import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.rules.{Rule, UnknownRuleId}
 import org.apache.spark.sql.catalyst.trees.AlwaysProcess
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.aggregate.HashAggregateExec
+import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.columnar.expressions.{ExpressionConverter, Unnest}
 import org.apache.spark.sql.execution.columnar.extension.plan._
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
-import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, ShuffledHashJoinExec}
+import org.apache.spark.sql.execution.joins.{
+  BroadcastHashJoinExec,
+  ShuffledHashJoinExec,
+  SortMergeJoinExec
+}
 import org.apache.spark.sql.execution.window.WindowExec
+import org.apache.spark.sql.internal.StarryConf
+import org.apache.spark.sql.internal.StarryConf.rewriteSMGEnabled
 import org.apache.spark.sql.types.{AtomicType, IntegralType, LongType}
+import org.apache.spark.sql.types.{AtomicType, IntegralType}
 
 case class ColumnarTransformRule() extends Rule[SparkPlan] {
 
@@ -40,6 +49,22 @@ case class ColumnarTransformRule() extends Rule[SparkPlan] {
 
   private def canTransform(shuffledHashJoinExec: ShuffledHashJoinExec): Boolean = {
     canHashBuild(shuffledHashJoinExec.leftKeys) && canHashBuild(shuffledHashJoinExec.rightKeys)
+  }
+
+  private def canTransform(e2: SortMergeJoinExec): Boolean = {
+    if (e2.condition.isEmpty && e2.leftKeys.size == 1 && e2.rightKeys.size == 1 &&
+        e2.leftKeys.head.dataType.isInstanceOf[IntegralType] &&
+        e2.rightKeys.head.dataType.isInstanceOf[IntegralType] &&
+        SortOrder.orderingSatisfies(
+          e2.left.outputOrdering,
+          e2.leftKeys.map(SortOrder(_, Ascending))) && SortOrder.orderingSatisfies(
+          e2.right.outputOrdering,
+          e2.rightKeys.map(SortOrder(_, Ascending)))) {
+      return true
+    } else {
+      false
+    }
+
   }
 
   private def canTransform(projectExec: BroadcastHashJoinExec): Boolean = {
@@ -81,15 +106,71 @@ case class ColumnarTransformRule() extends Rule[SparkPlan] {
 
         case (filterExec: ShuffledHashJoinExec, e2: ShuffledHashJoinExec)
             if canTransform(filterExec) =>
-          new ColumnarHashJoinExec(
-            e2.leftKeys,
-            e2.rightKeys,
-            e2.joinType,
-            e2.buildSide,
-            e2.condition,
-            e2.left,
-            e2.right,
-            e2.isSkewJoin)
+          val canUseSMG = StarryConf.columnarJoinEnabled &&
+            (e2.joinType.equals(JoinType("inner")) || e2.joinType.equals(JoinType("left")) || e2.joinType
+              .equals(JoinType("leftsemi"))) &&
+            e2.condition.isEmpty && e2.leftKeys.size == 1 && e2.rightKeys.size == 1 &&
+            e2.leftKeys.head.dataType.isInstanceOf[IntegralType] &&
+            e2.rightKeys.head.dataType.isInstanceOf[IntegralType] &&
+            SortOrder.orderingSatisfies(
+              e2.left.outputOrdering,
+              e2.leftKeys.map(SortOrder(_, Ascending))) &&
+            SortOrder
+              .orderingSatisfies(
+                e2.right.outputOrdering,
+                e2.rightKeys.map(SortOrder(_, Ascending)))
+          if (canUseSMG) {
+            new ColumnarMergeJoinExec(
+              e2.leftKeys,
+              e2.rightKeys,
+              e2.joinType,
+              e2.condition,
+              e2.left,
+              e2.right,
+              e2.isSkewJoin)
+          } else {
+            new ColumnarHashJoinExec(
+              e2.leftKeys,
+              e2.rightKeys,
+              e2.joinType,
+              e2.buildSide,
+              e2.condition,
+              e2.left,
+              e2.right,
+              e2.isSkewJoin)
+          }
+        case (filterExec: SortMergeJoinExec, e2: SortMergeJoinExec) if canTransform(filterExec) =>
+          if (rewriteSMGEnabled && e2.children.exists(_.isInstanceOf[ColumnarSortExec])) {
+            logInfo("Rewrite smg to hash join")
+            val newLeft = e2.left match {
+              case columnarSortExec: ColumnarSortExec =>
+                columnarSortExec.child
+              case other => other
+            }
+            val newright = e2.right match {
+              case columnarSortExec: ColumnarSortExec =>
+                columnarSortExec.child
+              case other => other
+            }
+            new ColumnarHashJoinExec(
+              e2.leftKeys,
+              e2.rightKeys,
+              e2.joinType,
+              BuildRight,
+              e2.condition,
+              newLeft,
+              newright,
+              e2.isSkewJoin)
+          } else {
+            new ColumnarMergeJoinExec(
+              e2.leftKeys,
+              e2.rightKeys,
+              e2.joinType,
+              e2.condition,
+              e2.left,
+              e2.right,
+              e2.isSkewJoin)
+          }
 
         case (filterExec: BroadcastHashJoinExec, after: BroadcastHashJoinExec)
             if canTransform(filterExec) =>
@@ -105,13 +186,12 @@ case class ColumnarTransformRule() extends Rule[SparkPlan] {
         case (filterExec: ExpandExec, after: ExpandExec) =>
           new ColumnarExpandExec(after.projections, after.output, after.child)
 
-
         case (_: HashAggregateExec, after: HashAggregateExec) if canTransform(after) =>
           ColumnarAggregateExec(after)
 
         case (_: SortExec, after: SortExec) =>
           new ColumnarSortExec(
-            after.sortOrder,
+            after.sortOrder.toSet.toSeq, // SPARK-24495: Join may return wrong result when having duplicated equal-join keys
             after.global,
             after.child,
             after.testSpillFrequency)
@@ -130,7 +210,22 @@ case class ColumnarTransformRule() extends Rule[SparkPlan] {
         case (_: LocalLimitExec, after: LocalLimitExec) =>
           new ColumnarLimitExec(after.limit, true, after.child)
 
+        // 防止smg被改写为 hashagg 之后,导致 order 消失了
+        case (_: SortAggregateExec, after: SortAggregateExec) =>
+          if (!SortOrder.orderingSatisfies(
+                after.child.outputOrdering,
+                after.requiredChildOrdering.head)) {
+            after.copy(
+              child =
+                SortExec(after.requiredChildOrdering.head, global = false, child = after.child))
+          } else {
+            after
+          }
+
         case (e, e2) =>
+          if (e2.children
+                .zip(e2.requiredChildOrdering)
+                .exists(t => !SortOrder.orderingSatisfies(t._1.outputOrdering, t._2))) {}
           e2
       }
     plan1

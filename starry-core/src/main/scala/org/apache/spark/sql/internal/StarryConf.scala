@@ -68,6 +68,19 @@ object StarryConf {
       .version("2.3.0")
       .bytesConf(ByteUnit.BYTE)
       .createOptional
+
+  val COLUMNAR_SORT_MERGE_JOIN_ENABLED = SQLConf
+    .buildConf("spark.sql.starry.columnar.sortMergeJoinEnabled")
+    .internal()
+    .booleanConf
+    .createWithDefault(true)
+
+  val COLUMNAR_REWRITE_SORT_MERGE_JOIN_ENABLED = SQLConf
+    .buildConf("spark.sql.starry.columnar.rewriteSortMergeJoinEnabled")
+    .internal()
+    .booleanConf
+    .createWithDefault(true)
+  
   def isColumnarEnabled: Boolean = SQLConf.get.getConf(COLUMNAR_ENABLED)
 
   def expressionExtensionClass: Option[String] =
@@ -82,6 +95,12 @@ object StarryConf {
     SQLConf.get.getConf(COLUMNAR_FPRCE_SHUFFLED_HASH_JOIN_ENABLED)
 
   def isStarryEnabled: Boolean = SQLConf.get.getConf(STARRY_ENABLED)
+
+  def columnarJoinEnabled: Boolean =
+    SQLConf.get.getConf(COLUMNAR_SORT_MERGE_JOIN_ENABLED)
+
+  def rewriteSMGEnabled: Boolean =
+    SQLConf.get.getConf(COLUMNAR_REWRITE_SORT_MERGE_JOIN_ENABLED)
 
   def rewriteCountDistinctAsBitmap: Boolean = SQLConf.get.getConf(REWRITE_COUNT_DISTINCT_AS_BITMAP)
 

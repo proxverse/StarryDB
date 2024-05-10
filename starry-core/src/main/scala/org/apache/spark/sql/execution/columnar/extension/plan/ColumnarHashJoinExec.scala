@@ -113,7 +113,7 @@ class ColumnarHashJoinExec(
       toNativeExpressionJson(condition.get)
     }
 
-    operations.join(
+    operations.hashJoin(
       toVeloxJoinType(joinType, buildSide),
       false,
       streamKeysHandle,
