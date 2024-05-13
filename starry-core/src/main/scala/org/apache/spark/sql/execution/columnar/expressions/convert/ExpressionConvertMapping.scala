@@ -2,6 +2,7 @@ package org.apache.spark.sql.execution.columnar.expressions.convert
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.execution.dict.{LowCardDictDecode, LowCardDictDecodeArray}
 import org.apache.spark.sql.internal.StarryConf
 import org.apache.spark.util.Utils
 
@@ -79,7 +80,9 @@ object ExpressionConvertMapping {
     Sig[org.apache.spark.sql.execution.columnar.expressions.DateDiff](DateDiffConverter),
     Sig[GetArrayStructFields](GetArrayStructFieldsConverter),
     Sig[DateFormatClass](DateFormatConverter),
-//    Sig[Hex](Hexonvert)
+    Sig[LowCardDictDecode](LowCardDictDecodeConverter),
+    Sig[LowCardDictDecodeArray](LowCardDictDecodeConverter),
+    //    Sig[Hex](Hexonvert)
 //    Sig[Cast](CastConvert)
   ) ++ NativeExpressionExtension.extensionSig ++ NativeExpressionExtension.extensionAggregateSig
   val AGGREGATE_SIGS: Seq[Sig] = Seq()

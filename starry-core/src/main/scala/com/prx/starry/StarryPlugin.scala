@@ -13,6 +13,7 @@ import org.apache.spark.sql.execution.columnar.expressions.aggregate.BitmapCount
 import org.apache.spark.sql.execution.columnar.extension.rule.{AggregateFunctionRewriteRule, CountDistinctToBitmap, PreProjectRewriteRule}
 import org.apache.spark.sql.execution.columnar.extension.utils.NativeLibUtil
 import org.apache.spark.sql.execution.columnar.extension.{ColumnarTransitionRule, JoinSelectionOverrides, PreRuleReplaceRowToColumnar, VeloxColumnarPostRule}
+import org.apache.spark.sql.execution.dict.RewriteWithGlobalDict
 import org.apache.spark.sql.internal.{SQLConf, StarryConf}
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import org.apache.spark.{SparkConf, SparkContext}
@@ -102,6 +103,7 @@ object Starry {
   }
 
   def extraOptimizations: Seq[Rule[LogicalPlan]] =
+    RewriteWithGlobalDict ::
     CountDistinctToBitmap ::
     AggregateFunctionRewriteRule ::
     PreProjectRewriteRule ::

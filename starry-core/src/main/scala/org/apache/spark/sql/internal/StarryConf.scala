@@ -87,6 +87,14 @@ object StarryConf {
     .booleanConf
     .createWithDefault(true)
   
+  val DICT_EXECUTION_ENABLED = SQLConf
+    .buildConf("spark.sql.starry.allowDictExprExecution")
+    .booleanConf
+    .createWithDefault(true)
+
+  def dictExecutionEnabled: Boolean =
+    SQLConf.get.getConf(DICT_EXECUTION_ENABLED)
+
   def isColumnarEnabled: Boolean = SQLConf.get.getConf(COLUMNAR_ENABLED)
 
   def expressionExtensionClass: Option[String] =

@@ -17,7 +17,7 @@
 package org.apache.spark.sql.execution.columnar.jni;
 
 import com.google.common.annotations.VisibleForTesting;
-import org.apache.spark.sql.execution.ExecutorDictManager;
+import org.apache.spark.sql.execution.dict.ExecutorDictManager;
 
 public class NativeDictClass {
 

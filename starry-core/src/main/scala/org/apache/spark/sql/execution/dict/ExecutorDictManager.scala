@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution
+package org.apache.spark.sql.execution.dict
 
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache, RemovalNotification}
 import org.apache.spark.broadcast.TorrentBroadcast
