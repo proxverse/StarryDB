@@ -170,9 +170,9 @@ object RewriteContext {
           case namedEncoded: NamedExpression =>
             recordMapping(namedEncoded, dictUsing.get)
           case _ =>
-            encoded.setDict(dictUsing.get)
         }
       }
+      encoded.setDict(dictUsing.get)
       encoded
     }
 

@@ -453,18 +453,18 @@
   <distributionManagement>
     <snapshotRepository>
       <id>nexus-snapshots</id>
-      <url>http://172.16.51.187:8081/repository/maven-snapshots/</url>
+      <url>http://121.37.155.119:8081/repository/maven-snapshots/</url>
     </snapshotRepository>
     <repository>
       <id>nexus-release</id>
-      <url>http://172.16.51.187:8081/repository/maven-releases/</url>
+      <url>http://121.37.155.119:8081/repository/maven-releases/</url>
     </repository>
   </distributionManagement>
   <repositories>
     <repository>
       <id>nexus-repo</id>
       <name>sp-repo</name>
-      <url>http://172.16.51.187:8081/repository/maven-public/</url>
+      <url>http://121.37.155.119:8081/repository/maven-public/</url>
     </repository>
   </repositories>
   <build>
@@ -484,7 +484,7 @@
         </executions>
         <configuration>
           <serverId>nexus</serverId>
-          <nexusUrl>http://172.16.51.187:8081/repository/maven-public/</nexusUrl>
+          <nexusUrl>http://121.37.155.119:8081/repository/maven-public/</nexusUrl>
           <skipStaging>true</skipStaging>
         </configuration>
       </plugin>
