@@ -17,6 +17,7 @@ class ColumnarMergeJoinSuite extends JoinSuite with ColumnarSharedSparkSession {
   override protected def sparkConf: SparkConf = {
     val conf = new SparkConf()
     conf.set("spark.sql.starry.columnar.forceShuffledHashJoin", "false")
+    conf.set("spark.sql.starry.columnar.rewriteSortMergeJoinEnabled", "false")
     conf
   }
 
