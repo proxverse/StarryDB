@@ -5,11 +5,9 @@ import org.apache.spark.sql.catalyst.expressions.{ExpressionEvalHelper, _}
 import org.apache.spark.sql.catalyst.util.{ArrayData, MapData}
 import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
 import org.apache.spark.sql.common.ColumnarSharedSparkSession
-import org.apache.spark.sql.execution.columnar.expressions.{
-  ExpressionConverter,
-  NativeJsonExpression
-}
+import org.apache.spark.sql.execution.columnar.expressions.{ExpressionConverter, NativeJsonExpression}
 import org.apache.spark.sql.execution.columnar.extension.plan.VeloxRowToColumnConverter
+import org.apache.spark.sql.execution.columnar.extension.rule.NativeFunctionPlaceHolder
 import org.apache.spark.sql.execution.columnar.jni.NativeExpressionConvert
 import org.apache.spark.sql.execution.columnar.{ColumnBatchUtils, VeloxColumnarBatch}
 import org.apache.spark.sql.execution.vectorized.WritableColumnVector
@@ -101,7 +99,7 @@ trait ColumnarExpressionEvalHelper
       createVectorBatch(schema, inputRow)
     }
     val nativeExpression = ExpressionConverter.convertToNative(expression)
-    if (!nativeExpression.isInstanceOf[NativeJsonExpression]) {
+    if (!nativeExpression.isInstanceOf[NativeJsonExpression] || nativeExpression.isInstanceOf[NativeFunctionPlaceHolder]) {
       fail("Failed to convert native expression")
     }
     val resultBatch = NativeExpressionConvert.evalWithBatch(

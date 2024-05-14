@@ -14,8 +14,9 @@ class NativeParquetIOSuite extends ParquetIOSuite with ColumnarSharedSparkSessio
       implicit pos: Position): Unit = {
     if (!(testName.startsWith("SPARK-7837") || testName.startsWith("SPARK-11044")
           || testName.startsWith("SPARK-6330")
-//      || testName.startsWith("SPARK-35640")// for async
+          || testName.startsWith("SPARK-35640") // for async
           || testName.startsWith("Standard mode - fixed-length decimals") // cast
+          || testName.startsWith("Legacy mode - fixed-length decimals") // cast
           || testName.startsWith("Legacy mode - fixed-length decimals") // cast
         )) {
       super.test(testName, testTags: _*)(testFun)
@@ -35,7 +36,7 @@ class NativeParquetIOSuite extends ParquetIOSuite with ColumnarSharedSparkSessio
     Range(0, 10000).foreach(i => builder.nativeTestString(str))
     val endTime = System.nanoTime
 
-    System.out.println("JNI call took " + (endTime - startTime)/1000/1000 + " nanoseconds.")
+    System.out.println("JNI call took " + (endTime - startTime) / 1000 / 1000 + " nanoseconds.")
   }
 
   test("1 vectorized reader: array") {

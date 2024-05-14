@@ -44,6 +44,7 @@ object SortArrayConvert extends ExpressionConvertTrait {
     } else {
       "array_sort_desc"
     }
-     NativeFunctionPlaceHolder(array, array.base :: Nil, array.dataType, functionName)
+    val holder = NativeFunctionPlaceHolder(array, array.base :: Nil, array.dataType, functionName)
+    convertToNativeCall(functionName, array.dataType, array.base :: Nil, holder)
   }
 }

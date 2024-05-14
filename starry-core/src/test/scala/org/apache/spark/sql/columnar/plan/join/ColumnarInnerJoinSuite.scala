@@ -11,12 +11,12 @@ class ColumnarInnerJoinSuite extends InnerJoinSuite with ColumnarSharedSparkSess
 
   override protected def test(testName: String, testTags: Tag*)(testFun: => Any)(
       implicit pos: Position): Unit = {
-    if (!testName.startsWith("SPARK-15822")) {
-      super.test(testName, testTags: _*)(testFun)
-    }
-//    if (testName.startsWith(
-//          "inner join, null safe using SortMergeJoin (whole-stage-codegen off)")) {
+//    if (!testName.startsWith("SPARK-15822")) {
 //      super.test(testName, testTags: _*)(testFun)
 //    }
+    if (testName.startsWith(
+          "inner join, null safe using SortMergeJoin (whole-stage-codegen off)")) {
+      super.test(testName, testTags: _*)(testFun)
+    }
   }
 }

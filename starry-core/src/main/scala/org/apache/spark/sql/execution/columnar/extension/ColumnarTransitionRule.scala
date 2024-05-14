@@ -54,8 +54,8 @@ case class PreRuleReplaceRowToColumnar(session: SparkSession)
     List(
       (spark: SparkSession) =>
         org.apache.spark.sql.execution.columnar.extension.rule.ConvertParquetFileFormat(spark),
-      (_: SparkSession) => SingleAggregateRule(),
       (_: SparkSession) => ColumnarRewriteRule(),
+      (_: SparkSession) => SingleAggregateRule(),
       (_: SparkSession) => ColumnarTransformRule(),
       (_: SparkSession) => CollapseProjectExec,
     )

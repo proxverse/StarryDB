@@ -98,7 +98,7 @@ case class ColumnarRewriteRule() extends Rule[SparkPlan] {
                 shuffledHashJoinExec.rightKeys,
                 shuffledHashJoinExec.right)
             }
-            SortMergeJoinExec(
+            val child = SortMergeJoinExec(
               leftKeys,
               rightKeys,
               shuffledHashJoinExec.joinType,
@@ -106,6 +106,12 @@ case class ColumnarRewriteRule() extends Rule[SparkPlan] {
               left,
               right,
               shuffledHashJoinExec.isSkewJoin)
+            ProjectExec(
+              child.output.filterNot(
+                a =>
+                  a.name.startsWith(ColumnarSupport.JOIN_LEFT_PREFIX) || a.name.startsWith(
+                    ColumnarSupport.JOIN_RIGHT_PREFIX)),
+              child)
           case shuffledHashJoinExec: BroadcastHashJoinExec
               if needTransform(shuffledHashJoinExec) =>
             // extractToProject push到 exchange 下面
