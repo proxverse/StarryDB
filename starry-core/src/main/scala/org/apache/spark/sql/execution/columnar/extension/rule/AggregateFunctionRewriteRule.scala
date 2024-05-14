@@ -64,7 +64,7 @@ object AggregateFunctionRewriteRule extends Rule[LogicalPlan] {
               aggregateFunction = new NativeFunctionPlaceHolder(
                 collectSet,
                 child :: Nil,
-                agg.dataType.asNullable,
+                agg.dataType,
                 "set_agg"),
               filter = Option.apply(newFilter))
 
