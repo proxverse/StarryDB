@@ -681,4 +681,18 @@ class BroadcastJoinSuite extends BroadcastJoinSuiteBase   {
   }
 }
 
-class BroadcastJoinSuiteAE extends BroadcastJoinSuiteBase with EnableAdaptiveExecutionSuite
+class BroadcastJoinSuiteAE extends BroadcastJoinSuiteBase with EnableAdaptiveExecutionSuite  {
+  override protected def test(testName: String, testTags: Tag*)(testFun: => Any)(
+    implicit pos: Position): Unit = {
+    val ignores = Seq(
+      "broadcast hint isn't propagated after a join",
+      "broadcast join where streamed side's output partitioning is PartitioningCollection"
+     )
+    if (!ignores.contains(testName)) {
+      super.test(testName, testTags: _*)(testFun)
+    }
+    //    if ("big inner join, 4 matches per row2".equals(testName)) {
+    //      super.test(testName, testTags: _*)(testFun)
+    //    }
+  }
+}

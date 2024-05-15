@@ -53,7 +53,7 @@ class NativeColumnarBatchSuite extends SparkFunSuite with ColumnarSharedSparkSes
 //    if (testName.startsWith("Nest Struct")) {
 //      super.test(testName, testTags: _*)(testFun)
 //    }
-    if ((testName.startsWith("CalendarInterval") || testName.startsWith("interval"))) {
+    if (!testName.startsWith("CalendarInterval")) {
       super.test(testName, testTags: _*)(testFun)
     }
   }
@@ -862,7 +862,7 @@ class NativeColumnarBatchSuite extends SparkFunSuite with ColumnarSharedSparkSes
       val data = column.arrayData()
       var i = 0
       while (i < 6) {
-        data.putInt(i, i)
+        data.appendInt(i)
         i += 1
       }
 
@@ -902,7 +902,7 @@ class NativeColumnarBatchSuite extends SparkFunSuite with ColumnarSharedSparkSes
       // Add a longer array which requires resizing
       column.reset()
       val array = Array(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
-      assert(data.capacity == 10)
+      assert(data.capacity == 6)
       data.reserve(array.length)
       assert(data.capacity == array.length * 2)
       data.putInts(0, array.length, array, 0)

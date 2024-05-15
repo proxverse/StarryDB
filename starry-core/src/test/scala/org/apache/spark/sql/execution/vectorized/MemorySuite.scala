@@ -32,36 +32,38 @@ import org.scalatest.Assertions
 
 class MemorySuite extends ParquetTest {
 
-  ignore("test root memory pool") {
-    withTable("bucket_table") {
-      val conf1 = spark.sparkContext.conf
-      conf1.set("spark.sql.starry.maxRootMemoryBytes", "10M")
-      conf1.set("spark.sql.starry.maxQueryMemoryBytes", "1KB")
-      NativeLibUtil.init(StarryConf.getAllConfJson(conf1, "spark.sql.starry"))
-      try {
-        val frame = readResourceParquetFile("performance-data")
-        val frame1 = frame
-        frame1.count()
-        Assertions.fail()
-      } catch {
-        case exception: Exception =>
-          if (!exception.getMessage.contains("Exceeded memory pool cap of 1.00KB")) {
-            Assertions.fail()
-          }
-      }
-      try {
-        val frame = readResourceParquetFile("performance-data")
-        val frame1 = frame
-        frame1.cache
-        frame1.count()
-        Assertions.fail()
-      } catch {
-        case exception: Exception =>
-          if (!exception.getMessage.contains("Exceeded memory pool cap of 10.00MB")) {
-            Assertions.fail()
-          }
-      }
+  test("test root memory pool") {
+    if (System.getenv("RUN_MEMORY_POOL_TEST") != null) {
+      withTable("bucket_table") {
+        val conf1 = spark.sparkContext.conf
+        conf1.set("spark.sql.starry.maxRootMemoryBytes", "10M")
+        conf1.set("spark.sql.starry.maxQueryMemoryBytes", "1KB")
+        NativeLibUtil.init(StarryConf.getAllConfJson(conf1, "spark.sql.starry"))
+        try {
+          val frame = readResourceParquetFile("performance-data")
+          val frame1 = frame
+          frame1.count()
+          Assertions.fail()
+        } catch {
+          case exception: Exception =>
+            if (!exception.getMessage.contains("Exceeded memory pool cap of 1.00KB")) {
+              Assertions.fail()
+            }
+        }
+        try {
+          val frame = readResourceParquetFile("performance-data")
+          val frame1 = frame
+          frame1.cache
+          frame1.count()
+          Assertions.fail()
+        } catch {
+          case exception: Exception =>
+            if (!exception.getMessage.contains("Exceeded memory pool cap of 10.00MB")) {
+              Assertions.fail()
+            }
+        }
 
+      }
     }
   }
 
