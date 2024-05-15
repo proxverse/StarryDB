@@ -159,9 +159,10 @@ object RewriteWithGlobalDict extends Rule[LogicalPlan] with PredicateHelper {
   }
 
   private def rewriteJoin(join: Join): LogicalPlan = {
-    val newCond = join.condition.map {
-      _.transformDown {
-        case equal@EqualTo(l: AttributeReference, r: AttributeReference) =>
+    var isEqualJoin = true
+    val newCond = join.condition.map { _.transformDown {
+        // allowed exprs in equal join
+        case equal @ EqualTo(l: AttributeReference, r: AttributeReference) =>
           val newEqual = equal.transformToEncodedRef(false).asInstanceOf[EqualTo] // to encoded
           // falllback to decoded if not of the same encoding
           if (newEqual.left.dict != newEqual.right.dict) {
@@ -169,11 +170,19 @@ object RewriteWithGlobalDict extends Rule[LogicalPlan] with PredicateHelper {
           } else {
             newEqual
           }
+        case and: And => and
+        case ar: AttributeReference => ar
+        // unexpected exprs found, this is an non-equi join
         case other =>
-          tryDecodeDown(other)
+          isEqualJoin = false
+          other
       }
     }
-    join.copy(condition = newCond)
+    if (isEqualJoin) {
+      join.copy(condition = newCond)
+    } else {
+      join.mapExpressions(tryDecodeDown(_, false))
+    }
   }
 
   private def rewriteFilter(filter: Filter): LogicalPlan = {

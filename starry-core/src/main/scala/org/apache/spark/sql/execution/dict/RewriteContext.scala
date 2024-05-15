@@ -108,7 +108,8 @@ object RewriteContext {
     }
 
     def decode(copyNameAndExprIdForm: Option[NamedExpression] = None): Expression = {
-      if (dict.isEmpty) {
+      // avoid bug that try decoding twice
+      if (dict.isEmpty || expression.exists(_.isInstanceOf[LowCardDictEncoding])) {
         return expression
       }
 
