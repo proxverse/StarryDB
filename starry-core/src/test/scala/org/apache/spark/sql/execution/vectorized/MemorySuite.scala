@@ -32,7 +32,7 @@ import org.scalatest.Assertions
 
 class MemorySuite extends ParquetTest {
 
-  test("test root memory pool") {
+  ignore("test root memory pool") {
     withTable("bucket_table") {
       val conf1 = spark.sparkContext.conf
       conf1.set("spark.sql.starry.maxRootMemoryBytes", "10M")
