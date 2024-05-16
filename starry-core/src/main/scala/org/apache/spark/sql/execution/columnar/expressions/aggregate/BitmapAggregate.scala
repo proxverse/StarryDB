@@ -20,15 +20,10 @@ package org.apache.spark.sql.execution.columnar.expressions.aggregate
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.analysis.TypeCheckResult
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.aggregate.{
-  ImperativeAggregate,
-  TypedImperativeAggregate
-}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{ImperativeAggregate, TypedImperativeAggregate}
 import org.apache.spark.sql.types._
-import org.roaringbitmap.{RoaringBitmap, RoaringBitmapWriter}
-
-import java.nio.ByteBuffer
 
 // scalastyle:off
 @ExpressionDescription(usage = "PreciseCountDistinct(expr)")
@@ -37,9 +32,18 @@ sealed abstract class BasicBitmapFunction(
     child: Expression,
     mutableAggBufferOffset: Int = 0,
     inputAggBufferOffset: Int = 0)
-    extends TypedImperativeAggregate[RoaringBitmap]
+    extends TypedImperativeAggregate[RoaringBitmapWrapper]
     with Serializable
     with Logging {
+
+  override def checkInputDataTypes(): TypeCheckResult = {
+    child.dataType match {
+      case IntegerType | LongType =>
+        TypeCheckResult.TypeCheckSuccess
+      case other =>
+        TypeCheckResult.TypeCheckFailure(s"Expect int/long, but got $child with type $other")
+    }
+  }
 
   var time = 0L
 
@@ -47,41 +51,24 @@ sealed abstract class BasicBitmapFunction(
 
   override def nullable: Boolean = false
 
-  var writer: RoaringBitmapWriter[RoaringBitmap] = null
-  override def createAggregationBuffer(): RoaringBitmap = {
-    writer = RoaringBitmapWriter
-      .writer()
-      .initialCapacity(4096) // Let's say I have historical data about this and want to reduce some allocations
-      .optimiseForRuns() // in case you *know* the bitmaps typically built are very dense
-      .get()
-    new RoaringBitmap()
+
+  override def createAggregationBuffer(): RoaringBitmapWrapper = {
+    new RoaringBitmapWrapper(child.dataType.sameType(LongType))
   }
 
-  override def merge(buffer: RoaringBitmap, input: RoaringBitmap): RoaringBitmap = {
+  override def merge(buffer: RoaringBitmapWrapper, input: RoaringBitmapWrapper): RoaringBitmapWrapper = {
     buffer.or(input)
     buffer
   }
 
   var array: Array[Byte] = _
 
-  override def serialize(buffer: RoaringBitmap): Array[Byte] = {
-    try {
-      val bitmap = writer.get()
-      val buf = ByteBuffer.allocate(bitmap.serializedSizeInBytes())
-      bitmap.serialize(buf)
-      buf.array()
-    } catch {
-      case th =>
-        throw th
-    }
+  override def serialize(buffer: RoaringBitmapWrapper): Array[Byte] = {
+    buffer.serialize()
   }
 
-  override def deserialize(bytes: Array[Byte]): RoaringBitmap = {
-    val bitMap = new RoaringBitmap()
-    if (bytes.nonEmpty) {
-      bitMap.deserialize(ByteBuffer.wrap(bytes))
-    }
-    bitMap
+  override def deserialize(bytes: Array[Byte]): RoaringBitmapWrapper = {
+    RoaringBitmapWrapper.deserialize(bytes)
   }
 
 }
@@ -97,13 +84,13 @@ case class ReusePreciseCountDistinct(
 
   override def dataType: DataType = BinaryType
 
-  override def update(buffer: RoaringBitmap, input: InternalRow): RoaringBitmap = {
+  override def update(buffer: RoaringBitmapWrapper, input: InternalRow): RoaringBitmapWrapper = {
     val colValue = child.eval(input)
     buffer.or(deserialize(colValue.asInstanceOf[Array[Byte]]))
     buffer
   }
 
-  override def eval(buffer: RoaringBitmap): Any = {
+  override def eval(buffer: RoaringBitmapWrapper): Any = {
     serialize(buffer)
   }
 
@@ -129,14 +116,14 @@ case class BitmapAndAggFunction(
 
   override def dataType: DataType = LongType
 
-  override def update(buffer: RoaringBitmap, input: InternalRow): RoaringBitmap = {
+  override def update(buffer: RoaringBitmapWrapper, input: InternalRow): RoaringBitmapWrapper = {
     val colValue = child.eval(input)
     buffer.and(deserialize(colValue.asInstanceOf[Array[Byte]]))
     buffer
   }
 
-  override def eval(buffer: RoaringBitmap): Any = {
-    buffer.getLongCardinality
+  override def eval(buffer: RoaringBitmapWrapper): Any = {
+    buffer.getLongCardinality()
   }
 
   override def withNewMutableAggBufferOffset(
@@ -162,14 +149,14 @@ case class BitmapOrAggFunction(
 
   override def dataType: DataType = LongType
 
-  override def update(buffer: RoaringBitmap, input: InternalRow): RoaringBitmap = {
+  override def update(buffer: RoaringBitmapWrapper, input: InternalRow): RoaringBitmapWrapper = {
     val colValue = child.eval(input)
     buffer.and(deserialize(colValue.asInstanceOf[Array[Byte]]))
     buffer
   }
 
-  override def eval(buffer: RoaringBitmap): Any = {
-    buffer.getLongCardinality
+  override def eval(buffer: RoaringBitmapWrapper): Any = {
+    buffer.getLongCardinality()
   }
 
   override def withNewMutableAggBufferOffset(
@@ -195,15 +182,15 @@ case class BitmapConstructAggFunction(
 
   override def dataType: DataType = BinaryType
 
-  override def update(buffer: RoaringBitmap, input: InternalRow): RoaringBitmap = {
+  override def update(buffer: RoaringBitmapWrapper, input: InternalRow): RoaringBitmapWrapper = {
     val colValue = child.eval(input)
     if (colValue != null) {
-      buffer.add(colValue.asInstanceOf[Int])
+      buffer.addValue(colValue)
     }
     buffer
   }
 
-  override def eval(buffer: RoaringBitmap): Any = {
+  override def eval(buffer: RoaringBitmapWrapper): Any = {
     serialize(buffer)
   }
 
@@ -231,16 +218,16 @@ case class BitmapCountDistinctAggFunction(
 
   override def dataType: DataType = LongType
 
-  override def update(buffer: RoaringBitmap, input: InternalRow): RoaringBitmap = {
+  override def update(buffer: RoaringBitmapWrapper, input: InternalRow): RoaringBitmapWrapper = {
     val colValue = child.eval(input)
     if (colValue != null) {
-      writer.add(colValue.asInstanceOf[Int])
+      buffer.addValue(colValue)
     }
     buffer
   }
 
-  override def eval(buffer: RoaringBitmap): Any = {
-    buffer.getLongCardinality
+  override def eval(buffer: RoaringBitmapWrapper): Any = {
+    buffer.getLongCardinality()
   }
 
   override def withNewMutableAggBufferOffset(
