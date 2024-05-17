@@ -38,26 +38,35 @@ object RewriteCount extends DictExprRewrite {
   private val EVAL_AS_ENCODED_AGGS =
     Set("count", "bitmap_count_distinct")
 
+  private def canEval(expression: Expression): Boolean = {
+    expression.isInstanceOf[Attribute] &&
+      !expression.encodedRefInChildren().flatMap(_.dict).exists(_.isInstanceOf[ExecutionColumnDict])
+  }
+
   override def rewriteFunc: PartialFunction[Expression, Expression] = {
     case expr @ Alias(AggregateExpression(func, _, _, _, _), _)
-      if func.children.forall(_.isInstanceOf[Attribute]) && EVAL_AS_ENCODED_AGGS.contains(func.prettyName) =>
+      if func.children.forall(canEval) && EVAL_AS_ENCODED_AGGS.contains(func.prettyName) =>
       expr.transformToEncodedRef(false)
   }
 }
 
 object DictExpressionRewriteRegistry {
 
+  private val defaultWindowRewrites: Seq[DictExprRewrite] = mutable.ArrayBuffer()
+
+  private val defaultAggRewrites: Seq[DictExprRewrite] = RewriteCollect :: RewriteCount :: Nil
+
+  private val defaultNonAggExprRewrites: Seq[DictExprRewrite] = mutable.ArrayBuffer()
+
   private val windowRewrites: mutable.Buffer[DictExprRewrite] = mutable.ArrayBuffer()
 
   private val aggRewrites: mutable.Buffer[DictExprRewrite] = mutable.ArrayBuffer()
-  aggRewrites ++=
-    RewriteCollect ::
-    RewriteCount :: Nil
 
   private val nonAggExprRewrites: mutable.Buffer[DictExprRewrite] = mutable.ArrayBuffer()
 
   def findWindowExprRewrite(expression: Expression): Option[DictExprRewrite] = {
-    windowRewrites.find(_.couldRewrite(expression))
+    defaultWindowRewrites.find(_.couldRewrite(expression))
+      .orElse(windowRewrites.find(_.couldRewrite(expression)))
   }
 
   def registerCustomWindowExprRewrite(rewrite: DictExprRewrite): Unit = {
@@ -65,7 +74,8 @@ object DictExpressionRewriteRegistry {
   }
 
   def findAggExprRewrite(expression: Expression): Option[DictExprRewrite] = {
-    aggRewrites.find(_.couldRewrite(expression))
+    defaultAggRewrites.find(_.couldRewrite(expression))
+      .orElse(aggRewrites.find(_.couldRewrite(expression)))
   }
 
   def registerCustomAggExprRewrite(rewrite: DictExprRewrite): Unit = {
@@ -73,7 +83,8 @@ object DictExpressionRewriteRegistry {
   }
 
   def findNonAggExprRewrite(expression: Expression): Option[DictExprRewrite] = {
-     nonAggExprRewrites.find(_.couldRewrite(expression))
+    defaultNonAggExprRewrites.find(_.couldRewrite(expression))
+      .orElse(nonAggExprRewrites.find(_.couldRewrite(expression)))
   }
 
   def registerCustomNonAggExprRewrite(rewrite: DictExprRewrite): Unit = {
