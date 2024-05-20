@@ -24,7 +24,13 @@ case class DateDiff(
   override def right: Expression = endTimestamp
 
   override def inputTypes: Seq[AbstractDataType] = Seq(TimestampType, TimestampType)
-  override def dataType: DataType = DoubleType
+  override def dataType: DataType = unit.toUpperCase() match {
+    case "MILLISECOND" => DoubleType
+    case "SECOND" => DoubleType
+    case "MINUTE" => DoubleType
+    case "HOUR" => DoubleType
+    case _ => LongType
+  }
 
   override def withTimeZone(timeZoneId: String): TimeZoneAwareExpression =
     copy(timeZoneId = Option(timeZoneId))
