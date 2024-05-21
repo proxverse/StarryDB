@@ -253,8 +253,9 @@ object RewriteContext {
     loadDictIndexes(relation).foreach { dictIndex =>
       val colRef = resolveColumn(relation, dictIndex.column).get
       val encodedColRef = resolveColumn(relation, dictIndex.encodedColumn).get
-      encodedColRef.setDict(dictIndex.dict)
-      mapping(colRef.exprId) = encodedColRef.toAttribute
+      val encodedColRefCopy = encodedColRef.newInstance().withExprId(encodedColRef.exprId) // make copy, avoid race
+      encodedColRefCopy.setDict(dictIndex.dict)
+      mapping(colRef.exprId) = encodedColRefCopy
     }
     relation.withEncodingMapping(mapping)
   }
