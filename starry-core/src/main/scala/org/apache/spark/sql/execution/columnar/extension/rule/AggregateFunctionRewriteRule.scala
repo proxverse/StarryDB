@@ -146,6 +146,12 @@ object AggregateFunctionRewriteRule extends Rule[LogicalPlan] {
                 agg.aggregateFunction,
                 count.child :: Nil,
                 agg.dataType))
+          case agg @ AggregateExpression(count: MaxBy, _, _, _, _) =>
+            agg.copy(aggregateFunction =
+              new NativeFunctionPlaceHolder(agg.aggregateFunction, count.children, agg.dataType))
+          case agg @ AggregateExpression(count: MinBy, _, _, _, _) =>
+            agg.copy(aggregateFunction =
+              new NativeFunctionPlaceHolder(agg.aggregateFunction, count.children, agg.dataType))
         }
     }
   }
