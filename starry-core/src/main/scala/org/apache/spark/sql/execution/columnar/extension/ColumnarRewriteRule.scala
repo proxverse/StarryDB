@@ -8,7 +8,6 @@ import org.apache.spark.sql.catalyst.expressions.{
   AttributeReference,
   Expression,
   Generator,
-  GetStructField,
   Inline,
   Literal,
   NamedExpression,

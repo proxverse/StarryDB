@@ -252,7 +252,7 @@ object ExpressionMappings {
   final val ARRAY_JOIN = "array_join"
   final val ARRAY_SORT = "array_sort"
   final val ARRAY_ZIP = "zip"
-  final val ARRAY_REPEAT = "repeat"
+  final val ARRAY_REPEAT = "array_repeat"
   final val ARRAY_ELEMENT_AT = "element_at"
   final val ARRAY_POSITION = "array_position"
   final val ARRAY_SLICE = "slice"

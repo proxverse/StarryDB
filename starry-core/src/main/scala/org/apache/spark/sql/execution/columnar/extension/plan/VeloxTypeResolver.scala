@@ -1,8 +1,17 @@
 package org.apache.spark.sql.execution.columnar.extension.plan
 
-import org.apache.spark.sql.types.{ArrayType, BinaryType, DataType, LongType, StringType, StructField, StructType}
+import org.apache.spark.sql.types.{
+  ArrayType,
+  BinaryType,
+  DataType,
+  DecimalType,
+  LongType,
+  StringType,
+  StructField,
+  StructType
+}
 import org.json4s.JArray
-import org.json4s.JsonAST.{JObject, JString, JValue}
+import org.json4s.JsonAST.{JInt, JObject, JString, JValue}
 import org.json4s.jackson.JsonMethods.parse
 
 object VeloxTypeResolver {
@@ -17,10 +26,7 @@ object VeloxTypeResolver {
   def parseDataType(json: String): DataType = parseDataType(parse(json.toLowerCase()))
 
   def parseDataType(json: JValue): DataType = json match {
-    case JSortedObject(
-      ("name", JString("type")),
-      ("type", typeStr: JString),
-    ) =>
+    case JSortedObject(("name", JString("type")), ("type", typeStr: JString)) =>
       typeStr.values match {
         case "bigint" => LongType
         case "varbinary" => BinaryType
@@ -29,10 +35,10 @@ object VeloxTypeResolver {
           DataType.parseDataType(typeStr)
       }
     case JSortedObject(
-      ("ctypes", JArray(ctypes)),
-      ("name", JString("type")),
-      ("type", JString("array")),
-      ) =>
+        ("ctypes", JArray(ctypes)),
+        ("name", JString("type")),
+        ("type", JString("array")),
+        ) =>
       val childType = ctypes.map(parseDataType).head
       ArrayType(childType)
     case JSortedObject(
@@ -56,6 +62,13 @@ object VeloxTypeResolver {
           }
       }
       StructType(fields)
+    case JSortedObject(
+        ("name", JString("type")),
+        ("precision", JInt(precision)),
+        ("scale", JInt(scale)),
+        ("type", JString("decimal")),
+        ) =>
+      DecimalType.apply(precision.toInt, scale.toInt)
     case other =>
       throw new UnsupportedOperationException(s"Unrecognized velox type json: $other")
   }
