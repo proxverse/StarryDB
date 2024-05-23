@@ -1,10 +1,14 @@
 package org.apache.spark.sql.execution.dict
 
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.trees.{CurrentOrigin, TreePattern}
-import org.apache.spark.sql.execution.columnar.expressions.{ExpressionConverter, NativeJsonExpression}
+import org.apache.spark.sql.execution.columnar.expressions.{
+  ExpressionConverter,
+  NativeJsonExpression
+}
 import org.apache.spark.sql.internal.StarryConf
 import org.apache.spark.sql.types._
 
@@ -12,14 +16,13 @@ object RewriteExpressionWithGlobalDict extends Logging {
 
   import RewriteContext._
 
-  def rewriteExpr(expression: Expression,
-                  useExecution: Boolean = false): Expression = {
+  def rewriteExpr(expression: Expression, useExecution: Boolean = false): Expression = {
     expression match {
       // ----- AGG EXPRS ----- //
-      case aggWithAlias@Alias(_: AggregateExpression, _) =>
+      case aggWithAlias @ Alias(_: AggregateExpression, _) =>
         rewriteAggregateExpression(aggWithAlias)
       // ----- WINDOW EXPRS ----- //
-      case alias@Alias(_: WindowExpression, _) =>
+      case alias @ Alias(_: WindowExpression, _) =>
         rewriteWindowExpression(alias)
       // ----- NO AGG EXPRS ----- //
       // direct references
@@ -51,11 +54,12 @@ object RewriteExpressionWithGlobalDict extends Logging {
         wframe
       // is not null/is null does not require decode
       case IsNotNull(_: AttributeReference) | IsNull(_: AttributeReference)
-        if expr.children.head.encodedRefInChildren().isDefined =>
+          if expr.children.head.encodedRefInChildren().isDefined =>
         expr.withNewChildren(Seq(expr.children.head.encodedRefInChildren().get))
       // handle bool typed
-      case expr if useExecution && (expr.dataType == StringType || expr.dataType == BooleanType)
-          && !expr.containsPattern(TreePattern.AGGREGATE_EXPRESSION) =>
+      case expr
+          if useExecution && (expr.dataType == StringType || expr.dataType == BooleanType)
+            && !expr.containsPattern(TreePattern.AGGREGATE_EXPRESSION) =>
         tryDictExecution(expr)
       // others
       case e =>
@@ -101,9 +105,14 @@ object RewriteExpressionWithGlobalDict extends Logging {
       StarryConf.dictExecutionEnabled && expr.references.size == 1 && validRefDict
     }
     expression match {
-      case namedExpr@Alias(expr, name) if canDoDictExecution(expr) =>
+      case namedExpr @ Alias(expr, name) if canDoDictExecution(expr) =>
         try {
           val encodedRef = expr.references.head.encodedRefInChildren().get
+          val nullExpr = expr.transform {
+            case _: AttributeReference =>
+              BoundReference(0, StringType, nullable = true)
+          }
+          val value = nullExpr.eval(InternalRow.fromSeq(Seq(null)))
           val boundExpr = expr.transform {
             case _: AttributeReference =>
               AttributeReference("dict", StringType, nullable = true)(
@@ -113,10 +122,19 @@ object RewriteExpressionWithGlobalDict extends Logging {
           val expression = ExpressionConverter.convertToNative(boundExpr)
           expression match {
             case native: NativeJsonExpression =>
-              val transformedExpr = Alias(encodedRef, s"${name}_enc_transformed")()
-              val execDict = ExecutionColumnDict(encodedRef.dict.get, boundExpr, expr.dataType, native.native)
-              namedExpr.recordMapping(transformedExpr, execDict)
-              transformedExpr
+              val execDict =
+                ExecutionColumnDict(encodedRef.dict.get, boundExpr, expr.dataType, native.native)
+              if (value == null) {
+                val transformedExpr = Alias(encodedRef, s"${name}_enc_transformed")()
+                namedExpr.recordMapping(transformedExpr, execDict)
+                transformedExpr
+              } else {
+                namedExpr.withNewChildren(
+                  Seq(
+                    CaseWhen(
+                      Seq((IsNull(encodedRef), Literal.create(value, expr.dataType))),
+                      LowCardDictDecode(encodedRef, execDict))))
+              }
             case _ =>
               namedExpr
           }
@@ -134,12 +152,25 @@ object RewriteExpressionWithGlobalDict extends Logging {
               NamedExpression.newExprId,
               Seq.empty[String])
         }
+        val nullExpr = expr.transform {
+          case _: AttributeReference =>
+            BoundReference(0, StringType, nullable = true)
+        }
+        val value = nullExpr.eval(InternalRow.fromSeq(Seq(null)))
         try {
           val expression = ExpressionConverter.convertToNative(boundExpr)
           expression match {
             case native: NativeJsonExpression =>
-              val execDict = ExecutionColumnDict(encodedRef.dict.get, boundExpr, expr.dataType, native.native)
-              LowCardDictDecode(encodedRef, execDict)
+              val execDict =
+                ExecutionColumnDict(encodedRef.dict.get, boundExpr, expr.dataType, native.native)
+              val transformedExpr = LowCardDictDecode(encodedRef, execDict)
+              if (value == null) {
+                transformedExpr
+              } else {
+                CaseWhen(
+                  Seq((IsNull(encodedRef), Literal.create(value, expr.dataType))),
+                  transformedExpr)
+              }
             case _ =>
               expr
           }
