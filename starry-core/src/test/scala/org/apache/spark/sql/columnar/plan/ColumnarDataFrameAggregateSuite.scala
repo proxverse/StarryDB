@@ -4,21 +4,9 @@ import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.common.ColumnarSharedSparkSession
 import org.apache.spark.sql.execution.columnar.expressions.aggregate.BitmapCountDistinctAggFunction
 import org.apache.spark.sql.execution.datasources.parquet.ParquetTest
-import org.apache.spark.sql.functions.{
-  array_sort,
-  arrays_zip,
-  avg,
-  col,
-  collect_list,
-  collect_set,
-  count,
-  count_distinct,
-  lit,
-  sum,
-  sum_distinct
-}
+import org.apache.spark.sql.functions.{array_sort, arrays_zip, avg, col, collect_list, collect_set, count, count_distinct, lit, map, max_by, min_by, sum, sum_distinct}
 import org.apache.spark.sql.test.SQLTestData.{DecimalData, TestData2}
-import org.apache.spark.sql.{Column, DataFrameAggregateSuite, Row}
+import org.apache.spark.sql.{AnalysisException, Column, DataFrameAggregateSuite, Row}
 import org.scalactic.source.Position
 import org.scalatest.Tag
 
@@ -50,7 +38,9 @@ class ColumnarDataFrameAggregateSuite
       "SPARK-32038: NormalizeFloatingNumbers should work on distinct aggregate",
       "SPARK-35412: groupBy of year-month/day-time intervals should work",
       "SPARK-36926: decimal average mistakenly overflow",
-      "") // need row type
+      "SPARK-36926: decimal average mistakenly overflow",
+      "max_by",
+      "min_by") // need row type
     if (!ignoreTests.contains(testName)) {
       super.test(testName, testTags: _*)(testFun)
     }
@@ -89,6 +79,128 @@ class ColumnarDataFrameAggregateSuite
             arrays_zip(collect_set("endEvent").as("a"), collect_set("endEvent").as("b")).as("as"))
           .select(col("as.a")),
         Seq(Row(Seq("按票付款", "处理发票", "接收发票", "批准发票", "最终检查发票", "已检查并批准"))))
+    }
+  }
+
+  test("max by") {
+    val yearOfMaxEarnings =
+      sql("SELECT course, max_by(year, earnings) FROM courseSales GROUP BY course")
+    checkAnswer(yearOfMaxEarnings, Row("dotNET", 2013) :: Row("Java", 2013) :: Nil)
+
+    checkAnswer(
+      courseSales.groupBy("course").agg(max_by(col("year"), col("earnings"))),
+      Row("dotNET", 2013) :: Row("Java", 2013) :: Nil
+    )
+
+    checkAnswer(
+      sql("SELECT max_by(x, y) FROM VALUES (('a', 10)), (('b', 50)), (('c', 20)) AS tab(x, y)"),
+      Row("b") :: Nil
+    )
+
+    checkAnswer(
+      sql("SELECT max_by(x, y) FROM VALUES (('a', 10)), (('b', null)), (('c', 20)) AS tab(x, y)"),
+      Row("c") :: Nil
+    )
+
+    checkAnswer(
+      sql("SELECT max_by(x, y) FROM VALUES (('a', null)), (('b', null)), (('c', 20)) AS tab(x, y)"),
+      Row("c") :: Nil
+    )
+
+    checkAnswer(
+      sql("SELECT max_by(x, y) FROM VALUES (('a', 10)), (('b', 50)), (('c', null)) AS tab(x, y)"),
+      Row("b") :: Nil
+    )
+//
+//    checkAnswer(
+//      sql("SELECT max_by(x, y) FROM VALUES (('a', null)), (('b', null)) AS tab(x, y)"),
+//      Row(null) :: Nil
+//    )
+
+    // structs as ordering value.
+    checkAnswer(
+      sql("select max_by(x, y) FROM VALUES (('a', (10, 20))), (('b', (10, 50))), " +
+        "(('c', (10, 60))) AS tab(x, y)"),
+      Row("c") :: Nil
+    )
+
+    checkAnswer(
+      sql("select max_by(x, y) FROM VALUES (('a', (10, 20))), (('b', (10, 50))), " +
+        "(('c', null)) AS tab(x, y)"),
+      Row("b") :: Nil
+    )
+
+    withTempView("tempView") {
+      val dfWithMap = Seq((0, "a"), (1, "b"), (2, "c"))
+        .toDF("x", "y")
+        .select($"x", map($"x", $"y").as("y"))
+        .createOrReplaceTempView("tempView")
+      val error = intercept[AnalysisException] {
+        sql("SELECT max_by(x, y) FROM tempView").show
+      }
+      assert(
+        error.message.contains("function max_by does not support ordering on type map<int,string>"))
+    }
+  }
+
+  test("min by") {
+    val yearOfMinEarnings =
+      sql("SELECT course, min_by(year, earnings) FROM courseSales GROUP BY course")
+    checkAnswer(yearOfMinEarnings, Row("dotNET", 2012) :: Row("Java", 2012) :: Nil)
+
+    checkAnswer(
+      courseSales.groupBy("course").agg(min_by(col("year"), col("earnings"))),
+      Row("dotNET", 2012) :: Row("Java", 2012) :: Nil
+    )
+
+    checkAnswer(
+      sql("SELECT min_by(x, y) FROM VALUES (('a', 10)), (('b', 50)), (('c', 20)) AS tab(x, y)"),
+      Row("a") :: Nil
+    )
+
+    checkAnswer(
+      sql("SELECT min_by(x, y) FROM VALUES (('a', 10)), (('b', null)), (('c', 20)) AS tab(x, y)"),
+      Row("a") :: Nil
+    )
+
+    checkAnswer(
+      sql("SELECT min_by(x, y) FROM VALUES (('a', null)), (('b', null)), (('c', 20)) AS tab(x, y)"),
+      Row("c") :: Nil
+    )
+
+    checkAnswer(
+      sql("SELECT min_by(x, y) FROM VALUES (('a', 10)), (('b', 50)), (('c', null)) AS tab(x, y)"),
+      Row("a") :: Nil
+    )
+
+//    checkAnswer(
+//      sql("SELECT min_by(x, y) FROM VALUES (('a', null)), (('b', null)) AS tab(x, y)"),
+//      Row(null) :: Nil
+//    )
+
+    // structs as ordering value.
+    checkAnswer(
+      sql("select min_by(x, y) FROM VALUES (('a', (10, 20))), (('b', (10, 50))), " +
+        "(('c', (10, 60))) AS tab(x, y)"),
+      Row("a") :: Nil
+    )
+
+    checkAnswer(
+      sql("select min_by(x, y) FROM VALUES (('a', null)), (('b', (10, 50))), " +
+        "(('c', (10, 60))) AS tab(x, y)"),
+      Row("b") :: Nil
+    )
+
+    withTempView("tempView") {
+      val dfWithMap = Seq((0, "a"), (1, "b"), (2, "c"))
+        .toDF("x", "y")
+        .select($"x", map($"x", $"y").as("y"))
+        .createOrReplaceTempView("tempView")
+      val error = intercept[AnalysisException] {
+        sql("SELECT min_by(x, y) FROM tempView").show
+      }
+      assert(
+        error.message.contains("function min_by does not support ordering on type map<int,string>"))
     }
   }
 
