@@ -13,7 +13,7 @@ object StarryConf {
     .buildConf("spark.sql.starry.enabled")
     .doc("enabled starry")
     .booleanConf
-    .createWithDefault(true)
+    .createWithDefault(false)
 
   val NATIVE_PARQUET_READER_ENABLED = SQLConf
     .buildConf("spark.sql.starry.datasource.nativeParquetReaderEnabled")
