@@ -2,7 +2,7 @@ package org.apache.spark.sql.columnar.expression
 
 import org.apache.spark.internal.config.Tests.IS_TESTING
 import org.apache.spark.sql.catalyst.expressions.{ExpressionEvalHelper, _}
-import org.apache.spark.sql.catalyst.util.{ArrayData, MapData}
+import org.apache.spark.sql.catalyst.util.{ArrayData, MapData, stackTraceToString}
 import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
 import org.apache.spark.sql.common.ColumnarSharedSparkSession
 import org.apache.spark.sql.execution.columnar.expressions.{ExpressionConverter, NativeJsonExpression}
@@ -14,7 +14,7 @@ import org.apache.spark.sql.execution.vectorized.WritableColumnVector
 import org.apache.spark.sql.types.DataTypeTestUtils.integralType
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.sql.{Row, types}
+import org.apache.spark.sql.{AnalysisException, DataFrame, Dataset, QueryTest, Row, types}
 import org.apache.spark.{SparkConf, SparkFunSuite}
 import org.scalactic.TripleEqualsSupport.Spread
 

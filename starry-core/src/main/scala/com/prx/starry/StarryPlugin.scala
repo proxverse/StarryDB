@@ -112,13 +112,12 @@ object Starry {
 
   def starrySession(otherConf: SparkConf = new SparkConf()): SparkSession = {
     val conf = new SparkConf()
+    conf.set("spark.sql.starry.enabled", "true")
     conf.set("spark.sql.parquet.outputTimestampType", "TIMESTAMP_MILLIS")
     conf.set("spark.sql.adaptive.enabled", "false")
     conf.set("spark.sql.files.openCostInBytes", "100M")
     conf.set("spark.plugins", "com.prx.starry.StarryPlugin")
-    conf.set("spark.memory.offHeap.enabled", "true")
     conf.set("spark.sql.columnVector.offheap.enabled", "true")
-    conf.set("spark.memory.offHeap.size", "4G")
     conf.set("spark.sql.parquet.enableNestedColumnVectorizedReader", "true")
     conf.set("spark.sql.inMemoryColumnarStorage.partitionPruning", "false")
     conf.set("spark.sql.inMemoryColumnarStorage.enableVectorizedReader", "true")

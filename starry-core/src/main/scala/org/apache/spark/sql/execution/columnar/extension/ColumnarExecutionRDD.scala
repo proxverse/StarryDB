@@ -79,7 +79,8 @@ class ColumnarExecutionRDD(
       "task_id" -> s"${columnarStageId}_${TaskContext.get().taskAttemptId()}",
       // velox query config
       "velox.adjust_timestamp_to_session_timezone" -> "true",
-      "velox.session_timezone" -> SQLConf.get.sessionLocalTimeZone
+      "velox.session_timezone" -> SQLConf.get.sessionLocalTimeZone,
+      "velox.spark.partition_id" -> TaskContext.get().partitionId()
     )
     val confStr = Serialization.write(finalMap)
 
