@@ -1,5 +1,6 @@
 package org.apache.spark.sql.execution.columnar.jni;
 
+import com.prx.starry.common.jni.NativeClass;
 import org.apache.spark.sql.catalyst.expressions.SortOrder;
 import org.apache.spark.sql.execution.columnar.util.PlanUtils;
 import org.apache.spark.sql.types.StructType;

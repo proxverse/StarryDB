@@ -2,6 +2,7 @@ package com.prx.starry
 
 import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext, SparkPlugin}
 import org.apache.spark.internal.Logging
+import org.apache.spark.listener.StarryAppListener
 import org.apache.spark.sql.catalyst.FunctionIdentifier
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistryBase
@@ -14,9 +15,10 @@ import org.apache.spark.sql.execution.columnar.extension.rule.{AggregateFunction
 import org.apache.spark.sql.execution.columnar.extension.utils.NativeLibUtil
 import org.apache.spark.sql.execution.columnar.extension.{ColumnarTransitionRule, JoinSelectionOverrides, PreRuleReplaceRowToColumnar, VeloxColumnarPostRule}
 import org.apache.spark.sql.execution.dict.RewriteWithGlobalDict
-import org.apache.spark.sql.internal.{SQLConf, StarryConf}
+import org.apache.spark.sql.internal.StarryConf
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.ui.RegisterUI
+import org.apache.spark.{SparkConf, SparkContext, StarryEnv}
 import org.json4s.NoTypeHints
 import org.json4s.jackson.Serialization
 
@@ -38,6 +40,9 @@ class StarryDriverPlugin extends DriverPlugin with Logging {
 
   override def init(sc: SparkContext, pluginContext: PluginContext): util.Map[String, String] = {
     LibLoader.loadLib(sc.getConf)
+    StarryEnv.createDriverEnv()
+    StarryAppListener.register(sc)
+    RegisterUI.register(sc)
     Collections.emptyMap()
   }
 }
@@ -46,6 +51,7 @@ class StarryExecutorPlugin extends ExecutorPlugin with Logging {
 
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
     LibLoader.loadLib(ctx.conf())
+    StarryEnv.createExecutorEnv(ctx.executorID())
     Collections.emptyMap()
   }
 }

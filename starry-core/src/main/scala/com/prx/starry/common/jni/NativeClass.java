@@ -1,4 +1,4 @@
-package org.apache.spark.sql.execution.columnar.jni;
+package com.prx.starry.common.jni;
 
 public abstract class NativeClass implements AutoCloseable {
   long handle = 0;

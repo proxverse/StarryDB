@@ -3,6 +3,7 @@ package org.apache.spark.sql.execution.columnar.jni;
 
 import java.util.List;
 
+import com.prx.starry.common.jni.NativeClass;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
 import org.apache.spark.sql.execution.columnar.VeloxColumnarBatch;
 import org.apache.spark.sql.execution.columnar.extension.vector.ColumnarBatchInIterator;

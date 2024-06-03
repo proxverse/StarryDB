@@ -14,22 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.columnar.jni;
 
-import com.google.common.annotations.VisibleForTesting;
-import org.apache.spark.sql.execution.dict.ExecutorDictManager;
+package org.apache.spark.rpc
 
-public class NativeDictClass {
+import org.apache.spark.rpc.RpcEndpointRef
+import org.apache.spark.storage.BlockManagerMessages.ToBlockManagerMaster
 
-  public static long toDictVector(long id, int numblocks) {
-    return ExecutorDictManager.fetchDictVectorAddress(id, numblocks).nativePTR();
-  }
+import java.util
 
-  @VisibleForTesting
-  public static native long toDictVectorNative(long id, int numblocks);
+sealed trait ToMemorykManagerMasterEndpoint
+case class MemoryStatics() extends ToMemorykManagerMasterEndpoint
+
+case class RemoveExecutor(executorId: String) extends ToMemorykManagerMasterEndpoint
+
+sealed trait ToMemoryManagerMaster
+
+case class RegisterManagerManager(executorId: String, sender: RpcEndpointRef)
+    extends ToMemoryManagerMaster
+
+case class FetchMemoryStatics() extends ToMemoryManagerMaster
 
 
-  public static native long execute(long batchID, String query);
 
-  public static native String tryCompile(String query);
-}
+sealed trait ToMemoryManagerMasterReplay
+case class MemoryStaticsReply(executorId: String, info: String) extends ToMemoryManagerMasterReplay

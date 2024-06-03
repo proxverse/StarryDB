@@ -5,7 +5,7 @@
   <parent>
     <artifactId>starry</artifactId>
     <groupId>com.sp</groupId>
-    <version>0.0.5-SNAPSHOT</version>
+    <version>0.0.6-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
@@ -181,6 +181,14 @@
       <artifactId>parquet-column</artifactId>
       <version>${parquet.hadoop.version}</version>
     </dependency>
+    <!-- https://mvnrepository.com/artifact/com.lihaoyi/upickle -->
+    <dependency>
+      <groupId>com.lihaoyi</groupId>
+      <artifactId>upickle_2.12</artifactId>
+      <version>3.3.1</version>
+    </dependency>
+
+
     <dependency>
       <groupId>org.apache.parquet</groupId>
       <artifactId>parquet-encoding</artifactId>

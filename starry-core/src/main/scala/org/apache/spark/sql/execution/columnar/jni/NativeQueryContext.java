@@ -1,5 +1,7 @@
 package org.apache.spark.sql.execution.columnar.jni;
 
+import com.prx.starry.common.jni.NativeClass;
+
 public class NativeQueryContext extends NativeClass implements AutoCloseable {
 
   static ThreadLocal<NativeQueryContext> queryContextThreadLocal = new ThreadLocal<>();

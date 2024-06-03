@@ -14,22 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.columnar.jni;
 
-import com.google.common.annotations.VisibleForTesting;
-import org.apache.spark.sql.execution.dict.ExecutorDictManager;
+package org.apache.spark.rpc
 
-public class NativeDictClass {
+import org.apache.spark.internal.Logging
+import org.apache.spark.rpc.{IsolatedRpcEndpoint, RpcCallContext, RpcEnv}
 
-  public static long toDictVector(long id, int numblocks) {
-    return ExecutorDictManager.fetchDictVectorAddress(id, numblocks).nativePTR();
+/**
+ * Gluten executor endpoint.
+ */
+class StarryRPCMangerEndpoint(
+    executorId: String,
+    override val rpcEnv: RpcEnv,
+    starryMemoryManager: StarryMemoryManager)
+    extends IsolatedRpcEndpoint
+    with Logging {
+
+  override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
+    case FetchMemoryStatics =>
+      context.reply(MemoryStaticsReply(executorId, starryMemoryManager.memoryStatics()))
+    case e =>
+      logError(s"Received unexpected message. $e")
   }
 
-  @VisibleForTesting
-  public static native long toDictVectorNative(long id, int numblocks);
-
-
-  public static native long execute(long batchID, String query);
-
-  public static native String tryCompile(String query);
 }

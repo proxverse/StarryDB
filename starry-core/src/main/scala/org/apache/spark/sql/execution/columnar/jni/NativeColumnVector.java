@@ -1,5 +1,6 @@
 package org.apache.spark.sql.execution.columnar.jni;
 
+import com.prx.starry.common.jni.NativeClass;
 import org.apache.spark.sql.types.DataType;
 
 public class NativeColumnVector extends NativeClass {
