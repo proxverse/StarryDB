@@ -119,6 +119,10 @@ case class ExecutionColumnDict(@transient columnDict: ColumnDict,
                                nativeExpression: String = null)
   extends TempDict with Logging {
 
+  if (columnDict.isInstanceOf[StartEndDict]) {
+    throw new UnsupportedOperationException("exec start end dict is not supported yet")
+  }
+
   override def toString: String = s"dict execution: ${expression}, dict: $columnDict"
 
   override def dataType: DataType = dt

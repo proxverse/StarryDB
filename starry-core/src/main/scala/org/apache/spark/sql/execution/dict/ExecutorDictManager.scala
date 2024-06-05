@@ -65,7 +65,7 @@ object ExecutorDictManager extends Logging {
       }
     })
 
-  private def eval(dict: ExecutionDict) = {
+  private def eval(dict: ExecutionDict): VeloxColumnarBatch = {
     try {
       val start = System.currentTimeMillis()
       val batch = dictCache.get((dict.dict, dict.numBlocks))
