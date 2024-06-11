@@ -25,7 +25,7 @@ public class VeloxWritableTimestampVector extends VeloxWritableColumnVector {
   @Override
   public void putLong(int rowId, long value) {
     Platform.putLong(null, dataAddress + 16L * rowId, value / 1000000);
-    Platform.putLong(null, dataAddress + 16L * rowId + 8, value % 1000000);
+    Platform.putLong(null, dataAddress + 16L * rowId + 8, (value % 1000000) * 1000);
   }
 
   @Override
@@ -54,7 +54,7 @@ public class VeloxWritableTimestampVector extends VeloxWritableColumnVector {
       return dictionaryVector.getLong(dictionaryIds.getDictId(rowId));
     }
     long sec = Platform.getLong(null, dataAddress + 16L * rowId);
-    long nano = Platform.getLong(null, dataAddress + 16L * rowId + 8);
-    return sec * 1000000 + nano;
+    long micros = Platform.getLong(null, dataAddress + 16L * rowId + 8) / 1000;
+    return sec * 1000000 + micros;
   }
 }
