@@ -46,10 +46,10 @@ object RewriteWithGlobalDict extends Rule[LogicalPlan] with PredicateHelper {
     })
 
     StarryContext.get().isDefined &&
-      !plan.containsPattern(TreePattern.COMMAND) &&
-      !plan.isInstanceOf[LeafNode] &&
-      !hasUnsupportedOperator &&
-      !decodedBefore
+    !plan.containsPattern(TreePattern.COMMAND) &&
+    !plan.isInstanceOf[LeafNode] &&
+    !hasUnsupportedOperator &&
+    !decodedBefore
   }
 
   private def doApply(plan: LogicalPlan): LogicalPlan = {
@@ -62,19 +62,21 @@ object RewriteWithGlobalDict extends Rule[LogicalPlan] with PredicateHelper {
       }
 
       // validate
-      decoded.output.zip(plan.output)
-        .find {case (dcol, col) => !dcol.dataType.sameType(col.dataType) && dcol.name != col.name}
-        .foreach{ case (dcol, col) =>
-          throw new IllegalStateException(
-            s"Plan is not decoded properly, encoded: " +
-            s"$dcol ${dcol.dataType}, original: $col ${col.dataType}, $decoded")
+      decoded.output
+        .zip(plan.output)
+        .find {
+          case (dcol, col) => !dcol.dataType.sameType(col.dataType) && dcol.name != col.name
+        }
+        .foreach {
+          case (dcol, col) =>
+            throw new IllegalStateException(
+              s"Plan is not decoded properly, encoded: " +
+                s"$dcol ${dcol.dataType}, original: $col ${col.dataType}, $decoded")
         }
       decoded.foreach { plan =>
         for (ref <- plan.references) {
           if (!plan.children.exists(_.outputSet.contains(ref))) {
-            throw new IllegalStateException(
-              s"Broken plan, $ref is not found in input of $plan"
-            )
+            throw new IllegalStateException(s"Broken plan, $ref is not found in input of $plan")
           }
         }
       }
@@ -91,8 +93,7 @@ object RewriteWithGlobalDict extends Rule[LogicalPlan] with PredicateHelper {
     }
   }
 
-  private def decodePlan(plan: LogicalPlan,
-                         originalPlan: LogicalPlan): LogicalPlan = {
+  private def decodePlan(plan: LogicalPlan, originalPlan: LogicalPlan): LogicalPlan = {
     // get encoded attrs from plan mapping
     // as plan's mapping is always propagated while column tag is not
     val encodedAttrs = plan.getEncodedAttributes
@@ -100,15 +101,18 @@ object RewriteWithGlobalDict extends Rule[LogicalPlan] with PredicateHelper {
       return plan
     }
 
-    val decodedProjectList = plan.output.zip(originalPlan.output)
+    val decodedProjectList = plan.output
+      .zip(originalPlan.output)
       .map {
         case (encodedAttr, oriAttr) // decode if needed
-          if encodedAttrs.exists(_.exprId == encodedAttr.exprId) &&
-            // in case it actually queries the encoded col
-            encodedAttr.dataType != oriAttr.dataType =>
-            encodedAttrs.find(_.exprId == encodedAttr.exprId).get
-              .decode(Some(oriAttr))
-              .asInstanceOf[NamedExpression]
+            if encodedAttrs.exists(_.exprId == encodedAttr.exprId) &&
+              // in case it actually queries the encoded col
+              encodedAttr.dataType != oriAttr.dataType =>
+          encodedAttrs
+            .find(_.exprId == encodedAttr.exprId)
+            .get
+            .decode(Some(oriAttr))
+            .asInstanceOf[NamedExpression]
         case (encodedAttr, oriAttr) if encodedAttr.name != oriAttr.name => // align name if needed
           Alias(encodedAttr, oriAttr.name)(oriAttr.exprId)
         case other => other._1
@@ -134,10 +138,11 @@ object RewriteWithGlobalDict extends Rule[LogicalPlan] with PredicateHelper {
         expand.mapExpressions(rewriteExpr(_, useExecution = true))
       case agg: Aggregate =>
         agg.mapExpressions {
-          case ar: AttributeReference if ar.dictInChildren().exists(_.isInstanceOf[ExecutionColumnDict]) =>
+          case ar: AttributeReference
+              if ar.dictInChildren().exists(_.isInstanceOf[ExecutionColumnDict]) =>
             tryDecodeDown(ar)
-          case a@Alias(ar: AttributeReference, _: String)
-            if ar.dictInChildren().exists(_.isInstanceOf[ExecutionColumnDict]) =>
+          case a @ Alias(ar: AttributeReference, _: String)
+              if ar.dictInChildren().exists(_.isInstanceOf[ExecutionColumnDict]) =>
             tryDecodeDown(a)
           case other => rewriteExpr(other)
         }
@@ -160,7 +165,8 @@ object RewriteWithGlobalDict extends Rule[LogicalPlan] with PredicateHelper {
 
   private def rewriteJoin(join: Join): LogicalPlan = {
     var isEqualJoin = true
-    val newCond = join.condition.map { _.transformDown {
+    val newCond = join.condition.map {
+      _.transformDown {
         // allowed exprs in equal join
         case equal @ EqualTo(l: AttributeReference, r: AttributeReference) =>
           val newEqual = equal.transformToEncodedRef(false).asInstanceOf[EqualTo] // to encoded
@@ -189,32 +195,41 @@ object RewriteWithGlobalDict extends Rule[LogicalPlan] with PredicateHelper {
     if (splitConjunctivePredicates(filter.condition).size > 1) {
       val conditions = splitConjunctivePredicates(filter.condition)
       val (isNotNull, notNull) =
-        conditions.partition(e => e.exists(e => e.isInstanceOf[IsNotNull] || e.isInstanceOf[IsNull]))
+        conditions.partition(e =>
+          e.exists(e => e.isInstanceOf[IsNotNull] || e.isInstanceOf[IsNull]))
       val (tobeDecode, other) = notNull
         .partition(_.references.size == 1)
-      val expressions = tobeDecode.map(m => (m.references.head, m))
+      val expressions = tobeDecode
+        .map(m => (m.references.head, m))
         .groupBy(_._1)
         .map(t => t._2.map(_._2).reduce(And))
-      val newCondition = (expressions.map(tryDecodeDown(_, true)) ++ (isNotNull ++ other).map(tryDecodeDown(_)))
-        .reduce(And)
+      val newCondition =
+        (expressions.map(tryDecodeDown(_, true)) ++ (isNotNull ++ other).map(tryDecodeDown(_)))
+          .reduce(And)
       Filter(newCondition, filter.child)
     } else if (splitDisjunctivePredicates(filter.condition).size > 1) {
       val conditions = splitDisjunctivePredicates(filter.condition)
       val (isNotNull, notNull) =
-        conditions.partition(e => e.exists(e => e.isInstanceOf[IsNotNull] || e.isInstanceOf[IsNull]))
+        conditions.partition(e =>
+          e.exists(e => e.isInstanceOf[IsNotNull] || e.isInstanceOf[IsNull]))
       val (tobeDecode, other) = notNull
         .partition(_.references.size == 1)
-      val expressions = tobeDecode.map(m => (m.references.head, m))
+      val expressions = tobeDecode
+        .map(m => (m.references.head, m))
         .groupBy(_._1)
         .map(t => t._2.map(_._2).reduce(Or))
-      val newCondition = (expressions.map(tryDecodeDown(_, true)) ++ (isNotNull ++ other).map(tryDecodeDown(_)))
-        .reduce(Or)
+      val newCondition =
+        (expressions.map(tryDecodeDown(_, true)) ++ (isNotNull ++ other).map(tryDecodeDown(_)))
+          .reduce(Or)
       Filter(newCondition, filter.child)
     } else {
-      if (filter.condition.isInstanceOf[IsNull] || filter.condition.isInstanceOf[IsNotNull]) {
-        filter.copy(condition = filter.condition.transformToEncodedRef())
-      } else {
-        Filter(tryDecodeDown(filter.condition, true), filter.child)
+      filter.condition match {
+        case _ @ IsNull(_: AttributeReference) =>
+          filter.copy(condition = filter.condition.transformToEncodedRef())
+        case _ @ IsNotNull(_: AttributeReference) =>
+          filter.copy(condition = filter.condition.transformToEncodedRef())
+        case _ =>
+          Filter(tryDecodeDown(filter.condition, true), filter.child)
       }
     }
   }
@@ -225,8 +240,8 @@ object RewriteWithGlobalDict extends Rule[LogicalPlan] with PredicateHelper {
       e.foreach {
         // concat: all child should be of the same type
         case concat: Concat
-          if concat.children.exists(_.dataType.isInstanceOf[ArrayType]) &&
-            concat.children.map(_.dataType).toSet.size == 1 =>
+            if concat.children.exists(_.dataType.isInstanceOf[ArrayType]) &&
+              concat.children.map(_.dataType).toSet.size == 1 =>
         case slice: Slice =>
         case unnest: Unnest =>
         case size: Size =>
