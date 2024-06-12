@@ -9,6 +9,7 @@ import org.apache.spark.sql.catalyst.expressions.{
 }
 import org.apache.spark.sql.catalyst.optimizer.BuildRight
 import org.apache.spark.sql.catalyst.plans.JoinType
+import org.apache.spark.sql.catalyst.plans.physical.ClusteredDistribution
 import org.apache.spark.sql.catalyst.rules.{Rule, UnknownRuleId}
 import org.apache.spark.sql.catalyst.trees.AlwaysProcess
 import org.apache.spark.sql.execution._
@@ -18,12 +19,13 @@ import org.apache.spark.sql.execution.columnar.extension.plan._
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.{
   BroadcastHashJoinExec,
+  HashJoin,
   ShuffledHashJoinExec,
   SortMergeJoinExec
 }
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.internal.StarryConf
-import org.apache.spark.sql.internal.StarryConf.rewriteSMGEnabled
+import org.apache.spark.sql.internal.StarryConf.{rewriteBHJEnabled, rewriteSMJEnabled}
 import org.apache.spark.sql.types.{AtomicType, IntegralType, LongType}
 import org.apache.spark.sql.types.{AtomicType, IntegralType}
 
@@ -106,19 +108,7 @@ case class ColumnarTransformRule() extends Rule[SparkPlan] {
 
         case (filterExec: ShuffledHashJoinExec, e2: ShuffledHashJoinExec)
             if canTransform(filterExec) =>
-          val canUseSMG = StarryConf.columnarJoinEnabled &&
-            (e2.joinType.equals(JoinType("inner")) || e2.joinType.equals(JoinType("left")) || e2.joinType
-              .equals(JoinType("leftsemi"))) &&
-            e2.condition.isEmpty && e2.leftKeys.size == 1 && e2.rightKeys.size == 1 &&
-            e2.leftKeys.head.dataType.isInstanceOf[IntegralType] &&
-            e2.rightKeys.head.dataType.isInstanceOf[IntegralType] &&
-            SortOrder.orderingSatisfies(
-              e2.left.outputOrdering,
-              e2.leftKeys.map(SortOrder(_, Ascending))) &&
-            SortOrder
-              .orderingSatisfies(
-                e2.right.outputOrdering,
-                e2.rightKeys.map(SortOrder(_, Ascending)))
+          val canUseSMG = canSGM(e2)
           if (canUseSMG) {
             new ColumnarMergeJoinExec(
               e2.leftKeys,
@@ -140,7 +130,7 @@ case class ColumnarTransformRule() extends Rule[SparkPlan] {
               e2.isSkewJoin)
           }
         case (filterExec: SortMergeJoinExec, e2: SortMergeJoinExec) if canTransform(filterExec) =>
-          if (rewriteSMGEnabled && e2.children.exists(_.isInstanceOf[ColumnarSortExec])) {
+          if (rewriteSMJEnabled && e2.children.exists(_.isInstanceOf[ColumnarSortExec])) {
             logInfo("Rewrite smg to hash join")
             val newLeft = e2.left match {
               case columnarSortExec: ColumnarSortExec =>
@@ -174,7 +164,65 @@ case class ColumnarTransformRule() extends Rule[SparkPlan] {
 
         case (filterExec: BroadcastHashJoinExec, after: BroadcastHashJoinExec)
             if canTransform(filterExec) =>
-          transform(after)
+          if (!rewriteBHJEnabled) {
+            transform(after)
+          } else {
+            val canUseSMG = canSGM(after)
+            if (canUseSMG) {
+              logInfo("rewrite bhj to smg")
+              after.left match {
+                case broadcastExchangeExec: BroadcastExchangeExec =>
+                  new ColumnarMergeJoinExec(
+                    after.leftKeys,
+                    after.rightKeys,
+                    after.joinType,
+                    after.condition,
+                    after.left.children.head,
+                    after.right,
+                    false)
+
+                case other =>
+                  new ColumnarMergeJoinExec(
+                    after.leftKeys,
+                    after.rightKeys,
+                    after.joinType,
+                    after.condition,
+                    after.left,
+                    after.right.children.head,
+                    false)
+              }
+
+            } else {
+              if (distributionSatisfies(after)) {
+                logInfo("rewrite bhj to hash join")
+                after.left match {
+                  case broadcastExchangeExec: BroadcastExchangeExec =>
+                    new ColumnarHashJoinExec(
+                      after.leftKeys,
+                      after.rightKeys,
+                      after.joinType,
+                      after.buildSide,
+                      after.condition,
+                      after.left.children.head,
+                      after.right,
+                      false)
+
+                  case other =>
+                    new ColumnarHashJoinExec(
+                      after.leftKeys,
+                      after.rightKeys,
+                      after.joinType,
+                      after.buildSide,
+                      after.condition,
+                      after.left,
+                      after.right.children.head,
+                      false)
+                }
+              } else {
+                transform(after)
+              }
+            }
+          }
 
         case (filterExec: WindowExec, after: WindowExec) =>
           new ColumnarWindowExec(
@@ -229,6 +277,49 @@ case class ColumnarTransformRule() extends Rule[SparkPlan] {
           e2
       }
     plan1
+  }
+
+  private def canSGM(e2: ShuffledHashJoinExec) = {
+    StarryConf.columnarJoinEnabled &&
+    (e2.joinType.equals(JoinType("inner")) || e2.joinType.equals(JoinType("left")) || e2.joinType
+      .equals(JoinType("leftsemi"))) &&
+    e2.condition.isEmpty && e2.leftKeys.size == 1 && e2.rightKeys.size == 1 &&
+    e2.leftKeys.head.dataType.isInstanceOf[IntegralType] &&
+    e2.rightKeys.head.dataType.isInstanceOf[IntegralType] &&
+    SortOrder.orderingSatisfies(e2.left.outputOrdering, e2.leftKeys.map(SortOrder(_, Ascending))) &&
+    SortOrder
+      .orderingSatisfies(e2.right.outputOrdering, e2.rightKeys.map(SortOrder(_, Ascending)))
+  }
+
+  private def canSGM(e2: BroadcastHashJoinExec) = {
+    val canUse = StarryConf.columnarJoinEnabled &&
+      (e2.joinType.equals(JoinType("inner")) || e2.joinType.equals(JoinType("left")) || e2.joinType
+        .equals(JoinType("leftsemi"))) &&
+      e2.condition.isEmpty && e2.leftKeys.size == 1 && e2.rightKeys.size == 1 &&
+      e2.leftKeys.head.dataType.isInstanceOf[IntegralType] &&
+      e2.rightKeys.head.dataType.isInstanceOf[IntegralType]
+    val sorting = e2.left match {
+      case broadcastExchangeExec: BroadcastExchangeExec =>
+        SortOrder.orderingSatisfies(
+          broadcastExchangeExec.child.outputOrdering,
+          e2.leftKeys.map(SortOrder(_, Ascending))) &&
+          SortOrder
+            .orderingSatisfies(e2.right.outputOrdering, e2.rightKeys.map(SortOrder(_, Ascending)))
+      case other =>
+        SortOrder.orderingSatisfies(
+          e2.left.outputOrdering,
+          e2.leftKeys.map(SortOrder(_, Ascending))) &&
+          SortOrder
+            .orderingSatisfies(
+              e2.right.children.head.outputOrdering,
+              e2.rightKeys.map(SortOrder(_, Ascending)))
+    }
+    canUse && sorting && distributionSatisfies(e2)
+  }
+
+  private def distributionSatisfies(e2: HashJoin) = {
+    e2.left.outputPartitioning.satisfies(ClusteredDistribution(e2.leftKeys)) &&
+    e2.right.outputPartitioning.satisfies(ClusteredDistribution(e2.rightKeys))
   }
 
   private def transform(bhj: BroadcastHashJoinExec): ColumnarBroadcastHashJoinExec = {

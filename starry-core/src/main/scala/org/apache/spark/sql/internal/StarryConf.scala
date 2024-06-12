@@ -81,6 +81,12 @@ object StarryConf {
     .booleanConf
     .createWithDefault(true)
 
+  val COLUMNAR_REWRITE_BROADCAST_JOIN_ENABLED = SQLConf
+    .buildConf("spark.sql.starry.columnar.rewriteBroadcastJoinEnabled")
+    .internal()
+    .booleanConf
+    .createWithDefault(true)
+
   val NEW_DATE_DIFF_ENABLED = SQLConf
     .buildConf("spark.sql.starry.columnar.newDateDiffEnabled")
     .internal()
@@ -113,8 +119,11 @@ object StarryConf {
   def columnarJoinEnabled: Boolean =
     SQLConf.get.getConf(COLUMNAR_SORT_MERGE_JOIN_ENABLED)
 
-  def rewriteSMGEnabled: Boolean =
+  def rewriteSMJEnabled: Boolean =
     SQLConf.get.getConf(COLUMNAR_REWRITE_SORT_MERGE_JOIN_ENABLED)
+
+  def rewriteBHJEnabled: Boolean =
+    SQLConf.get.getConf(COLUMNAR_REWRITE_BROADCAST_JOIN_ENABLED)
 
   def rewriteCountDistinctAsBitmap: Boolean = SQLConf.get.getConf(REWRITE_COUNT_DISTINCT_AS_BITMAP)
 
