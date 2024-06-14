@@ -193,7 +193,7 @@ case class ColumnarTransformRule() extends Rule[SparkPlan] {
               }
 
             } else {
-              if (distributionSatisfies(after)) {
+              if (partitioningSatisfiesJoinKeys(after)) {
                 logInfo("rewrite bhj to hash join")
                 after.left match {
                   case broadcastExchangeExec: BroadcastExchangeExec =>
@@ -314,12 +314,23 @@ case class ColumnarTransformRule() extends Rule[SparkPlan] {
               e2.right.children.head.outputOrdering,
               e2.rightKeys.map(SortOrder(_, Ascending)))
     }
-    canUse && sorting && distributionSatisfies(e2)
+    canUse && sorting && partitioningSatisfiesJoinKeys(e2)
   }
 
-  private def distributionSatisfies(e2: HashJoin) = {
-    e2.left.outputPartitioning.satisfies(ClusteredDistribution(e2.leftKeys)) &&
-    e2.right.outputPartitioning.satisfies(ClusteredDistribution(e2.rightKeys))
+  private def partitioningSatisfiesJoinKeys(join: HashJoin): Boolean = {
+    val leftChild = join.left match {
+      case BroadcastExchangeExec(_, child) => child
+      case other => other
+    }
+    val rightChild = join.right match {
+      case BroadcastExchangeExec(_, child) => child
+      case other => other
+    }
+    (leftChild.outputPartitioning.numPartitions == 1 && rightChild.outputPartitioning.numPartitions == 1) ||
+      (
+        leftChild.outputPartitioning.satisfies(ClusteredDistribution(join.leftKeys)) &&
+          rightChild.outputPartitioning.satisfies(ClusteredDistribution(join.rightKeys))
+      )
   }
 
   private def transform(bhj: BroadcastHashJoinExec): ColumnarBroadcastHashJoinExec = {
