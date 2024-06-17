@@ -6,11 +6,10 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.execution.StarryContext
 import org.apache.spark.sql.execution.columnar.{ColumnBatchUtils, VeloxColumnarBatch}
-import org.apache.spark.sql.execution.vectorized.WritableColumnVector
+import org.apache.spark.sql.execution.vectorized.{OnHeapColumnVector, WritableColumnVector}
 import org.apache.spark.sql.types.{DataType, StringType, StructField, StructType}
 import org.apache.spark.sql.vectorized.ColumnVector
 import org.apache.spark.unsafe.types.UTF8String
-
 
 trait ColumnDict {
 
@@ -69,10 +68,11 @@ trait TempDict extends ColumnDict with Logging {
 
 }
 
-case class SimpleColumnDict(@transient dictValues: Array[UTF8String]) extends ColumnDict with Logging {
+case class SimpleColumnDict(@transient dictValues: Array[UTF8String])
+    extends ColumnDict
+    with Logging {
 
   override def toString: String = "column dict"
-
 
   def this(values: Array[String]) = {
     this(values.map(UTF8String.fromString))
@@ -113,11 +113,13 @@ case class SimpleColumnDict(@transient dictValues: Array[UTF8String]) extends Co
   override def valueCount: Int = dictValues.length
 }
 
-case class ExecutionColumnDict(@transient columnDict: ColumnDict,
-                               expression: Expression,
-                               dt: DataType,
-                               nativeExpression: String = null)
-  extends TempDict with Logging {
+case class ExecutionColumnDict(
+    @transient columnDict: ColumnDict,
+    expression: Expression,
+    dt: DataType,
+    nativeExpression: String = null)
+    extends TempDict
+    with Logging {
 
   if (columnDict.isInstanceOf[StartEndDict]) {
     throw new UnsupportedOperationException("exec start end dict is not supported yet")
@@ -151,9 +153,9 @@ case class ExecutionColumnDict(@transient columnDict: ColumnDict,
 }
 
 // TODO StartEndDict should be in proxverse-project
-case class StartEndDict(start: UTF8String,
-                        end: UTF8String,
-                        wrappedDict: ColumnDict) extends TempDict with Logging {
+case class StartEndDict(start: UTF8String, end: UTF8String, wrappedDict: ColumnDict)
+    extends TempDict
+    with Logging {
 
   override val broadcastID: Long = wrappedDict.broadcastID
 
@@ -164,5 +166,20 @@ case class StartEndDict(start: UTF8String,
   override def toString: String = s"StartEndDict($start,$end,$wrappedDict)"
 
   override def valueCount: Int = wrappedDict.valueCount
+
+  private lazy val startEndVector: ColumnVector = {
+    val rows = veloxColumnarBatch.numRows()
+    val newVector = new OnHeapColumnVector(rows + 2, veloxColumnarBatch.column(0).dataType())
+    Range(0, rows).foreach { index =>
+      newVector.putByteArray(index, veloxColumnarBatch.column(0).getUTF8String(index).getBytes)
+    }
+    newVector.putByteArray(rows, start.getBytes)
+    newVector.putByteArray(rows + 1, end.getBytes)
+    newVector
+  }
+
+  override def vector(): ColumnVector = {
+    startEndVector
+  }
 
 }

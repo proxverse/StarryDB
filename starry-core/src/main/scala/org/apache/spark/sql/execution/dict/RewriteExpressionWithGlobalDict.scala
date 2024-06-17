@@ -102,7 +102,8 @@ object RewriteExpressionWithGlobalDict extends Logging {
     val canDoDictExecution = (expr: Expression) => {
       lazy val refDict = expr.references.head.dictInChildren()
       lazy val validRefDict = refDict.isDefined && refDict.get.supportExecution
-      StarryConf.dictExecutionEnabled && expr.references.size == 1 && validRefDict
+      StarryConf.dictExecutionEnabled &&  expr.references.size == 1 && validRefDict &&
+        !refDict.get.isInstanceOf[StartEndDict]
     }
     expression match {
       case namedExpr @ Alias(expr, name) if canDoDictExecution(expr) =>
