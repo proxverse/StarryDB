@@ -27,7 +27,6 @@ import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.internal.StarryConf
 import org.apache.spark.sql.internal.StarryConf.{rewriteBHJEnabled, rewriteSMJEnabled}
 import org.apache.spark.sql.types.{AtomicType, IntegralType, LongType}
-import org.apache.spark.sql.types.{AtomicType, IntegralType}
 
 case class ColumnarTransformRule() extends Rule[SparkPlan] {
 
