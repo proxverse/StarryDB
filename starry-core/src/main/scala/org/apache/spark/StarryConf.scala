@@ -126,6 +126,9 @@ object StarryConf {
   def rewriteSMJEnabled: Boolean =
     SQLConf.get.getConf(COLUMNAR_REWRITE_SORT_MERGE_JOIN_ENABLED)
 
+  def sMJEnabled: Boolean =
+    SQLConf.get.getConf(COLUMNAR_SORT_MERGE_JOIN_ENABLED)
+
   def removeSinglePartition: Boolean = SQLConf.get.getConf(REMOVE_SINGLE_PARTITION)
 
   def rewriteCountDistinctAsBitmap: Boolean =

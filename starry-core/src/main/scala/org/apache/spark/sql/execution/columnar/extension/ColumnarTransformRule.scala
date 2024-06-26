@@ -103,7 +103,8 @@ case class ColumnarTransformRule() extends Rule[SparkPlan] {
             e2.right,
             e2.isSkewJoin)
         case (filterExec: SortMergeJoinExec, e2: SortMergeJoinExec) if canTransform(filterExec) =>
-          if (StarryConf.rewriteSMJEnabled && e2.children.exists(_.isInstanceOf[ColumnarSortExec])) {
+          if ((!StarryConf.sMJEnabled) ||
+            (StarryConf.rewriteSMJEnabled && e2.children.exists(_.isInstanceOf[ColumnarSortExec]))) {
             logInfo("Rewrite smg to hash join")
             val newLeft = e2.left match {
               case columnarSortExec: ColumnarSortExec =>
