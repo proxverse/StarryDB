@@ -6,8 +6,8 @@ import com.esotericsoftware.kryo.KryoSerializable;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import org.apache.spark.sql.columnar.CachedBatch;
-import org.apache.spark.sql.execution.columnar.ColumnBatchUtils;
 import org.apache.spark.sql.execution.columnar.VeloxColumnarBatch;
+import org.apache.spark.sql.execution.columnar.jni.NativeColumnVector;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.util.KnownSizeEstimation;
@@ -55,7 +55,7 @@ public class CachedVeloxBatch implements AutoCloseable, KnownSizeEstimation, Ext
   public void writeExternal(ObjectOutput out) throws IOException {
     String json = schema.json();
     writerBytes(out, json.getBytes());
-    byte[] bytes = veloxBatch.rowVector().serialize();
+    byte[] bytes = veloxBatch.serialize();
     writerBytes(out, bytes);
 
 
@@ -88,7 +88,7 @@ public class CachedVeloxBatch implements AutoCloseable, KnownSizeEstimation, Ext
     byte[] bytes = schema.json().getBytes();
     out.writeInt(bytes.length);
     out.write(bytes);
-    bytes = veloxBatch.rowVector().serialize();
+    bytes = veloxBatch.serialize();
     out.writeInt(bytes.length);
     out.write(bytes);
 

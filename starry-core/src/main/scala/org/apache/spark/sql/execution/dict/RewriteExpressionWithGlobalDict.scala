@@ -26,10 +26,10 @@ object RewriteExpressionWithGlobalDict extends Logging {
         rewriteWindowExpression(alias)
       // ----- NO AGG EXPRS ----- //
       // direct references
-      case _: AttributeReference | Alias(_: AttributeReference, _: String) =>
+      case _: AttributeReference | Alias(_: AttributeReference, _) =>
         expression.transformToEncodedRef()
       // skip encoded col
-      case a @ Alias(_: LowCardDictEncoding, _: String) =>
+      case a @ Alias(_: LowCardDictEncoding, _) =>
         a
       // custom
       case custom if DictExpressionRewriteRegistry.findNonAggExprRewrite(custom).isDefined =>
@@ -110,15 +110,13 @@ object RewriteExpressionWithGlobalDict extends Logging {
         try {
           val encodedRef = expr.references.head.encodedRefInChildren().get
           val nullExpr = expr.transform {
-            case _: AttributeReference =>
-              BoundReference(0, StringType, nullable = true)
+            case ar: AttributeReference =>
+              BoundReference(0, ar.dataType, nullable = true)
           }
           val value = nullExpr.eval(InternalRow.fromSeq(Seq(null)))
           val boundExpr = expr.transform {
-            case _: AttributeReference =>
-              AttributeReference("dict", StringType, nullable = true)(
-                NamedExpression.newExprId,
-                Seq.empty[String])
+            case ar: AttributeReference =>
+              AttributeReference("dict", ar.dataType, nullable = true)()
           }
           val expression = ExpressionConverter.convertToNative(boundExpr)
           expression match {
@@ -148,14 +146,12 @@ object RewriteExpressionWithGlobalDict extends Logging {
       case expr: Expression if canDoDictExecution(expr) =>
         val encodedRef = expr.references.head.encodedRefInChildren().get
         val boundExpr = expr.transform {
-          case _: AttributeReference =>
-            AttributeReference("dict", StringType, nullable = true)(
-              NamedExpression.newExprId,
-              Seq.empty[String])
+          case ar: AttributeReference =>
+            AttributeReference("dict", ar.dataType, nullable = true)()
         }
         val nullExpr = expr.transform {
-          case _: AttributeReference =>
-            BoundReference(0, StringType, nullable = true)
+          case ar: AttributeReference =>
+            BoundReference(0, ar.dataType, nullable = true)
         }
         val value = nullExpr.eval(InternalRow.fromSeq(Seq(null)))
         try {

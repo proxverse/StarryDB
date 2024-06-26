@@ -174,6 +174,12 @@ public class VeloxColumnarBatch extends ColumnarBatch {
     return nativeObject().rowVector();
   }
 
+  public byte[] serialize() {
+    try(NativeColumnVector nativeColumnVector = nativeObject().rowVector()) {
+      return nativeColumnVector.serialize();
+    }
+  }
+
   public VeloxColumnarBatch copy() {
     if (schema == null) {
       throw new UnsupportedOperationException("The copied batch must has schema");

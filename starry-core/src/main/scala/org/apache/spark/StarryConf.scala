@@ -52,7 +52,7 @@ object StarryConf {
     .doc("rewrite count distinct as bitmap count distinct")
     .booleanConf
     .createWithDefault(false)
-  
+
   val ROOT_MEMORY_CAPACITY =
     buildConf("spark.sql.starry.maxRootMemoryBytes")
       .internal()
@@ -94,25 +94,16 @@ object StarryConf {
     .booleanConf
     .createWithDefault(true)
 
-  val REMOVE_EXCHANGE_WHEN_SATISFIES = SQLConf
-    .buildConf("spark.sql.starry.columnar.removeExchangeWhenSatisfies")
-    .doc("如果 join 两边都是相同分区,且满足分布, 移除两边的exchange")
-    .version("2.2.0")
-    .booleanConf
-    .createWithDefault(false)
-
-
   val NEW_DATE_DIFF_ENABLED = SQLConf
     .buildConf("spark.sql.starry.columnar.newDateDiffEnabled")
     .internal()
     .booleanConf
     .createWithDefault(true)
-  
+
   val DICT_EXECUTION_ENABLED = SQLConf
     .buildConf("spark.sql.starry.allowDictExprExecution")
     .booleanConf
     .createWithDefault(true)
-
 
   def dictExecutionEnabled: Boolean =
     SQLConf.get.getConf(DICT_EXECUTION_ENABLED)
@@ -132,20 +123,13 @@ object StarryConf {
 
   def isStarryEnabled: Boolean = SQLConf.get.getConf(STARRY_ENABLED)
 
-  def columnarJoinEnabled: Boolean =
-    SQLConf.get.getConf(COLUMNAR_SORT_MERGE_JOIN_ENABLED)
-
   def rewriteSMJEnabled: Boolean =
     SQLConf.get.getConf(COLUMNAR_REWRITE_SORT_MERGE_JOIN_ENABLED)
 
-  def rewriteBHJEnabled: Boolean =
-    SQLConf.get.getConf(COLUMNAR_REWRITE_BROADCAST_JOIN_ENABLED)
-
   def removeSinglePartition: Boolean = SQLConf.get.getConf(REMOVE_SINGLE_PARTITION)
 
-  def removeExchangeWhenSatisfies: Boolean = SQLConf.get.getConf(REMOVE_EXCHANGE_WHEN_SATISFIES)
-
-  def rewriteCountDistinctAsBitmap: Boolean = SQLConf.get.getConf(REWRITE_COUNT_DISTINCT_AS_BITMAP)
+  def rewriteCountDistinctAsBitmap: Boolean =
+    SQLConf.get.getConf(REWRITE_COUNT_DISTINCT_AS_BITMAP)
 
   def newDateDiffEnabled: Boolean =
     SQLConf.get.getConf(NEW_DATE_DIFF_ENABLED)

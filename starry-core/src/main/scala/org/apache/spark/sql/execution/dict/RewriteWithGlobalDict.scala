@@ -141,7 +141,7 @@ object RewriteWithGlobalDict extends Rule[LogicalPlan] with PredicateHelper {
           case ar: AttributeReference
               if ar.dictInChildren().exists(_.isInstanceOf[ExecutionColumnDict]) =>
             tryDecodeDown(ar)
-          case a @ Alias(ar: AttributeReference, _: String)
+          case a @ Alias(ar: AttributeReference, _)
               if ar.dictInChildren().exists(_.isInstanceOf[ExecutionColumnDict]) =>
             tryDecodeDown(a)
           case other => rewriteExpr(other)
