@@ -58,6 +58,7 @@ case class PreRuleReplaceRowToColumnar(session: SparkSession)
       (_: SparkSession) => SingleAggregateRule(),
       (_: SparkSession) => ColumnarTransformRule(),
       (_: SparkSession) => OptimizeExchange(),
+      (_: SparkSession) => OptimizeSort(),
       (_: SparkSession) => CollapseProjectExec,
     )
   }

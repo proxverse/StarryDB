@@ -1,14 +1,14 @@
 package org.apache.spark.sql.execution.columnar.extension.plan
 
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
-import org.apache.spark.sql.catalyst.optimizer.{BuildRight, BuildSide}
-import org.apache.spark.sql.catalyst.plans.JoinType
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, SortOrder}
+import org.apache.spark.sql.catalyst.optimizer.BuildRight
+import org.apache.spark.sql.catalyst.plans.{JoinType, LeftExistence, LeftOuter, RightOuter}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.columnar.expressions.ExpressionConverter
 import org.apache.spark.sql.execution.columnar.jni.NativePlanBuilder
 import org.apache.spark.sql.execution.datasources.FilePartition
-import org.apache.spark.sql.execution.joins.{ShuffledHashJoinExec, SortMergeJoinExec}
+import org.apache.spark.sql.execution.joins.SortMergeJoinExec
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -30,6 +30,13 @@ class ColumnarMergeJoinExec(
       right,
       isSkewJoin)
     with ColumnarSupport {
+
+  override def outputOrdering: Seq[SortOrder] = joinType match {
+    case LeftOuter => left.outputOrdering
+    case RightOuter => right.outputOrdering
+    case LeftExistence(_) => left.outputOrdering
+    case _ => super.outputOrdering
+  }
 
   override def output: Seq[Attribute] =
     super.output.filterNot(
