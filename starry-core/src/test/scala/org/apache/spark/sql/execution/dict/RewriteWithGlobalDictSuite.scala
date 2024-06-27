@@ -45,6 +45,7 @@ class RewriteWithGlobalDictSuite extends PlanTest {
 
     override def broadcastNumBlocks: Int = 0
 
+    override def valueCount: Int = 0
   }
 
   def table(db: String, table: String, schema: StructType): LogicalPlan = {
@@ -108,23 +109,23 @@ class RewriteWithGlobalDictSuite extends PlanTest {
     GlobalDictRegistry.invalidate("db", "case")
   }
 
-//  test("test filter proj") {
-//    val plan = foo
-//      .where($"event".isNotNull)
-//      .select($"event", $"ts")
-//      .analyze
-//    val dictOpt = DictOptimize.execute(plan)
-//    println(dictOpt)
-//  }
-//
-//  test("test agg") {
-//    val plan = foo
-//      .where($"event".isNotNull)
-//      .groupBy($"ts")(count($"event"))
-//      .analyze
-//    val dictOpt = DictOptimize.execute(plan)
-//    println(dictOpt)
-//  }
+  //  test("test filter proj") {
+  //    val plan = foo
+  //      .where($"event".isNotNull)
+  //      .select($"event", $"ts")
+  //      .analyze
+  //    val dictOpt = DictOptimize.execute(plan)
+  //    println(dictOpt)
+  //  }
+  //
+  //  test("test agg") {
+  //    val plan = foo
+  //      .where($"event".isNotNull)
+  //      .groupBy($"ts")(count($"event"))
+  //      .analyze
+  //    val dictOpt = DictOptimize.execute(plan)
+  //    println(dictOpt)
+  //  }
 
   // activity --> city
   //  \----> case ---> owner

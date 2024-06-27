@@ -57,6 +57,13 @@ case class NativeGlobalDict(@transient dataFrame: DataFrame) extends ColumnDict 
 
   override val broadcastNumBlocks: Int =
     broadcastVectorBytes.asInstanceOf[TorrentBroadcast[Dict]].numBlocks
+
+  override lazy val valueCount: Int = NativeGlobalDict.executionContext
+    .submit { () =>
+      dataFrame.count().toInt
+    }
+    .get()
+
 }
 
 object NativeGlobalDict {

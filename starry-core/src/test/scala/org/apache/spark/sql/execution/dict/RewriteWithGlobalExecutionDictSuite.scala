@@ -46,6 +46,8 @@ class RewriteWithGlobalExecutionDictSuite extends ColumnarSharedSparkSession {
     override def broadcastID: Long = 0
 
     override def broadcastNumBlocks: Int = 0
+
+    override def valueCount: Int = 0
   }
 
   def table(db: String, table: String, schema: StructType): LogicalPlan = {
@@ -224,13 +226,13 @@ class RewriteWithGlobalExecutionDictSuite extends ColumnarSharedSparkSession {
     val execDict = optimized.expressions(1).find(_.isInstanceOf[LowCardDictDecode])
       .get.asInstanceOf[LowCardDictDecode].dict
     assert(execDict.isInstanceOf[ExecutionColumnDict])
-//    assert(plan.outputSet.map(_.name) == optimized.outputSet.map(_.name))
-//    assert(plan.outputSet.map(_.exprId) == optimized.outputSet.map(_.exprId))
-//
-//    val agg = plan.find(_.isInstanceOf[Aggregate]).get.asInstanceOf[Aggregate]
-//    val optAgg = optimized.find(_.isInstanceOf[Aggregate]).get.asInstanceOf[Aggregate]
-//
-//    assert(agg.groupingExpressions == optAgg.groupingExpressions)
+    //    assert(plan.outputSet.map(_.name) == optimized.outputSet.map(_.name))
+    //    assert(plan.outputSet.map(_.exprId) == optimized.outputSet.map(_.exprId))
+    //
+    //    val agg = plan.find(_.isInstanceOf[Aggregate]).get.asInstanceOf[Aggregate]
+    //    val optAgg = optimized.find(_.isInstanceOf[Aggregate]).get.asInstanceOf[Aggregate]
+    //
+    //    assert(agg.groupingExpressions == optAgg.groupingExpressions)
   }
 
 

@@ -23,6 +23,8 @@ trait ColumnDict {
 
   def dataType: DataType = StringType
 
+  def valueCount: Int
+
   @transient lazy private val valuesToId: Map[UTF8String, Int] = {
     val rows = veloxColumnarBatch.numRows()
     Range(0, rows).map { index =>
@@ -67,7 +69,7 @@ trait TempDict extends ColumnDict with Logging {
 }
 
 case class SimpleColumnDict(@transient dictValues: Array[UTF8String])
-    extends ColumnDict
+  extends ColumnDict
     with Logging {
 
   override def toString: String = "column dict"
@@ -107,14 +109,16 @@ case class SimpleColumnDict(@transient dictValues: Array[UTF8String])
       batch.close()
     }
   }
+
+  override def valueCount: Int = dictValues.length
 }
 
 case class ExecutionColumnDict(
-    @transient columnDict: ColumnDict,
-    expression: Expression,
-    dt: DataType,
-    nativeExpression: String = null)
-    extends TempDict
+                                @transient columnDict: ColumnDict,
+                                expression: Expression,
+                                dt: DataType,
+                                nativeExpression: String = null)
+  extends TempDict
     with Logging {
 
   if (columnDict.isInstanceOf[StartEndDict]) {
@@ -145,11 +149,12 @@ case class ExecutionColumnDict(
           nativeExpression))
   }
 
+  override def valueCount: Int = columnDict.valueCount
 }
 
 // TODO StartEndDict should be in proxverse-project
 case class StartEndDict(start: UTF8String, end: UTF8String, wrappedDict: ColumnDict)
-    extends TempDict
+  extends TempDict
     with Logging {
 
   override val broadcastID: Long = wrappedDict.broadcastID
@@ -160,6 +165,7 @@ case class StartEndDict(start: UTF8String, end: UTF8String, wrappedDict: ColumnD
 
   override def toString: String = s"StartEndDict($start,$end,$wrappedDict)"
 
+  override def valueCount: Int = wrappedDict.valueCount
 
   private lazy val startEndVector: ColumnVector = {
     val rows = veloxColumnarBatch.numRows()
