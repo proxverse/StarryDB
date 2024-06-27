@@ -23,8 +23,6 @@ trait ColumnDict {
 
   def dataType: DataType = StringType
 
-  def valueCount: Int
-
   @transient lazy private val valuesToId: Map[UTF8String, Int] = {
     val rows = veloxColumnarBatch.numRows()
     Range(0, rows).map { index =>
@@ -109,8 +107,6 @@ case class SimpleColumnDict(@transient dictValues: Array[UTF8String])
       batch.close()
     }
   }
-
-  override def valueCount: Int = dictValues.length
 }
 
 case class ExecutionColumnDict(
@@ -149,7 +145,6 @@ case class ExecutionColumnDict(
           nativeExpression))
   }
 
-  override def valueCount: Int = columnDict.valueCount
 }
 
 // TODO StartEndDict should be in proxverse-project
@@ -165,7 +160,6 @@ case class StartEndDict(start: UTF8String, end: UTF8String, wrappedDict: ColumnD
 
   override def toString: String = s"StartEndDict($start,$end,$wrappedDict)"
 
-  override def valueCount: Int = wrappedDict.valueCount
 
   private lazy val startEndVector: ColumnVector = {
     val rows = veloxColumnarBatch.numRows()

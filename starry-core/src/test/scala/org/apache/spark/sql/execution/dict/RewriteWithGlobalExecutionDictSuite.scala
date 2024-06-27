@@ -46,8 +46,6 @@ class RewriteWithGlobalExecutionDictSuite extends ColumnarSharedSparkSession {
     override def broadcastID: Long = 0
 
     override def broadcastNumBlocks: Int = 0
-
-    override def valueCount: Int = 0
   }
 
   def table(db: String, table: String, schema: StructType): LogicalPlan = {
