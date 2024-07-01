@@ -61,10 +61,18 @@ object StarryConf {
       .bytesConf(ByteUnit.BYTE)
       .createOptional
 
-  val QUERY_MEMORY_CAPACITY =
+  val DEFAULT_QUERY_MEMORY_CAPACITY =
+    buildConf("spark.sql.starry.defaultQueryMemoryBytes")
+      .internal()
+      .doc("default query memory capacity for task")
+      .version("2.3.0")
+      .bytesConf(ByteUnit.BYTE)
+      .createOptional
+
+  val MAX_QUERY_MEMORY_CAPACITY =
     buildConf("spark.sql.starry.maxQueryMemoryBytes")
       .internal()
-      .doc("query memory capacity for task")
+      .doc("max query memory capacity for task")
       .version("2.3.0")
       .bytesConf(ByteUnit.BYTE)
       .createOptional
@@ -136,8 +144,9 @@ object StarryConf {
 
   def newDateDiffEnabled: Boolean =
     SQLConf.get.getConf(NEW_DATE_DIFF_ENABLED)
-  def getAllConf(sparkConf: SparkConf, prefix: String): Map[String, Any] = {
-    sparkConf.getAll.toMap
+
+  def getAllConf(sparkConf: Map[String, String], prefix: String): Map[String, Any] = {
+    sparkConf
       .filter(_._1.startsWith(prefix))
       .map { en =>
         if (SQLConf.containsConfigKey(en._1)) {
@@ -161,6 +170,6 @@ object StarryConf {
   private implicit lazy val formats = Serialization.formats(NoTypeHints)
 
   def getAllConfJson(sparkConf: SparkConf, prefix: String): String = {
-    Serialization.write(StarryConf.getAllConf(sparkConf, prefix))
+    Serialization.write(StarryConf.getAllConf(sparkConf.getAll.toMap, prefix))
   }
 }

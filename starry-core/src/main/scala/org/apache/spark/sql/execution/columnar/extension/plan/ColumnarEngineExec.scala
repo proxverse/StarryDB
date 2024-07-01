@@ -25,6 +25,7 @@ import org.apache.spark.sql.execution.columnar.extension.ColumnarExecutionRDD
 import org.apache.spark.sql.execution.columnar.jni.NativePlanBuilder
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.execution.{ColumnarToRowTransition, SparkPlan}
+import org.apache.spark.sql.internal.{SQLConf, StarryConf}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.json4s.NoTypeHints
 import org.json4s.jackson.Serialization
@@ -36,8 +37,7 @@ import scala.collection.JavaConverters._
 object ColumnarEngineExec {
   val transformStageCounter = new AtomicInteger(0)
 }
-case class ColumnarEngineExec(child: SparkPlan)(
-    val columnarStageId: Int)
+case class ColumnarEngineExec(child: SparkPlan)(val columnarStageId: Int)
     extends SparkPlan
     with ColumnarToRowTransition {
 
@@ -106,7 +106,7 @@ case class ColumnarEngineExec(child: SparkPlan)(
     val planJson = builder.builderAndRelease()
     val nodeMetrics = new util.HashMap[String, (String, Map[String, SQLMetric])]()
     partitions.collectMetrics(nodeMetrics)
-    val map1 = sparkContext.conf.getAllWithPrefix("spark.sql").toMap
+    val map1 = StarryConf.getAllConf(SQLConf.get.getAllConfs, "spark.sql")
     new ColumnarExecutionRDD(
       sparkContext,
       planJson,

@@ -52,7 +52,7 @@ class ColumnarExecutionRDD(
     var rdds: Array[RDD[ColumnarBatch]],
     outputAttributes: Seq[Attribute],
     nodeMetrics: Map[String, (String, Map[String, SQLMetric])],
-    confMap: Map[String, String],
+    confMap: Map[String, Any],
     columnarStageId: Long)
     extends RDD[ColumnarBatch](sc, rdds.map(x => new OneToOneDependency(x))) {
 

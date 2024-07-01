@@ -17,27 +17,21 @@
 package org.apache.spark.sql.execution.vectorized
 
 import com.prx.starry.Starry
-import org.apache.spark
 import org.apache.spark.SparkConf
-import org.apache.spark.serializer.{JavaSerializer, KryoSerializer}
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.execution.columnar.cache.CachedVeloxBatch
 import org.apache.spark.sql.execution.columnar.extension.utils.NativeLibUtil
-import org.apache.spark.sql.execution.columnar.{ColumnBatchUtils, VeloxColumnarBatch}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetTest
-import org.apache.spark.sql.functions._
-import org.apache.spark.sql.internal.StarryConf
-import org.apache.spark.sql.types.{StringType, StructField, StructType}
+import org.apache.spark.sql.internal.{SQLConf, StarryConf}
 import org.scalatest.Assertions
 
 class MemorySuite extends ParquetTest {
 
   test("test root memory pool") {
-    if (System.getenv("RUN_MEMORY_POOL_TEST") != null) {
+    if (true) {
       withTable("bucket_table") {
         val conf1 = spark.sparkContext.conf
         conf1.set("spark.sql.starry.maxRootMemoryBytes", "10M")
-        conf1.set("spark.sql.starry.maxQueryMemoryBytes", "1KB")
+        conf1.set("spark.sql.starry.defaultQueryMemoryBytes", "1KB")
         NativeLibUtil.init(StarryConf.getAllConfJson(conf1, "spark.sql.starry"))
         try {
           val frame = readResourceParquetFile("performance-data")
@@ -50,15 +44,38 @@ class MemorySuite extends ParquetTest {
               Assertions.fail()
             }
         }
+        val frame = readResourceParquetFile("performance-data")
         try {
-          val frame = readResourceParquetFile("performance-data")
-          val frame1 = frame
-          frame1.cache
-          frame1.count()
+          frame.cache
+          frame.count()
           Assertions.fail()
         } catch {
           case exception: Exception =>
             if (!exception.getMessage.contains("Exceeded memory pool cap of 10.00MB")) {
+              Assertions.fail()
+            }
+        } finally {
+          frame.unpersist()
+        }
+
+      }
+    }
+  }
+
+  test("test query memory pool") {
+    withTable("bucket_table") {
+      val conf1 = spark.sparkContext.conf
+      NativeLibUtil.init(StarryConf.getAllConfJson(conf1, "spark.sql.starry"))
+      SQLConf.withExistingConf(spark.sessionState.conf) {
+        spark.sessionState.conf.setLocalProperty("spark.sql.starry.maxQueryMemoryBytes", "2KB")
+        try {
+          val frame = readResourceParquetFile("performance-data")
+          val frame1 = frame
+          frame1.count()
+          Assertions.fail()
+        } catch {
+          case exception: Exception =>
+            if (!exception.getMessage.contains("Exceeded memory pool cap of 2.00KB")) {
               Assertions.fail()
             }
         }
