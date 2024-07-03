@@ -2,14 +2,18 @@ package org.apache.spark.sql.execution.columnar.expressions.convert
 
 import org.apache.spark.sql.catalyst.expressions.{Cast, Expression, Literal}
 import org.apache.spark.sql.execution.columnar.expressions.{ExpressionConverter, NativeJsonExpression}
-import org.apache.spark.sql.execution.dict.{ColumnDict, LowCardDictEncoding, StartEndDict}
+import org.apache.spark.sql.execution.dict.{ColumnDict, LowCardDictDecode, LowCardDictDecodeArray, LowCardDictEncoding, StartEndDict}
 import org.apache.spark.sql.types._
 
 object LowCardDictDecodeConverter extends ExpressionConvertTrait {
 
   override def lookupFunctionName(expression: Expression): Option[String] =
     Option.apply(expression match {
-      case decode: LowCardDictEncoding =>
+      case LowCardDictDecode(_, _: StartEndDict) =>
+        "low_card_dict_decode_start_end"
+      case _: LowCardDictDecode =>
+        "low_card_dict_decode"
+      case decode: LowCardDictDecodeArray =>
         val functionName = decode.sql
         decode.dict match {
           case _: StartEndDict =>

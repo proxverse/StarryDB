@@ -58,8 +58,7 @@ object RewriteExpressionWithGlobalDict extends Logging {
         expr.withNewChildren(Seq(expr.children.head.encodedRefInChildren().get))
       // handle bool typed
       case expr
-          if useExecution && (expr.dataType == StringType || expr.dataType == BooleanType)
-            && !expr.containsPattern(TreePattern.AGGREGATE_EXPRESSION) =>
+          if useExecution && !expr.containsPattern(TreePattern.AGGREGATE_EXPRESSION) =>
         tryDictExecution(expr)
       // others
       case e =>
