@@ -81,9 +81,25 @@ object RewriteExpressionWithGlobalDict extends Logging {
       // custom rewrite
       case customExpr if DictExpressionRewriteRegistry.findAggExprRewrite(customExpr).isDefined =>
         DictExpressionRewriteRegistry.findAggExprRewrite(customExpr).get.rewrite(customExpr)
-      // try decode otherwise
-      case e =>
-        tryDecodeDown(e)
+      case alias @ Alias(agg: AggregateExpression, _) =>
+        val newAgg = agg.mapChildren {
+          case aggregateFunction: AggregateFunction =>
+            aggregateFunction.mapChildren { child =>
+              val newChild = tryDecodeDown(child, true)
+              newChild.dict match {
+                case Some(_: ExecutionColumnDict) =>
+                  newChild.decode()
+                case _ =>
+                  newChild
+              }
+            }
+          case other => tryDecodeDown(other)
+        }
+        if (newAgg fastEquals agg) {
+          alias
+        } else {
+          Alias(newAgg, alias.name)(exprId = alias.exprId)
+        }
     }
   }
 
