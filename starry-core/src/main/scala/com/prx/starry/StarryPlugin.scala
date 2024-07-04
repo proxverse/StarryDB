@@ -100,6 +100,8 @@ object Starry {
 
   def injectExtensions(sparkSessionExtensions: SparkSessionExtensions): Unit = {
     sparkSessionExtensions.injectOptimizerRule(_ => AggregateFunctionRewriteRule)
+    sparkSessionExtensions.injectOptimizerRule(_ => RewriteWithGlobalDict)
+    sparkSessionExtensions.injectOptimizerRule(_ => CountDistinctToBitmap)
     sparkSessionExtensions.injectPlannerStrategy(JoinSelectionOverrides)
     sparkSessionExtensions.injectColumnar(spark =>
       ColumnarTransitionRule(PreRuleReplaceRowToColumnar(spark), VeloxColumnarPostRule()))
@@ -109,8 +111,8 @@ object Starry {
   }
 
   def extraOptimizations: Seq[Rule[LogicalPlan]] =
-    RewriteWithGlobalDict ::
-    CountDistinctToBitmap ::
+//    RewriteWithGlobalDict ::
+//    CountDistinctToBitmap ::
     AggregateFunctionRewriteRule ::
     PreProjectRewriteRule ::
     CollapseProject :: Nil

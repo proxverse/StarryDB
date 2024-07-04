@@ -37,6 +37,7 @@ case class NativeFunctionPlaceHolder(
 
   override def toString(): String = s"native_holder($original)"
 
+  override def toAggString(isDistinct: Boolean): String = toString()
 }
 
 abstract class AbstractNativeFunctionPlaceHolder

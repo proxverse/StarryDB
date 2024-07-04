@@ -51,7 +51,7 @@ object StarryConf {
     .buildConf("spark.sql.starry.expressions.rewriteCountDistinctAsBitmap")
     .doc("rewrite count distinct as bitmap count distinct")
     .booleanConf
-    .createWithDefault(false)
+    .createWithDefault(true)
 
   val ROOT_MEMORY_CAPACITY =
     buildConf("spark.sql.starry.maxRootMemoryBytes")
