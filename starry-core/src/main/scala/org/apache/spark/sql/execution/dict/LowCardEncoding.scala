@@ -83,72 +83,25 @@ case class LowCardDictDecode(child: Expression, dict: ColumnDict)
 
   override protected def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
     val dictRef = ctx.addReferenceObj("dict", dict)
-    dict.dataType match {
-      case BooleanType =>
-        nullSafeCodeGen(ctx, ev, eval => {
-          s"""
-             | ${ev.value} = $dictRef.vector().getBoolean($eval);
-             | ${ev.isNull} = $dictRef.vector().isNullAt($eval);
-             |""".stripMargin
-        })
-      case ByteType =>
-        nullSafeCodeGen(ctx, ev, eval => {
-          s"""
-             | ${ev.value} = $dictRef.vector().getByte($eval);
-             | ${ev.isNull} = $dictRef.vector().isNullAt($eval);
-             |""".stripMargin
-        })
-      case IntegerType =>
-        nullSafeCodeGen(ctx, ev, eval => {
-          s"""
-             | ${ev.value} = $dictRef.vector().getInt($eval);
-             | ${ev.isNull} = $dictRef.vector().isNullAt($eval);
-             |""".stripMargin
-        })
-      case ShortType =>
-        nullSafeCodeGen(ctx, ev, eval => {
-          s"""
-             | ${ev.value} = $dictRef.vector().getShort($eval);
-             | ${ev.isNull} = $dictRef.vector().isNullAt($eval);
-             |""".stripMargin
-        })
-      case LongType =>
-        nullSafeCodeGen(ctx, ev, eval => {
-          s"""
-             | ${ev.value} = $dictRef.vector().getLong($eval);
-             | ${ev.isNull} = $dictRef.vector().isNullAt($eval);
-             |""".stripMargin
-        })
-      case StringType =>
-        nullSafeCodeGen(ctx, ev, eval => {
-          s"""
-             | ${ev.value} = $dictRef.vector().getUTF8String($eval);
-             | ${ev.isNull} = $dictRef.vector().isNullAt($eval);
-             |""".stripMargin
-        })
-      case BinaryType =>
-        nullSafeCodeGen(ctx, ev, eval => {
-          s"""
-             | ${ev.value} = $dictRef.vector().getBinary($eval);
-             | ${ev.isNull} = $dictRef.vector().isNullAt($eval);
-             |""".stripMargin
-        })
-      case FloatType =>
-        nullSafeCodeGen(ctx, ev, eval => {
-          s"""
-             | ${ev.value} = $dictRef.vector().getFloat($eval);
-             | ${ev.isNull} = $dictRef.vector().isNullAt($eval);
-             |""".stripMargin
-        })
-      case DoubleType =>
-        nullSafeCodeGen(ctx, ev, eval => {
-          s"""
-             | ${ev.value} = $dictRef.vector().getDouble($eval);
-             | ${ev.isNull} = $dictRef.vector().isNullAt($eval);
-             |""".stripMargin
-        })
-      case _ => throw new UnsupportedOperationException(s"Unsupported data type ${dict.dataType}")
-    }
+
+    nullSafeCodeGen(ctx, ev, idx => {
+      val getValueFromDict = (valueType: String) => {
+        s"""
+           | ${ev.value} = $dictRef.vector().get$valueType($idx);
+           | ${ev.isNull} = $dictRef.vector().isNullAt($idx);
+           |""".stripMargin
+      }
+      dataType.typeName
+      dict.dataType match {
+        case _: BooleanType | _: ByteType | _: ShortType | _: LongType |
+             _: FloatType | _: DoubleType | _: BinaryType =>
+          getValueFromDict(dict.dataType.typeName.capitalize)
+        case IntegerType => getValueFromDict("Int")
+        case StringType => getValueFromDict("UTF8String")
+        case _: ArrayType => getValueFromDict("Array")
+        case _ => throw new UnsupportedOperationException(s"Unsupported data type ${dict.dataType}")
+      }
+    })
   }
 
   override protected def nullSafeEval(input: Any): Any = dict.dataType match {
@@ -170,6 +123,8 @@ case class LowCardDictDecode(child: Expression, dict: ColumnDict)
       dict.vector().getFloat(input.asInstanceOf[Int])
     case DoubleType =>
       dict.vector().getDouble(input.asInstanceOf[Int])
+    case _: ArrayType =>
+      dict.vector().getArray(input.asInstanceOf[Int])
     case _ => throw new UnsupportedOperationException(s"Unsupported data type ${dict.dataType}")
 
   }
