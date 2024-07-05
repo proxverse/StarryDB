@@ -34,6 +34,7 @@ object ColumnarSupport {
   val AGG_PROJECT_AGG_PREFIX = "embedded_agg_project_agg_"
   val AGG_PROJECT_FILTER_PREFIX = "embedded_agg_project_filter_"
   val AGG_PROJECT_GROUP_PREFIX = "embedded_agg_project_group_"
+  val WIN_PROJECT_GROUP_PREFIX = "embedded_window_project_"
   val EXPAND_PROJECT_PREFIX = "embedded_expand_project_"
   val SORT_PROJECT_PREFIX = "embedded_sort_project_"
   val GENERATOR_PROJECT_PREFIX = "embedded_generator_project_"

@@ -1,5 +1,6 @@
 package org.apache.spark.sql.execution.dict
 
+import org.apache.hadoop.hive.ql.parse.PTFInvocationSpec.OrderSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -9,6 +10,8 @@ import org.apache.spark.sql.execution.columnar.InMemoryRelation
 import org.apache.spark.sql.execution.columnar.expressions.Unnest
 import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.types.ArrayType
+
+import scala.collection.mutable
 
 object RewriteWithGlobalDict extends Rule[LogicalPlan] with PredicateHelper {
 
@@ -150,11 +153,11 @@ object RewriteWithGlobalDict extends Rule[LogicalPlan] with PredicateHelper {
         rewriteJoin(join)
       case generate: Generate =>
         rewriteGenerate(generate)
-      case Window(windowExpressions, partitionSpec, orderSpec, child) =>
-        val newWE =
-          windowExpressions.map(rewriteExpr(_).asInstanceOf[NamedExpression])
+      case Window(windowExpressions, partitionSpec, orderSpecs, child) =>
+        val newWindowExprs = windowExpressions.map(rewriteExpr(_).asInstanceOf[NamedExpression])
         val newPartitions = partitionSpec.map(rewriteExpr(_))
-        val newWindow = Window(newWE, newPartitions, orderSpec, child)
+        val newOrderSpecs = orderSpecs.map(rewriteExpr(_).asInstanceOf[SortOrder])
+        val newWindow = Window(newWindowExprs, newPartitions, newOrderSpecs, child)
         newWindow
       case filter: Filter =>
         rewriteFilter(filter)

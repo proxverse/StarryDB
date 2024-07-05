@@ -2,7 +2,7 @@ package org.apache.spark.sql.execution.dict
 
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
 import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, ExprId, Expression, NamedExpression}
-import org.apache.spark.sql.catalyst.plans.logical.{Filter, GlobalLimit, Join, LocalLimit, LogicalPlan, Subquery, SubqueryAlias}
+import org.apache.spark.sql.catalyst.plans.logical.{Filter, GlobalLimit, Join, LocalLimit, LogicalPlan, Subquery, SubqueryAlias, Window}
 import org.apache.spark.sql.catalyst.trees.{CurrentOrigin, TreeNodeTag}
 import org.apache.spark.sql.execution.columnar.{CachedRDDBuilder, InMemoryRelation}
 import org.apache.spark.sql.execution.datasources.LogicalRelation
@@ -56,7 +56,7 @@ object RewriteContext {
     })
     // copy children mapping tag if the operator is not changing the output
     transformed match {
-      case _: Join | _: Filter | _: LocalLimit | _: Subquery | _: SubqueryAlias | _: GlobalLimit =>
+      case _: Join | _: Filter | _: LocalLimit | _: Subquery | _: SubqueryAlias | _: GlobalLimit | _: Window =>
         transformed.withChildrenEncodingMapping()
       case colUnchanged
         if colUnchanged.children.size == 1 &&

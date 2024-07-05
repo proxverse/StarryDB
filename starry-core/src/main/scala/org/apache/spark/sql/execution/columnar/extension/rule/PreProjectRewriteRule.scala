@@ -17,23 +17,13 @@
 
 package org.apache.spark.sql.execution.columnar.extension.rule
 
-import org.antlr.runtime.tree.TreeWizard.TreePattern
-import org.apache.spark.sql.{Column, SparkSession}
-import org.apache.spark.sql.catalyst.analysis.UnresolvedAlias
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, EquivalentExpressions, Expression, Literal, NamedExpression}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction}
-import org.apache.spark.sql.catalyst.planning.PhysicalAggregation
-import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Expand, LogicalPlan, Project}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, Expression, Literal, NamedExpression, WindowExpression}
+import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.catalyst.trees.TreeNodeTag
-import org.apache.spark.sql.catalyst.trees.TreePattern.AGGREGATE_EXPRESSION
-import org.apache.spark.sql.catalyst.util.toPrettySQL
-import org.apache.spark.sql.execution.aggregate.TypedAggregateExpression
-import org.apache.spark.sql.execution.columnar.extension.plan.ColumnarSupport.EXPAND_PROJECT_PREFIX
 import org.apache.spark.sql.execution.columnar.extension.plan.ColumnarSupport
+import org.apache.spark.sql.execution.columnar.extension.plan.ColumnarSupport.EXPAND_PROJECT_PREFIX
 
-import java.util
-import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 object PreProjectRewriteRule extends Rule[LogicalPlan] {
@@ -41,6 +31,8 @@ object PreProjectRewriteRule extends Rule[LogicalPlan] {
   override def apply(plan: LogicalPlan): LogicalPlan = plan.resolveOperatorsUp {
     case aggregate: Aggregate =>
       pushdownExprsInAgg(aggregate)
+    case window: Window =>
+      pushdownExprsInWindow(window)
     case expand @ Expand(projections, _, child)
       if !projections.flatten.forall(isAttributeOrLit) =>
 
@@ -61,13 +53,52 @@ object PreProjectRewriteRule extends Rule[LogicalPlan] {
       )
   }
 
+  private def pushdownExprsInWindow(window: Window): LogicalPlan = {
+    val exprSet = new mutable.HashMap[Expression, NamedExpression]
+    val pushdown = (expr: Expression) => pushdownExpr(expr, exprSet, ColumnarSupport.WIN_PROJECT_GROUP_PREFIX)
+    val newPartitionSpec = window.partitionSpec.map(pushdown)
+    val newOrderSpec = window.orderSpec.map { so =>
+      so.copy(child = pushdown(so.child))
+    }
+    val newExprs = window.windowExpressions.map {
+      case alias@Alias(winExpr: WindowExpression, aliasName: String) =>
+        Alias(
+          WindowExpression(
+            winExpr.windowFunction match {
+              case aggExpr: AggregateExpression =>
+                aggExpr.copy(
+                  aggregateFunction = aggExpr.aggregateFunction.mapChildren(pushdown).asInstanceOf[AggregateFunction])
+              case other => other.mapChildren(pushdown)
+            },
+            winExpr.windowSpec.copy(
+              partitionSpec = winExpr.windowSpec.partitionSpec.map(pushdown),
+              orderSpec = winExpr.windowSpec.orderSpec.map { so => so.copy(child = pushdown(so.child)) })
+          ),
+          aliasName)(exprId = alias.exprId)
+      case other => other
+    }
+
+    if (exprSet.isEmpty) {
+      window
+    } else {
+      val withProj = Project(window.child.output ++ exprSet.values, window.child)
+      val newWindow = Window(
+        newExprs,
+        newPartitionSpec,
+        newOrderSpec,
+        withProj
+      )
+      newWindow
+    }
+  }
+
   def isAttributeOrLit(e: Expression): Boolean = {
     e.isInstanceOf[AttributeReference] || e.isInstanceOf[Literal]
   }
 
   private def pushdownExpr(expression: Expression,
-                            exprSet: mutable.HashMap[Expression, NamedExpression]): Expression = {
-    val prefix = ColumnarSupport.AGG_PROJECT_GROUP_PREFIX
+                           exprSet: mutable.HashMap[Expression, NamedExpression],
+                           prefix: String): Expression = {
     expression match {
       case literal: Literal =>
         literal
@@ -83,7 +114,7 @@ object PreProjectRewriteRule extends Rule[LogicalPlan] {
 
   private def pushdownExprsInAgg(aggregate: Aggregate): Aggregate = {
     val exprSet = new mutable.HashMap[Expression, NamedExpression]
-    val pushdown = (expr: Expression) => pushdownExpr(expr, exprSet)
+    val pushdown = (expr: Expression) => pushdownExpr(expr, exprSet, ColumnarSupport.AGG_PROJECT_GROUP_PREFIX)
 //    val newGroupings = aggregate.groupingExpressions.map(pushdown)
     val newAggExprs = aggregate.aggregateExpressions.map { aggExpr =>
       aggExpr.transformUp {
