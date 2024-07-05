@@ -82,6 +82,7 @@ object ExpressionConvertMapping {
     Sig[DateFormatClass](DateFormatConverter),
     Sig[LowCardDictDecode](LowCardDictDecodeConverter),
     Sig[LowCardDictDecodeArray](LowCardDictDecodeConverter),
+    Sig[KnownFloatingPointNormalized](NormalizedConvert),
     //    Sig[Hex](Hexonvert)
 //    Sig[Cast](CastConvert)
   ) ++ NativeExpressionExtension.extensionSig ++ NativeExpressionExtension.extensionAggregateSig

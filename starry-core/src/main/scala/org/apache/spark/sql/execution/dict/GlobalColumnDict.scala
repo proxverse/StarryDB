@@ -32,7 +32,7 @@ trait ColumnDict {
     }.toMap
   }
 
-  lazy val veloxColumnarBatch: VeloxColumnarBatch = {
+  @transient lazy val veloxColumnarBatch: VeloxColumnarBatch = {
     ExecutorDictManager.dictCache.get((broadcastID, broadcastNumBlocks))
   }
 
