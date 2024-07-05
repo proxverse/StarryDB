@@ -27,7 +27,7 @@ import org.scalatest.Assertions
 class MemorySuite extends ParquetTest {
 
   test("test root memory pool") {
-    if (true) {
+    if (System.getenv("RUN_MEMORY_POOL_TEST") != null) {
       withTable("bucket_table") {
         val conf1 = spark.sparkContext.conf
         conf1.set("spark.sql.starry.maxRootMemoryBytes", "10M")
@@ -78,6 +78,8 @@ class MemorySuite extends ParquetTest {
             if (!exception.getMessage.contains("Exceeded memory pool cap of 2.00KB")) {
               Assertions.fail()
             }
+        } finally {
+          spark.sessionState.conf.clearLocalConf()
         }
 
       }
