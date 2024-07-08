@@ -30,7 +30,6 @@ import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partition
 import org.apache.spark.sql.execution.{DummySparkPlan, SparkPlan, WholeStageCodegenExec}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanHelper, DisableAdaptiveExecutionSuite, EnableAdaptiveExecutionSuite}
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
-import org.apache.spark.sql.execution.columnar.extension.{ColumnarTransitionRule, JoinSelectionOverrides, PreRuleReplaceRowToColumnar, VeloxColumnarPostRule}
 import org.apache.spark.sql.execution.exchange.{EnsureRequirements, ShuffleExchangeExec}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
@@ -59,7 +58,9 @@ abstract class BroadcastJoinSuiteBase extends QueryTest with SQLTestUtils
    */
   override def beforeAll(): Unit = {
     super.beforeAll()
-    spark = Starry.starrySession()
+    val conf = new SparkConf()
+    conf.set("spark.sql.rewriteJoinEnabled", "false")
+    spark = Starry.starrySession(conf)
   }
 
   override def afterAll(): Unit = {

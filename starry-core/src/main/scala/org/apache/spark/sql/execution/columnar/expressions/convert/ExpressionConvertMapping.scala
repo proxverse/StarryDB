@@ -83,6 +83,7 @@ object ExpressionConvertMapping {
     Sig[LowCardDictDecode](LowCardDictDecodeConverter),
     Sig[LowCardDictDecodeArray](LowCardDictDecodeConverter),
     Sig[KnownFloatingPointNormalized](NormalizedConvert),
+    Sig[Size](SizeConvert),
     //    Sig[Hex](Hexonvert)
 //    Sig[Cast](CastConvert)
   ) ++ NativeExpressionExtension.extensionSig ++ NativeExpressionExtension.extensionAggregateSig

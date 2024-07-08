@@ -20,6 +20,7 @@ import com.prx.starry.Starry
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.columnar.extension.utils.NativeLibUtil
+import org.apache.spark.sql.execution.columnar.jni.NativeQueryContext
 import org.apache.spark.sql.execution.datasources.parquet.ParquetTest
 import org.apache.spark.sql.internal.{SQLConf, StarryConf}
 import org.scalatest.Assertions
@@ -65,6 +66,8 @@ class MemorySuite extends ParquetTest {
   test("test query memory pool") {
     withTable("bucket_table") {
       val conf1 = spark.sparkContext.conf
+      NativeQueryContext.clear()
+      new NativeQueryContext()
       NativeLibUtil.init(StarryConf.getAllConfJson(conf1, "spark.sql.starry"))
       SQLConf.withExistingConf(spark.sessionState.conf) {
         spark.sessionState.conf.setLocalProperty("spark.sql.starry.maxQueryMemoryBytes", "2KB")
@@ -80,6 +83,7 @@ class MemorySuite extends ParquetTest {
             }
         } finally {
           spark.sessionState.conf.clearLocalConf()
+          NativeQueryContext.clear()
         }
 
       }

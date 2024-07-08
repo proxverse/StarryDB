@@ -199,8 +199,8 @@ class ColumnarCollectionExpressionsSuite  extends ColumnarExpressionEvalHelper {
     checkEvaluation(ArraysOverlap(a1, a2), true)
     checkEvaluation(ArraysOverlap(a1, a3), false)
     checkEvaluation(ArraysOverlap(a0, emptyIntArray), false)
-    checkEvaluation(ArraysOverlap(a2, emptyIntArray), null) // different spark
-    checkEvaluation(ArraysOverlap(emptyIntArray, a2), null)
+    checkEvaluation(ArraysOverlap(a2, emptyIntArray), false)
+    checkEvaluation(ArraysOverlap(emptyIntArray, a2), false)
 
     checkEvaluation(ArraysOverlap(a4, a5), true)
     checkEvaluation(ArraysOverlap(a4, a6), null)
@@ -208,9 +208,9 @@ class ColumnarCollectionExpressionsSuite  extends ColumnarExpressionEvalHelper {
     checkEvaluation(ArraysOverlap(a7, a7), true)
 
     // null handling
-    checkEvaluation(ArraysOverlap(emptyIntArray, a2), null)
+    checkEvaluation(ArraysOverlap(emptyIntArray, a2), false)
     checkEvaluation(ArraysOverlap(
-      emptyIntArray, Literal.create(Seq(null), ArrayType(IntegerType))), null)
+      emptyIntArray, Literal.create(Seq(null), ArrayType(IntegerType))), false)
     checkEvaluation(ArraysOverlap(Literal.create(null, ArrayType(IntegerType)), a0), null)
     checkEvaluation(ArraysOverlap(a0, Literal.create(null, ArrayType(IntegerType))), null)
     checkEvaluation(ArraysOverlap(
@@ -231,27 +231,26 @@ class ColumnarCollectionExpressionsSuite  extends ColumnarExpressionEvalHelper {
     checkEvaluation(ArraysOverlap(b0, b2), false)
     checkEvaluation(ArraysOverlap(b3, b3), true)
 
-    //    // arrays of complex data types
-    //    val aa0 = Literal.create(Seq[Array[String]](Array[String]("a", "b"), Array[String]("c", "d")),
-    //      ArrayType(ArrayType(StringType)))
-    //    val aa1 = Literal.create(Seq[Array[String]](Array[String]("e", "f"), Array[String]("a", "b")),
-    //      ArrayType(ArrayType(StringType)))
-    //    val aa2 = Literal.create(Seq[Array[String]](Array[String]("b", "a"), Array[String]("f", "g")),
-    //      ArrayType(ArrayType(StringType)))
-    //
-    //    checkEvaluation(ArraysOverlap(aa0, aa1), true)
-    //    checkEvaluation(ArraysOverlap(aa0, aa2), false)
-    //
-    //    // null handling with complex datatypes
-    //    val emptyBinaryArray = Literal.create(Seq.empty[Array[Byte]], ArrayType(BinaryType))
-    //    val arrayWithBinaryNull = Literal.create(Seq(null), ArrayType(BinaryType))
-    //    checkEvaluation(ArraysOverlap(emptyBinaryArray, b0), false)
-    //    checkEvaluation(ArraysOverlap(b0, emptyBinaryArray), false)
-    //    checkEvaluation(ArraysOverlap(emptyBinaryArray, arrayWithBinaryNull), false)
-    //    checkEvaluation(ArraysOverlap(arrayWithBinaryNull, emptyBinaryArray), false)
-    //    checkEvaluation(ArraysOverlap(arrayWithBinaryNull, b0), null)
-    //    checkEvaluation(ArraysOverlap(b0, arrayWithBinaryNull), null)
-    //  }
+//    // arrays of complex data types
+//    val aa0 = Literal.create(Seq[Array[String]](Array[String]("a", "b"), Array[String]("c", "d")),
+//      ArrayType(ArrayType(StringType)))
+//    val aa1 = Literal.create(Seq[Array[String]](Array[String]("e", "f"), Array[String]("a", "b")),
+//      ArrayType(ArrayType(StringType)))
+//    val aa2 = Literal.create(Seq[Array[String]](Array[String]("b", "a"), Array[String]("f", "g")),
+//      ArrayType(ArrayType(StringType)))
+//
+//    checkEvaluation(ArraysOverlap(aa0, aa1), true)
+//    checkEvaluation(ArraysOverlap(aa0, aa2), false)
+//
+//    // null handling with complex datatypes
+//    val emptyBinaryArray = Literal.create(Seq.empty[Array[Byte]], ArrayType(BinaryType))
+//    val arrayWithBinaryNull = Literal.create(Seq(null), ArrayType(BinaryType))
+//    checkEvaluation(ArraysOverlap(emptyBinaryArray, b0), false)
+//    checkEvaluation(ArraysOverlap(b0, emptyBinaryArray), false)
+//    checkEvaluation(ArraysOverlap(emptyBinaryArray, arrayWithBinaryNull), false)
+//    checkEvaluation(ArraysOverlap(arrayWithBinaryNull, emptyBinaryArray), false)
+//    checkEvaluation(ArraysOverlap(arrayWithBinaryNull, b0), null)
+//    checkEvaluation(ArraysOverlap(b0, arrayWithBinaryNull), null)
   }
 
   test("Slice") {

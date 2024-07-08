@@ -11,7 +11,7 @@
   <properties>
     <scala.version>2.12.18</scala.version>
     <java.version>1.8</java.version>
-    <spark.version>3.3.1-prx-0.0.1-SNAPSHOT</spark.version>
+    <spark.version>3.3.1-prx-0.0.2-SNAPSHOT</spark.version>
     <apache.hadoop.version>3.3.4</apache.hadoop.version>
     <apache.log4j.version>2.17.0</apache.log4j.version>
     <fasterxml.jackson.version>2.13.4</fasterxml.jackson.version>

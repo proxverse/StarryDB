@@ -26,10 +26,14 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.util.DateTimeConstants._
 import org.apache.spark.sql.catalyst.util.DateTimeTestUtils._
 import org.apache.spark.sql.catalyst.util.DateTimeUtils._
-import org.apache.spark.sql.catalyst.util.IntervalUtils
+import org.apache.spark.sql.catalyst.util.{DateTimeUtils, IntervalUtils}
 import org.apache.spark.sql.catalyst.util.IntervalUtils.microsToDuration
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.DataTypeTestUtils.{dayTimeIntervalTypes, numericTypes, yearMonthIntervalTypes}
+import org.apache.spark.sql.types.DataTypeTestUtils.{
+  dayTimeIntervalTypes,
+  numericTypes,
+  yearMonthIntervalTypes
+}
 import org.apache.spark.sql.types.DayTimeIntervalType.{DAY, HOUR, MINUTE, SECOND}
 import org.apache.spark.sql.types.YearMonthIntervalType.{MONTH, YEAR}
 import org.apache.spark.sql.types._
@@ -56,7 +60,9 @@ abstract class CastSuiteBase extends SparkFunSuite with ColumnarExpressionEvalHe
     checkEvaluation(cast(Literal.create(null, from), to, UTC_OPT), null)
   }
 
-  protected def verifyCastFailure(c: CastBase, optionalExpectedMsg: Option[String] = None): Unit = {
+  protected def verifyCastFailure(
+      c: CastBase,
+      optionalExpectedMsg: Option[String] = None): Unit = {
     val typeCheckResult = c.checkInputDataTypes()
     assert(typeCheckResult.isFailure)
     assert(typeCheckResult.isInstanceOf[TypeCheckFailure])
@@ -80,8 +86,9 @@ abstract class CastSuiteBase extends SparkFunSuite with ColumnarExpressionEvalHe
 
   test("null cast") {
 
-    atomicTypes.zip(atomicTypes).foreach { case (from, to) =>
-      checkNullCast(from, to)
+    atomicTypes.zip(atomicTypes).foreach {
+      case (from, to) =>
+        checkNullCast(from, to)
     }
 
     atomicTypes.foreach(dt => checkNullCast(NullType, dt))
@@ -178,7 +185,7 @@ abstract class CastSuiteBase extends SparkFunSuite with ColumnarExpressionEvalHe
 //      c.set(Calendar.MILLISECOND, 0)
 //      checkCastStringToTimestamp("2015-03-18T12:03:17+7:3", new Timestamp(c.getTimeInMillis))
 
-      // tests for the string including milliseconds.
+    // tests for the string including milliseconds.
 //      c = Calendar.getInstance(tz)
 //      c.set(2015, 2, 18, 12, 3, 17)
 //      c.set(Calendar.MILLISECOND, 123)
@@ -303,11 +310,14 @@ abstract class CastSuiteBase extends SparkFunSuite with ColumnarExpressionEvalHe
     checkEvaluation(cast(ts, FloatType), 15.003f)
     checkEvaluation(cast(ts, DoubleType), 15.003)
 
-    checkEvaluation(cast(cast(tss, ShortType), TimestampType),
+    checkEvaluation(
+      cast(cast(tss, ShortType), TimestampType),
       fromJavaTimestamp(ts) * MILLIS_PER_SECOND)
-    checkEvaluation(cast(cast(tss, IntegerType), TimestampType),
+    checkEvaluation(
+      cast(cast(tss, IntegerType), TimestampType),
       fromJavaTimestamp(ts) * MILLIS_PER_SECOND)
-    checkEvaluation(cast(cast(tss, LongType), TimestampType),
+    checkEvaluation(
+      cast(cast(tss, LongType), TimestampType),
       fromJavaTimestamp(ts) * MILLIS_PER_SECOND)
     checkEvaluation(
       cast(cast(millis.toFloat / MILLIS_PER_SECOND, TimestampType), FloatType),
@@ -336,14 +346,18 @@ abstract class CastSuiteBase extends SparkFunSuite with ColumnarExpressionEvalHe
       var c = Calendar.getInstance(TimeZoneUTC)
       c.set(2015, 2, 8, 2, 30, 0)
       checkEvaluation(
-        cast(cast(new Timestamp(c.getTimeInMillis), StringType, timeZoneId),
-          TimestampType, timeZoneId),
+        cast(
+          cast(new Timestamp(c.getTimeInMillis), StringType, timeZoneId),
+          TimestampType,
+          timeZoneId),
         millisToMicros(c.getTimeInMillis))
       c = Calendar.getInstance(TimeZoneUTC)
       c.set(2015, 10, 1, 2, 30, 0)
       checkEvaluation(
-        cast(cast(new Timestamp(c.getTimeInMillis), StringType, timeZoneId),
-          TimestampType, timeZoneId),
+        cast(
+          cast(new Timestamp(c.getTimeInMillis), StringType, timeZoneId),
+          TimestampType,
+          timeZoneId),
         millisToMicros(c.getTimeInMillis))
     }
 
@@ -367,8 +381,12 @@ abstract class CastSuiteBase extends SparkFunSuite with ColumnarExpressionEvalHe
 
     checkEvaluation(cast(cast("abdef", BinaryType), StringType), "abdef")
 
-    checkEvaluation(cast(cast(cast(cast(
-      cast(cast("5", ByteType), ShortType), IntegerType), FloatType), DoubleType), LongType),
+    checkEvaluation(
+      cast(
+        cast(
+          cast(cast(cast(cast("5", ByteType), ShortType), IntegerType), FloatType),
+          DoubleType),
+        LongType),
       5.toLong)
 
     checkEvaluation(cast("23", DoubleType), 23d)
@@ -405,10 +423,10 @@ abstract class CastSuiteBase extends SparkFunSuite with ColumnarExpressionEvalHe
   }
 
   test("cast from array") {
-    val array = Literal.create(Seq("123", "true", "f", null),
-      ArrayType(StringType, containsNull = true))
-    val array_notNull = Literal.create(Seq("123", "true", "f"),
-      ArrayType(StringType, containsNull = false))
+    val array =
+      Literal.create(Seq("123", "true", "f", null), ArrayType(StringType, containsNull = true))
+    val array_notNull =
+      Literal.create(Seq("123", "true", "f"), ArrayType(StringType, containsNull = false))
 
     checkNullCast(ArrayType(StringType), ArrayType(IntegerType))
 
@@ -453,12 +471,8 @@ abstract class CastSuiteBase extends SparkFunSuite with ColumnarExpressionEvalHe
 
   ignore("cast from struct") {
     checkNullCast(
-      StructType(Seq(
-        StructField("a", StringType),
-        StructField("b", IntegerType))),
-      StructType(Seq(
-        StructField("a", StringType),
-        StructField("b", StringType))))
+      StructType(Seq(StructField("a", StringType), StructField("b", IntegerType))),
+      StructType(Seq(StructField("a", StringType), StructField("b", StringType))))
 
     val struct = Literal.create(
       InternalRow(
@@ -466,35 +480,43 @@ abstract class CastSuiteBase extends SparkFunSuite with ColumnarExpressionEvalHe
         UTF8String.fromString("true"),
         UTF8String.fromString("f"),
         null),
-      StructType(Seq(
-        StructField("a", StringType, nullable = true),
-        StructField("b", StringType, nullable = true),
-        StructField("c", StringType, nullable = true),
-        StructField("d", StringType, nullable = true))))
+      StructType(
+        Seq(
+          StructField("a", StringType, nullable = true),
+          StructField("b", StringType, nullable = true),
+          StructField("c", StringType, nullable = true),
+          StructField("d", StringType, nullable = true))))
     val struct_notNull = Literal.create(
       InternalRow(
         UTF8String.fromString("123"),
         UTF8String.fromString("true"),
         UTF8String.fromString("f")),
-      StructType(Seq(
-        StructField("a", StringType, nullable = false),
-        StructField("b", StringType, nullable = false),
-        StructField("c", StringType, nullable = false))))
+      StructType(
+        Seq(
+          StructField("a", StringType, nullable = false),
+          StructField("b", StringType, nullable = false),
+          StructField("c", StringType, nullable = false))))
 
     {
-      val ret = cast(struct, StructType(Seq(
-        StructField("a", BooleanType, nullable = true),
-        StructField("b", BooleanType, nullable = true),
-        StructField("c", BooleanType, nullable = false),
-        StructField("d", BooleanType, nullable = true))))
+      val ret = cast(
+        struct,
+        StructType(
+          Seq(
+            StructField("a", BooleanType, nullable = true),
+            StructField("b", BooleanType, nullable = true),
+            StructField("c", BooleanType, nullable = false),
+            StructField("d", BooleanType, nullable = true))))
       assert(ret.resolved === false)
     }
 
     {
-      val ret = cast(struct, StructType(Seq(
-        StructField("a", StringType, nullable = true),
-        StructField("b", StringType, nullable = true),
-        StructField("c", StringType, nullable = true))))
+      val ret = cast(
+        struct,
+        StructType(
+          Seq(
+            StructField("a", StringType, nullable = true),
+            StructField("b", StringType, nullable = true),
+            StructField("c", StringType, nullable = true))))
       assert(ret.resolved === false)
     }
     {
@@ -517,15 +539,19 @@ abstract class CastSuiteBase extends SparkFunSuite with ColumnarExpressionEvalHe
     import org.apache.spark.unsafe.types.CalendarInterval
 
     checkEvaluation(Cast(Literal(""), CalendarIntervalType), null)
-    checkEvaluation(Cast(Literal("interval -3 month 1 day 7 hours"), CalendarIntervalType),
+    checkEvaluation(
+      Cast(Literal("interval -3 month 1 day 7 hours"), CalendarIntervalType),
       new CalendarInterval(-3, 1, 7 * MICROS_PER_HOUR))
-    checkEvaluation(Cast(Literal.create(
-      new CalendarInterval(15, 9, -3 * MICROS_PER_HOUR), CalendarIntervalType),
-      StringType),
+    checkEvaluation(
+      Cast(
+        Literal.create(new CalendarInterval(15, 9, -3 * MICROS_PER_HOUR), CalendarIntervalType),
+        StringType),
       "1 years 3 months 9 days -3 hours")
-    checkEvaluation(Cast(Literal("INTERVAL 1 Second 1 microsecond"), CalendarIntervalType),
+    checkEvaluation(
+      Cast(Literal("INTERVAL 1 Second 1 microsecond"), CalendarIntervalType),
       new CalendarInterval(0, 0, 1000001))
-    checkEvaluation(Cast(Literal("1 MONTH 1 Microsecond"), CalendarIntervalType),
+    checkEvaluation(
+      Cast(Literal("1 MONTH 1 Microsecond"), CalendarIntervalType),
       new CalendarInterval(1, 0, 1))
   }
 
@@ -574,7 +600,6 @@ abstract class CastSuiteBase extends SparkFunSuite with ColumnarExpressionEvalHe
     checkEvaluation(cast(Literal.create(input, from), to), input)
   }
 
-
   test("up-cast") {
     def isCastSafe(from: NumericType, to: NumericType): Boolean = (from, to) match {
       case (_, dt: DecimalType) => dt.isWiderThan(from)
@@ -588,22 +613,23 @@ abstract class CastSuiteBase extends SparkFunSuite with ColumnarExpressionEvalHe
         ArrayType(dt, nullable),
         MapType(dt, dt, nullable),
         ArrayType(new StructType().add("a", dt, nullable), nullable),
-        new StructType().add("a", ArrayType(dt, nullable), nullable)
-      )
+        new StructType().add("a", ArrayType(dt, nullable), nullable))
     }
 
     numericTypes.foreach { from =>
-      val (safeTargetTypes, unsafeTargetTypes) = numericTypes.partition(to => isCastSafe(from, to))
+      val (safeTargetTypes, unsafeTargetTypes) =
+        numericTypes.partition(to => isCastSafe(from, to))
 
       safeTargetTypes.foreach { to =>
         assert(Cast.canUpCast(from, to), s"It should be possible to up-cast $from to $to")
 
         // If the nullability is compatible, we can up-cast complex types too.
-        Seq(true -> true, false -> false, false -> true).foreach { case (fn, tn) =>
-          makeComplexTypes(from, fn).zip(makeComplexTypes(to, tn)).foreach {
-            case (complexFromType, complexToType) =>
-              assert(Cast.canUpCast(complexFromType, complexToType))
-          }
+        Seq(true -> true, false -> false, false -> true).foreach {
+          case (fn, tn) =>
+            makeComplexTypes(from, fn).zip(makeComplexTypes(to, tn)).foreach {
+              case (complexFromType, complexToType) =>
+                assert(Cast.canUpCast(complexFromType, complexToType))
+            }
         }
 
         makeComplexTypes(from, true).zip(makeComplexTypes(to, false)).foreach {
@@ -643,8 +669,9 @@ abstract class CastSuiteBase extends SparkFunSuite with ColumnarExpressionEvalHe
     }
   }
 
-  test("SPARK-40389: canUpCast: return false if casting decimal to integral types can cause" +
-    " overflow") {
+  test(
+    "SPARK-40389: canUpCast: return false if casting decimal to integral types can cause" +
+      " overflow") {
     Seq(ByteType, ShortType, IntegerType, LongType).foreach { integralType =>
       val decimalType = DecimalType.forType(integralType)
       assert(!Cast.canUpCast(decimalType, integralType))
@@ -659,8 +686,7 @@ abstract class CastSuiteBase extends SparkFunSuite with ColumnarExpressionEvalHe
         InternalRow(null),
         StructType(Seq(StructField("a", NullType, nullable = true))))
 
-      val ret = cast(struct, StructType(Seq(
-        StructField("a", atomicType, nullable = true))))
+      val ret = cast(struct, StructType(Seq(StructField("a", atomicType, nullable = true))))
       assert(ret.resolved)
       checkEvaluation(ret, InternalRow(null))
     }
@@ -706,8 +732,9 @@ abstract class CastSuiteBase extends SparkFunSuite with ColumnarExpressionEvalHe
       StringType)
     checkEvaluation(ret5, "[2014-12-03, 2014-12-04, 2014-12-06]")
     val ret6 = cast(
-      Literal.create(Array("2014-12-03 13:01:00", "2014-12-04 15:05:00")
-        .map(Timestamp.valueOf)),
+      Literal.create(
+        Array("2014-12-03 13:01:00", "2014-12-04 15:05:00")
+          .map(Timestamp.valueOf)),
       StringType)
     checkEvaluation(ret6, "[2014-12-03 13:01:00, 2014-12-04 15:05:00]")
     val ret7 = cast(Literal.create(Array(Array(1, 2, 3), Array(4, 5))), StringType)
@@ -731,71 +758,69 @@ abstract class CastSuiteBase extends SparkFunSuite with ColumnarExpressionEvalHe
   }
 
   ignore("SPARK-22973 Cast map to string") {
-    Seq(
-      false -> ("{", "}"),
-      true -> ("[", "]")).foreach { case (legacyCast, (lb, rb)) =>
-      withSQLConf(SQLConf.LEGACY_COMPLEX_TYPES_TO_STRING.key -> legacyCast.toString) {
-        val ret1 = cast(Literal.create(Map(1 -> "a", 2 -> "b", 3 -> "c")), StringType)
-        checkEvaluation(ret1, s"${lb}1 -> a, 2 -> b, 3 -> c$rb")
-        val ret2 = cast(
-          Literal.create(Map("1" -> "a".getBytes, "2" -> null, "3" -> "c".getBytes)),
-          StringType)
-        checkEvaluation(ret2, s"${lb}1 -> a, 2 ->${if (legacyCast) "" else " null"}, 3 -> c$rb")
-        val ret3 = cast(
-          Literal.create(Map(
-            1 -> Date.valueOf("2014-12-03"),
-            2 -> Date.valueOf("2014-12-04"),
-            3 -> Date.valueOf("2014-12-05"))),
-          StringType)
-        checkEvaluation(ret3, s"${lb}1 -> 2014-12-03, 2 -> 2014-12-04, 3 -> 2014-12-05$rb")
-        val ret4 = cast(
-          Literal.create(Map(
-            1 -> Timestamp.valueOf("2014-12-03 13:01:00"),
-            2 -> Timestamp.valueOf("2014-12-04 15:05:00"))),
-          StringType)
-        checkEvaluation(ret4, s"${lb}1 -> 2014-12-03 13:01:00, 2 -> 2014-12-04 15:05:00$rb")
-        val ret5 = cast(
-          Literal.create(Map(
-            1 -> Array(1, 2, 3),
-            2 -> Array(4, 5, 6))),
-          StringType)
-        checkEvaluation(ret5, s"${lb}1 -> [1, 2, 3], 2 -> [4, 5, 6]$rb")
-      }
+    Seq(false -> ("{", "}"), true -> ("[", "]")).foreach {
+      case (legacyCast, (lb, rb)) =>
+        withSQLConf(SQLConf.LEGACY_COMPLEX_TYPES_TO_STRING.key -> legacyCast.toString) {
+          val ret1 = cast(Literal.create(Map(1 -> "a", 2 -> "b", 3 -> "c")), StringType)
+          checkEvaluation(ret1, s"${lb}1 -> a, 2 -> b, 3 -> c$rb")
+          val ret2 = cast(
+            Literal.create(Map("1" -> "a".getBytes, "2" -> null, "3" -> "c".getBytes)),
+            StringType)
+          checkEvaluation(ret2, s"${lb}1 -> a, 2 ->${if (legacyCast) "" else " null"}, 3 -> c$rb")
+          val ret3 = cast(
+            Literal.create(
+              Map(
+                1 -> Date.valueOf("2014-12-03"),
+                2 -> Date.valueOf("2014-12-04"),
+                3 -> Date.valueOf("2014-12-05"))),
+            StringType)
+          checkEvaluation(ret3, s"${lb}1 -> 2014-12-03, 2 -> 2014-12-04, 3 -> 2014-12-05$rb")
+          val ret4 = cast(
+            Literal.create(
+              Map(
+                1 -> Timestamp.valueOf("2014-12-03 13:01:00"),
+                2 -> Timestamp.valueOf("2014-12-04 15:05:00"))),
+            StringType)
+          checkEvaluation(ret4, s"${lb}1 -> 2014-12-03 13:01:00, 2 -> 2014-12-04 15:05:00$rb")
+          val ret5 =
+            cast(Literal.create(Map(1 -> Array(1, 2, 3), 2 -> Array(4, 5, 6))), StringType)
+          checkEvaluation(ret5, s"${lb}1 -> [1, 2, 3], 2 -> [4, 5, 6]$rb")
+        }
     }
   }
 
   ignore("SPARK-22981 Cast struct to string") {
-    Seq(
-      false -> ("{", "}"),
-      true -> ("[", "]")).foreach { case (legacyCast, (lb, rb)) =>
-      withSQLConf(SQLConf.LEGACY_COMPLEX_TYPES_TO_STRING.key -> legacyCast.toString) {
-        val ret1 = cast(Literal.create((1, "a", 0.1)), StringType)
-        checkEvaluation(ret1, s"${lb}1, a, 0.1$rb")
-        val ret2 = cast(Literal.create(Tuple3[Int, String, String](1, null, "a")), StringType)
-        checkEvaluation(ret2, s"${lb}1,${if (legacyCast) "" else " null"}, a$rb")
-        val ret3 = cast(Literal.create(
-          (Date.valueOf("2014-12-03"), Timestamp.valueOf("2014-12-03 15:05:00"))), StringType)
-        checkEvaluation(ret3, s"${lb}2014-12-03, 2014-12-03 15:05:00$rb")
-        val ret4 = cast(Literal.create(((1, "a"), 5, 0.1)), StringType)
-        checkEvaluation(ret4, s"$lb${lb}1, a$rb, 5, 0.1$rb")
-        val ret5 = cast(Literal.create((Seq(1, 2, 3), "a", 0.1)), StringType)
-        checkEvaluation(ret5, s"$lb[1, 2, 3], a, 0.1$rb")
-        val ret6 = cast(Literal.create((1, Map(1 -> "a", 2 -> "b", 3 -> "c"))), StringType)
-        checkEvaluation(ret6, s"${lb}1, ${lb}1 -> a, 2 -> b, 3 -> c$rb$rb")
-      }
+    Seq(false -> ("{", "}"), true -> ("[", "]")).foreach {
+      case (legacyCast, (lb, rb)) =>
+        withSQLConf(SQLConf.LEGACY_COMPLEX_TYPES_TO_STRING.key -> legacyCast.toString) {
+          val ret1 = cast(Literal.create((1, "a", 0.1)), StringType)
+          checkEvaluation(ret1, s"${lb}1, a, 0.1$rb")
+          val ret2 = cast(Literal.create(Tuple3[Int, String, String](1, null, "a")), StringType)
+          checkEvaluation(ret2, s"${lb}1,${if (legacyCast) "" else " null"}, a$rb")
+          val ret3 = cast(
+            Literal.create(
+              (Date.valueOf("2014-12-03"), Timestamp.valueOf("2014-12-03 15:05:00"))),
+            StringType)
+          checkEvaluation(ret3, s"${lb}2014-12-03, 2014-12-03 15:05:00$rb")
+          val ret4 = cast(Literal.create(((1, "a"), 5, 0.1)), StringType)
+          checkEvaluation(ret4, s"$lb${lb}1, a$rb, 5, 0.1$rb")
+          val ret5 = cast(Literal.create((Seq(1, 2, 3), "a", 0.1)), StringType)
+          checkEvaluation(ret5, s"$lb[1, 2, 3], a, 0.1$rb")
+          val ret6 = cast(Literal.create((1, Map(1 -> "a", 2 -> "b", 3 -> "c"))), StringType)
+          checkEvaluation(ret6, s"${lb}1, ${lb}1 -> a, 2 -> b, 3 -> c$rb$rb")
+        }
     }
   }
 
   ignore("SPARK-33291: Cast struct with null elements to string") {
-    Seq(
-      false -> ("{", "}"),
-      true -> ("[", "]")).foreach { case (legacyCast, (lb, rb)) =>
-      withSQLConf(SQLConf.LEGACY_COMPLEX_TYPES_TO_STRING.key -> legacyCast.toString) {
-        val ret1 = cast(Literal.create(Tuple2[String, String](null, null)), StringType)
-        checkEvaluation(
-          ret1,
-          s"$lb${if (legacyCast) "" else "null"},${if (legacyCast) "" else " null"}$rb")
-      }
+    Seq(false -> ("{", "}"), true -> ("[", "]")).foreach {
+      case (legacyCast, (lb, rb)) =>
+        withSQLConf(SQLConf.LEGACY_COMPLEX_TYPES_TO_STRING.key -> legacyCast.toString) {
+          val ret1 = cast(Literal.create(Tuple2[String, String](null, null)), StringType)
+          checkEvaluation(
+            ret1,
+            s"$lb${if (legacyCast) "" else "null"},${if (legacyCast) "" else " null"}$rb")
+        }
     }
   }
 
@@ -809,16 +834,17 @@ abstract class CastSuiteBase extends SparkFunSuite with ColumnarExpressionEvalHe
       Period.ofYears(10).plusMonths(10) -> "10-10",
       Period.ofYears(-123).minusMonths(6) -> "-123-6",
       Period.ofMonths(Int.MaxValue) -> "178956970-7",
-      Period.ofMonths(Int.MinValue) -> "-178956970-8"
-    ).foreach { case (period, intervalPayload) =>
-      checkEvaluation(
-        Cast(Literal(period), StringType),
-        s"INTERVAL '$intervalPayload' YEAR TO MONTH")
+      Period.ofMonths(Int.MinValue) -> "-178956970-8").foreach {
+      case (period, intervalPayload) =>
+        checkEvaluation(
+          Cast(Literal(period), StringType),
+          s"INTERVAL '$intervalPayload' YEAR TO MONTH")
     }
 
     yearMonthIntervalTypes.foreach { it =>
       checkConsistencyBetweenInterpretedAndCodegen(
-        (child: Expression) => Cast(child, StringType), it)
+        (child: Expression) => Cast(child, StringType),
+        it)
     }
   }
 
@@ -836,16 +862,17 @@ abstract class CastSuiteBase extends SparkFunSuite with ColumnarExpressionEvalHe
         "-1234 23:59:59.999",
       microsToDuration(Long.MaxValue) -> "106751991 04:00:54.775807",
       microsToDuration(Long.MinValue + 1) -> "-106751991 04:00:54.775807",
-      microsToDuration(Long.MinValue) -> "-106751991 04:00:54.775808"
-    ).foreach { case (period, intervalPayload) =>
-      checkEvaluation(
-        Cast(Literal(period), StringType),
-        s"INTERVAL '$intervalPayload' DAY TO SECOND")
+      microsToDuration(Long.MinValue) -> "-106751991 04:00:54.775808").foreach {
+      case (period, intervalPayload) =>
+        checkEvaluation(
+          Cast(Literal(period), StringType),
+          s"INTERVAL '$intervalPayload' DAY TO SECOND")
     }
 
     dayTimeIntervalTypes.foreach { it =>
-      checkConsistencyBetweenInterpretedAndCodegen((child: Expression) =>
-        Cast(child, StringType), it)
+      checkConsistencyBetweenInterpretedAndCodegen(
+        (child: Expression) => Cast(child, StringType),
+        it)
     }
   }
 
@@ -853,7 +880,7 @@ abstract class CastSuiteBase extends SparkFunSuite with ColumnarExpressionEvalHe
     "0001-01-01T00:00:00", // the fist timestamp of Common Era
     "1582-10-15T23:59:59", // the cutover date from Julian to Gregorian calendar
     "1970-01-01T00:00:00", // the epoch timestamp
-    "9999-12-31T23:59:59"  // the last supported timestamp according to SQL standard
+    "9999-12-31T23:59:59" // the last supported timestamp according to SQL standard
   )
 
   ignore("SPARK-35698: cast timestamp without time zone to string") {
@@ -926,44 +953,54 @@ abstract class CastSuiteBase extends SparkFunSuite with ColumnarExpressionEvalHe
         checkEvaluation(cast(s + zoneId.toString, TimestampNTZType), expectedTs)
         val tsWithMicros = s + ".123456"
         val expectedTsWithNanoSeconds = LocalDateTime.parse(tsWithMicros)
-        checkEvaluation(cast(tsWithMicros + zoneId.toString, TimestampNTZType),
+        checkEvaluation(
+          cast(tsWithMicros + zoneId.toString, TimestampNTZType),
           expectedTsWithNanoSeconds)
       }
     }
     // The input string can contain date only
-    checkEvaluation(cast("2021-06-17", TimestampNTZType),
-      LocalDateTime.of(2021, 6, 17, 0, 0))
+    checkEvaluation(cast("2021-06-17", TimestampNTZType), LocalDateTime.of(2021, 6, 17, 0, 0))
   }
 
   ignore("SPARK-35112: Cast string to day-time interval") {
     checkEvaluation(cast(Literal.create("0 0:0:0"), DayTimeIntervalType()), 0L)
-    checkEvaluation(cast(Literal.create(" interval '0 0:0:0' Day TO second   "),
-      DayTimeIntervalType()), 0L)
-    checkEvaluation(cast(Literal.create("INTERVAL '1 2:03:04' DAY TO SECOND"),
-      DayTimeIntervalType()), 93784000000L)
-    checkEvaluation(cast(Literal.create("INTERVAL '1 03:04:00' DAY TO SECOND"),
-      DayTimeIntervalType()), 97440000000L)
-    checkEvaluation(cast(Literal.create("INTERVAL '1 03:04:00.0000' DAY TO SECOND"),
-      DayTimeIntervalType()), 97440000000L)
+    checkEvaluation(
+      cast(Literal.create(" interval '0 0:0:0' Day TO second   "), DayTimeIntervalType()),
+      0L)
+    checkEvaluation(
+      cast(Literal.create("INTERVAL '1 2:03:04' DAY TO SECOND"), DayTimeIntervalType()),
+      93784000000L)
+    checkEvaluation(
+      cast(Literal.create("INTERVAL '1 03:04:00' DAY TO SECOND"), DayTimeIntervalType()),
+      97440000000L)
+    checkEvaluation(
+      cast(Literal.create("INTERVAL '1 03:04:00.0000' DAY TO SECOND"), DayTimeIntervalType()),
+      97440000000L)
     checkEvaluation(cast(Literal.create("1 2:03:04"), DayTimeIntervalType()), 93784000000L)
-    checkEvaluation(cast(Literal.create("INTERVAL '-10 2:03:04' DAY TO SECOND"),
-      DayTimeIntervalType()), -871384000000L)
+    checkEvaluation(
+      cast(Literal.create("INTERVAL '-10 2:03:04' DAY TO SECOND"), DayTimeIntervalType()),
+      -871384000000L)
     checkEvaluation(cast(Literal.create("-10 2:03:04"), DayTimeIntervalType()), -871384000000L)
-    checkEvaluation(cast(Literal.create("-106751991 04:00:54.775808"), DayTimeIntervalType()),
+    checkEvaluation(
+      cast(Literal.create("-106751991 04:00:54.775808"), DayTimeIntervalType()),
       Long.MinValue)
-    checkEvaluation(cast(Literal.create("106751991 04:00:54.775807"), DayTimeIntervalType()),
+    checkEvaluation(
+      cast(Literal.create("106751991 04:00:54.775807"), DayTimeIntervalType()),
       Long.MaxValue)
 
     Seq("-106751991 04:00:54.775808", "106751991 04:00:54.775807").foreach { interval =>
       val ansiInterval = s"INTERVAL '$interval' DAY TO SECOND"
       checkEvaluation(
-        cast(cast(Literal.create(interval), DayTimeIntervalType()), StringType), ansiInterval)
-      checkEvaluation(cast(cast(Literal.create(ansiInterval),
-        DayTimeIntervalType()), StringType), ansiInterval)
+        cast(cast(Literal.create(interval), DayTimeIntervalType()), StringType),
+        ansiInterval)
+      checkEvaluation(
+        cast(cast(Literal.create(ansiInterval), DayTimeIntervalType()), StringType),
+        ansiInterval)
     }
 
     if (!isTryCast) {
-      Seq("INTERVAL '-106751991 04:00:54.775809' DAY TO SECOND",
+      Seq(
+        "INTERVAL '-106751991 04:00:54.775809' DAY TO SECOND",
         "INTERVAL '106751991 04:00:54.775808' DAY TO SECOND").foreach { interval =>
         val e = intercept[ArithmeticException] {
           cast(Literal.create(interval), DayTimeIntervalType()).eval()
@@ -972,30 +1009,41 @@ abstract class CastSuiteBase extends SparkFunSuite with ColumnarExpressionEvalHe
       }
     }
 
-    Seq(Byte.MaxValue, Short.MaxValue, Int.MaxValue, Long.MaxValue, Long.MinValue + 1,
+    Seq(
+      Byte.MaxValue,
+      Short.MaxValue,
+      Int.MaxValue,
+      Long.MaxValue,
+      Long.MinValue + 1,
       Long.MinValue).foreach { duration =>
-      val interval = Literal.create(
-        Duration.of(duration, ChronoUnit.MICROS),
-        DayTimeIntervalType())
+      val interval =
+        Literal.create(Duration.of(duration, ChronoUnit.MICROS), DayTimeIntervalType())
       checkEvaluation(cast(cast(interval, StringType), DayTimeIntervalType()), duration)
     }
   }
 
   ignore("SPARK-35111: Cast string to year-month interval") {
-    checkEvaluation(cast(Literal.create("INTERVAL '1-0' YEAR TO MONTH"),
-      YearMonthIntervalType()), 12)
-    checkEvaluation(cast(Literal.create("INTERVAL '-1-0' YEAR TO MONTH"),
-      YearMonthIntervalType()), -12)
-    checkEvaluation(cast(Literal.create("INTERVAL -'-1-0' YEAR TO MONTH"),
-      YearMonthIntervalType()), 12)
-    checkEvaluation(cast(Literal.create("INTERVAL +'-1-0' YEAR TO MONTH"),
-      YearMonthIntervalType()), -12)
-    checkEvaluation(cast(Literal.create("INTERVAL +'+1-0' YEAR TO MONTH"),
-      YearMonthIntervalType()), 12)
-    checkEvaluation(cast(Literal.create("INTERVAL +'1-0' YEAR TO MONTH"),
-      YearMonthIntervalType()), 12)
-    checkEvaluation(cast(Literal.create(" interval +'1-0' YEAR  TO MONTH "),
-      YearMonthIntervalType()), 12)
+    checkEvaluation(
+      cast(Literal.create("INTERVAL '1-0' YEAR TO MONTH"), YearMonthIntervalType()),
+      12)
+    checkEvaluation(
+      cast(Literal.create("INTERVAL '-1-0' YEAR TO MONTH"), YearMonthIntervalType()),
+      -12)
+    checkEvaluation(
+      cast(Literal.create("INTERVAL -'-1-0' YEAR TO MONTH"), YearMonthIntervalType()),
+      12)
+    checkEvaluation(
+      cast(Literal.create("INTERVAL +'-1-0' YEAR TO MONTH"), YearMonthIntervalType()),
+      -12)
+    checkEvaluation(
+      cast(Literal.create("INTERVAL +'+1-0' YEAR TO MONTH"), YearMonthIntervalType()),
+      12)
+    checkEvaluation(
+      cast(Literal.create("INTERVAL +'1-0' YEAR TO MONTH"), YearMonthIntervalType()),
+      12)
+    checkEvaluation(
+      cast(Literal.create(" interval +'1-0' YEAR  TO MONTH "), YearMonthIntervalType()),
+      12)
     checkEvaluation(cast(Literal.create(" -1-0 "), YearMonthIntervalType()), -12)
     checkEvaluation(cast(Literal.create("-1-0"), YearMonthIntervalType()), -12)
     checkEvaluation(cast(Literal.create(null, StringType), YearMonthIntervalType()), null)
@@ -1003,9 +1051,11 @@ abstract class CastSuiteBase extends SparkFunSuite with ColumnarExpressionEvalHe
     Seq("0-0", "10-1", "-178956970-7", "178956970-7", "-178956970-8").foreach { interval =>
       val ansiInterval = s"INTERVAL '$interval' YEAR TO MONTH"
       checkEvaluation(
-        cast(cast(Literal.create(interval), YearMonthIntervalType()), StringType), ansiInterval)
-      checkEvaluation(cast(cast(Literal.create(ansiInterval),
-        YearMonthIntervalType()), StringType), ansiInterval)
+        cast(cast(Literal.create(interval), YearMonthIntervalType()), StringType),
+        ansiInterval)
+      checkEvaluation(
+        cast(cast(Literal.create(ansiInterval), YearMonthIntervalType()), StringType),
+        ansiInterval)
     }
 
     if (!isTryCast) {
@@ -1027,7 +1077,8 @@ abstract class CastSuiteBase extends SparkFunSuite with ColumnarExpressionEvalHe
 
   ignore("SPARK-35820: Support cast DayTimeIntervalType in different fields") {
     val duration = Duration.ofSeconds(12345678L, 123456789)
-    Seq((DayTimeIntervalType(DAY, DAY), 12268800000000L, -12268800000000L),
+    Seq(
+      (DayTimeIntervalType(DAY, DAY), 12268800000000L, -12268800000000L),
       (DayTimeIntervalType(DAY, HOUR), 12344400000000L, -12344400000000L),
       (DayTimeIntervalType(DAY, MINUTE), 12345660000000L, -12345660000000L),
       (DayTimeIntervalType(DAY, SECOND), 12345678123456L, -12345678123457L),
@@ -1037,46 +1088,55 @@ abstract class CastSuiteBase extends SparkFunSuite with ColumnarExpressionEvalHe
       (DayTimeIntervalType(MINUTE, MINUTE), 12345660000000L, -12345660000000L),
       (DayTimeIntervalType(MINUTE, SECOND), 12345678123456L, -12345678123457L),
       (DayTimeIntervalType(SECOND, SECOND), 12345678123456L, -12345678123457L))
-      .foreach { case (dt, positive, negative) =>
-        checkEvaluation(
-          cast(Literal.create(duration, DayTimeIntervalType(DAY, SECOND)), dt), positive)
-        checkEvaluation(
-          cast(Literal.create(duration.negated(), DayTimeIntervalType(DAY, SECOND)), dt), negative)
+      .foreach {
+        case (dt, positive, negative) =>
+          checkEvaluation(
+            cast(Literal.create(duration, DayTimeIntervalType(DAY, SECOND)), dt),
+            positive)
+          checkEvaluation(
+            cast(Literal.create(duration.negated(), DayTimeIntervalType(DAY, SECOND)), dt),
+            negative)
       }
   }
 
   ignore("SPARK-35819: Support cast YearMonthIntervalType in different fields") {
     val ym = cast(Literal.create("1-1"), YearMonthIntervalType(YEAR, MONTH))
-    Seq(YearMonthIntervalType(YEAR) -> 12,
+    Seq(
+      YearMonthIntervalType(YEAR) -> 12,
       YearMonthIntervalType(YEAR, MONTH) -> 13,
       YearMonthIntervalType(MONTH) -> 13)
-      .foreach { case (dt, value) =>
-        checkEvaluation(cast(ym, dt), value)
+      .foreach {
+        case (dt, value) =>
+          checkEvaluation(cast(ym, dt), value)
       }
   }
 
   ignore("SPARK-35768: Take into account year-month interval fields in cast") {
-    Seq(("1-1", YearMonthIntervalType(YEAR, MONTH), 13),
+    Seq(
+      ("1-1", YearMonthIntervalType(YEAR, MONTH), 13),
       ("-1-1", YearMonthIntervalType(YEAR, MONTH), -13))
-      .foreach { case (str, dataType, ym) =>
-        checkEvaluation(cast(Literal.create(str), dataType), ym)
-        checkEvaluation(cast(Literal.create(s"INTERVAL '$str' YEAR TO MONTH"), dataType), ym)
-        checkEvaluation(cast(Literal.create(s"INTERVAL -'$str' YEAR TO MONTH"), dataType), -ym)
+      .foreach {
+        case (str, dataType, ym) =>
+          checkEvaluation(cast(Literal.create(str), dataType), ym)
+          checkEvaluation(cast(Literal.create(s"INTERVAL '$str' YEAR TO MONTH"), dataType), ym)
+          checkEvaluation(cast(Literal.create(s"INTERVAL -'$str' YEAR TO MONTH"), dataType), -ym)
       }
 
-    Seq(("13", YearMonthIntervalType(YEAR), 13 * 12),
+    Seq(
+      ("13", YearMonthIntervalType(YEAR), 13 * 12),
       ("13", YearMonthIntervalType(MONTH), 13),
       ("-13", YearMonthIntervalType(YEAR), -13 * 12),
       ("-13", YearMonthIntervalType(MONTH), -13))
-      .foreach { case (str, dataType, value) =>
-        checkEvaluation(cast(Literal.create(str), dataType), value)
-        if (dataType == YearMonthIntervalType(YEAR)) {
-          checkEvaluation(cast(Literal.create(s"INTERVAL '$str' YEAR"), dataType), value)
-          checkEvaluation(cast(Literal.create(s"INTERVAL '$str' year"), dataType), value)
-        } else {
-          checkEvaluation(cast(Literal.create(s"INTERVAL '$str' MONTH"), dataType), value)
-          checkEvaluation(cast(Literal.create(s"INTERVAL '$str' month"), dataType), value)
-        }
+      .foreach {
+        case (str, dataType, value) =>
+          checkEvaluation(cast(Literal.create(str), dataType), value)
+          if (dataType == YearMonthIntervalType(YEAR)) {
+            checkEvaluation(cast(Literal.create(s"INTERVAL '$str' YEAR"), dataType), value)
+            checkEvaluation(cast(Literal.create(s"INTERVAL '$str' year"), dataType), value)
+          } else {
+            checkEvaluation(cast(Literal.create(s"INTERVAL '$str' MONTH"), dataType), value)
+            checkEvaluation(cast(Literal.create(s"INTERVAL '$str' month"), dataType), value)
+          }
       }
 
     if (!isTryCast) {
@@ -1085,12 +1145,17 @@ abstract class CastSuiteBase extends SparkFunSuite with ColumnarExpressionEvalHe
         val e = intercept[IllegalArgumentException] {
           cast(Literal.create(interval), dataType).eval()
         }.getMessage
-        assert(e.contains(s"Interval string does not match year-month format of " +
-          s"${IntervalUtils.supportedFormat((dataType.startField, dataType.endField))
-            .map(format => s"`$format`").mkString(", ")} " +
-          s"when cast to ${dataType.typeName}: $interval"))
+        assert(
+          e.contains(
+            s"Interval string does not match year-month format of " +
+              s"${IntervalUtils
+                .supportedFormat((dataType.startField, dataType.endField))
+                .map(format => s"`$format`")
+                .mkString(", ")} " +
+              s"when cast to ${dataType.typeName}: $interval"))
       }
-      Seq(("1", YearMonthIntervalType(YEAR, MONTH)),
+      Seq(
+        ("1", YearMonthIntervalType(YEAR, MONTH)),
         ("1", YearMonthIntervalType(YEAR, MONTH)),
         ("1-1", YearMonthIntervalType(YEAR)),
         ("1-1", YearMonthIntervalType(MONTH)),
@@ -1100,14 +1165,19 @@ abstract class CastSuiteBase extends SparkFunSuite with ColumnarExpressionEvalHe
         ("INTERVAL '1' YEAR", YearMonthIntervalType(MONTH)),
         ("INTERVAL '1' MONTH", YearMonthIntervalType(YEAR)),
         ("INTERVAL '1' MONTH", YearMonthIntervalType(YEAR, MONTH)))
-        .foreach { case (interval, dataType) =>
-          val e = intercept[IllegalArgumentException] {
-            cast(Literal.create(interval), dataType).eval()
-          }.getMessage
-          assert(e.contains(s"Interval string does not match year-month format of " +
-            s"${IntervalUtils.supportedFormat((dataType.startField, dataType.endField))
-              .map(format => s"`$format`").mkString(", ")} " +
-            s"when cast to ${dataType.typeName}: $interval"))
+        .foreach {
+          case (interval, dataType) =>
+            val e = intercept[IllegalArgumentException] {
+              cast(Literal.create(interval), dataType).eval()
+            }.getMessage
+            assert(
+              e.contains(
+                s"Interval string does not match year-month format of " +
+                  s"${IntervalUtils
+                    .supportedFormat((dataType.startField, dataType.endField))
+                    .map(format => s"`$format`")
+                    .mkString(", ")} " +
+                  s"when cast to ${dataType.typeName}: $interval"))
         }
     }
   }
@@ -1122,81 +1192,125 @@ abstract class CastSuiteBase extends SparkFunSuite with ColumnarExpressionEvalHe
       }
     }
 
-    Seq(("1", DayTimeIntervalType(DAY, DAY), (86400) * MICROS_PER_SECOND),
+    Seq(
+      ("1", DayTimeIntervalType(DAY, DAY), (86400) * MICROS_PER_SECOND),
       ("-1", DayTimeIntervalType(DAY, DAY), -(86400) * MICROS_PER_SECOND),
       ("1 01", DayTimeIntervalType(DAY, HOUR), (86400 + 3600) * MICROS_PER_SECOND),
       ("-1 01", DayTimeIntervalType(DAY, HOUR), -(86400 + 3600) * MICROS_PER_SECOND),
       ("1 01:01", DayTimeIntervalType(DAY, MINUTE), (86400 + 3600 + 60) * MICROS_PER_SECOND),
       ("-1 01:01", DayTimeIntervalType(DAY, MINUTE), -(86400 + 3600 + 60) * MICROS_PER_SECOND),
-      ("1 01:01:01.12345", DayTimeIntervalType(DAY, SECOND),
+      (
+        "1 01:01:01.12345",
+        DayTimeIntervalType(DAY, SECOND),
         ((86400 + 3600 + 60 + 1.12345) * MICROS_PER_SECOND).toLong),
-      ("-1 01:01:01.12345", DayTimeIntervalType(DAY, SECOND),
+      (
+        "-1 01:01:01.12345",
+        DayTimeIntervalType(DAY, SECOND),
         (-(86400 + 3600 + 60 + 1.12345) * MICROS_PER_SECOND).toLong),
-
       ("01", DayTimeIntervalType(HOUR, HOUR), (3600) * MICROS_PER_SECOND),
       ("-01", DayTimeIntervalType(HOUR, HOUR), -(3600) * MICROS_PER_SECOND),
       ("01:01", DayTimeIntervalType(HOUR, MINUTE), (3600 + 60) * MICROS_PER_SECOND),
       ("-01:01", DayTimeIntervalType(HOUR, MINUTE), -(3600 + 60) * MICROS_PER_SECOND),
-      ("01:01:01.12345", DayTimeIntervalType(HOUR, SECOND),
+      (
+        "01:01:01.12345",
+        DayTimeIntervalType(HOUR, SECOND),
         ((3600 + 60 + 1.12345) * MICROS_PER_SECOND).toLong),
-      ("-01:01:01.12345", DayTimeIntervalType(HOUR, SECOND),
+      (
+        "-01:01:01.12345",
+        DayTimeIntervalType(HOUR, SECOND),
         (-(3600 + 60 + 1.12345) * MICROS_PER_SECOND).toLong),
-
       ("01", DayTimeIntervalType(MINUTE, MINUTE), (60) * MICROS_PER_SECOND),
       ("-01", DayTimeIntervalType(MINUTE, MINUTE), -(60) * MICROS_PER_SECOND),
       ("01:01", DayTimeIntervalType(MINUTE, SECOND), ((60 + 1) * MICROS_PER_SECOND)),
-      ("01:01.12345", DayTimeIntervalType(MINUTE, SECOND),
+      (
+        "01:01.12345",
+        DayTimeIntervalType(MINUTE, SECOND),
         ((60 + 1.12345) * MICROS_PER_SECOND).toLong),
-      ("-01:01.12345", DayTimeIntervalType(MINUTE, SECOND),
+      (
+        "-01:01.12345",
+        DayTimeIntervalType(MINUTE, SECOND),
         (-(60 + 1.12345) * MICROS_PER_SECOND).toLong),
-
       ("01.12345", DayTimeIntervalType(SECOND, SECOND), ((1.12345) * MICROS_PER_SECOND).toLong),
       ("-01.12345", DayTimeIntervalType(SECOND, SECOND), (-(1.12345) * MICROS_PER_SECOND).toLong))
-      .foreach { case (str, dataType, dt) =>
-        checkEvaluation(cast(Literal.create(str), dataType), dt)
-        checkEvaluation(
-          cast(Literal.create(s"INTERVAL '$str' ${typeName(dataType)}"), dataType), dt)
-        checkEvaluation(
-          cast(Literal.create(s"INTERVAL -'$str' ${typeName(dataType)}"), dataType), -dt)
+      .foreach {
+        case (str, dataType, dt) =>
+          checkEvaluation(cast(Literal.create(str), dataType), dt)
+          checkEvaluation(
+            cast(Literal.create(s"INTERVAL '$str' ${typeName(dataType)}"), dataType),
+            dt)
+          checkEvaluation(
+            cast(Literal.create(s"INTERVAL -'$str' ${typeName(dataType)}"), dataType),
+            -dt)
       }
 
     // Check max value
-    Seq(("INTERVAL '106751991' DAY", DayTimeIntervalType(DAY), 106751991L * MICROS_PER_DAY),
-      ("INTERVAL '106751991 04' DAY TO HOUR", DayTimeIntervalType(DAY, HOUR), 9223372036800000000L),
-      ("INTERVAL '106751991 04:00' DAY TO MINUTE",
-        DayTimeIntervalType(DAY, MINUTE), 9223372036800000000L),
-      ("INTERVAL '106751991 04:00:54.775807' DAY TO SECOND", DayTimeIntervalType(), Long.MaxValue),
+    Seq(
+      ("INTERVAL '106751991' DAY", DayTimeIntervalType(DAY), 106751991L * MICROS_PER_DAY),
+      (
+        "INTERVAL '106751991 04' DAY TO HOUR",
+        DayTimeIntervalType(DAY, HOUR),
+        9223372036800000000L),
+      (
+        "INTERVAL '106751991 04:00' DAY TO MINUTE",
+        DayTimeIntervalType(DAY, MINUTE),
+        9223372036800000000L),
+      (
+        "INTERVAL '106751991 04:00:54.775807' DAY TO SECOND",
+        DayTimeIntervalType(),
+        Long.MaxValue),
       ("INTERVAL '2562047788' HOUR", DayTimeIntervalType(HOUR), 9223372036800000000L),
-      ("INTERVAL '2562047788:00' HOUR TO MINUTE",
-        DayTimeIntervalType(HOUR, MINUTE), 9223372036800000000L),
-      ("INTERVAL '2562047788:00:54.775807' HOUR TO SECOND",
-        DayTimeIntervalType(HOUR, SECOND), Long.MaxValue),
+      (
+        "INTERVAL '2562047788:00' HOUR TO MINUTE",
+        DayTimeIntervalType(HOUR, MINUTE),
+        9223372036800000000L),
+      (
+        "INTERVAL '2562047788:00:54.775807' HOUR TO SECOND",
+        DayTimeIntervalType(HOUR, SECOND),
+        Long.MaxValue),
       ("INTERVAL '153722867280' MINUTE", DayTimeIntervalType(MINUTE), 9223372036800000000L),
-      ("INTERVAL '153722867280:54.775807' MINUTE TO SECOND",
-        DayTimeIntervalType(MINUTE, SECOND), Long.MaxValue),
+      (
+        "INTERVAL '153722867280:54.775807' MINUTE TO SECOND",
+        DayTimeIntervalType(MINUTE, SECOND),
+        Long.MaxValue),
       ("INTERVAL '9223372036854.775807' SECOND", DayTimeIntervalType(SECOND), Long.MaxValue))
-      .foreach { case (interval, dataType, dt) =>
-        checkEvaluation(cast(Literal.create(interval), dataType), dt)
-        checkEvaluation(cast(Literal.create(interval.toLowerCase(Locale.ROOT)), dataType), dt)
+      .foreach {
+        case (interval, dataType, dt) =>
+          checkEvaluation(cast(Literal.create(interval), dataType), dt)
+          checkEvaluation(cast(Literal.create(interval.toLowerCase(Locale.ROOT)), dataType), dt)
       }
 
-    Seq(("INTERVAL '-106751991' DAY", DayTimeIntervalType(DAY), -106751991L * MICROS_PER_DAY),
-      ("INTERVAL '-106751991 04' DAY TO HOUR",
-        DayTimeIntervalType(DAY, HOUR), -9223372036800000000L),
-      ("INTERVAL '-106751991 04:00' DAY TO MINUTE",
-        DayTimeIntervalType(DAY, MINUTE), -9223372036800000000L),
-      ("INTERVAL '-106751991 04:00:54.775808' DAY TO SECOND", DayTimeIntervalType(), Long.MinValue),
+    Seq(
+      ("INTERVAL '-106751991' DAY", DayTimeIntervalType(DAY), -106751991L * MICROS_PER_DAY),
+      (
+        "INTERVAL '-106751991 04' DAY TO HOUR",
+        DayTimeIntervalType(DAY, HOUR),
+        -9223372036800000000L),
+      (
+        "INTERVAL '-106751991 04:00' DAY TO MINUTE",
+        DayTimeIntervalType(DAY, MINUTE),
+        -9223372036800000000L),
+      (
+        "INTERVAL '-106751991 04:00:54.775808' DAY TO SECOND",
+        DayTimeIntervalType(),
+        Long.MinValue),
       ("INTERVAL '-2562047788' HOUR", DayTimeIntervalType(HOUR), -9223372036800000000L),
-      ("INTERVAL '-2562047788:00' HOUR TO MINUTE",
-        DayTimeIntervalType(HOUR, MINUTE), -9223372036800000000L),
-      ("INTERVAL '-2562047788:00:54.775808' HOUR TO SECOND",
-        DayTimeIntervalType(HOUR, SECOND), Long.MinValue),
+      (
+        "INTERVAL '-2562047788:00' HOUR TO MINUTE",
+        DayTimeIntervalType(HOUR, MINUTE),
+        -9223372036800000000L),
+      (
+        "INTERVAL '-2562047788:00:54.775808' HOUR TO SECOND",
+        DayTimeIntervalType(HOUR, SECOND),
+        Long.MinValue),
       ("INTERVAL '-153722867280' MINUTE", DayTimeIntervalType(MINUTE), -9223372036800000000L),
-      ("INTERVAL '-153722867280:54.775808' MINUTE TO SECOND",
-        DayTimeIntervalType(MINUTE, SECOND), Long.MinValue),
+      (
+        "INTERVAL '-153722867280:54.775808' MINUTE TO SECOND",
+        DayTimeIntervalType(MINUTE, SECOND),
+        Long.MinValue),
       ("INTERVAL '-9223372036854.775808' SECOND", DayTimeIntervalType(SECOND), Long.MinValue))
-      .foreach { case (interval, dataType, dt) =>
-        checkEvaluation(cast(Literal.create(interval), dataType), dt)
+      .foreach {
+        case (interval, dataType, dt) =>
+          checkEvaluation(cast(Literal.create(interval), dataType), dt)
       }
 
     if (!isTryCast) {
@@ -1207,7 +1321,6 @@ abstract class CastSuiteBase extends SparkFunSuite with ColumnarExpressionEvalHe
         ("1 01:01:01.12345", DayTimeIntervalType(DAY, DAY)),
         ("1 01:01:01.12345", DayTimeIntervalType(DAY, HOUR)),
         ("1 01:01:01.12345", DayTimeIntervalType(DAY, MINUTE)),
-
         ("INTERVAL '01:01:01.12345' HOUR TO SECOND", DayTimeIntervalType(DAY, HOUR)),
         ("INTERVAL '01:01:01.12345' HOUR TO HOUR", DayTimeIntervalType(DAY, SECOND)),
         ("INTERVAL '01:01:01.12345' HOUR TO MINUTE", DayTimeIntervalType(DAY, MINUTE)),
@@ -1222,20 +1335,26 @@ abstract class CastSuiteBase extends SparkFunSuite with ColumnarExpressionEvalHe
         ("1.23", DayTimeIntervalType(HOUR)),
         ("1.23", DayTimeIntervalType(MINUTE)),
         ("1.23", DayTimeIntervalType(MINUTE)))
-        .foreach { case (interval, dataType) =>
-          val e = intercept[IllegalArgumentException] {
-            cast(Literal.create(interval), dataType).eval()
-          }.getMessage
-          assert(e.contains(s"Interval string does not match day-time format of " +
-            s"${IntervalUtils.supportedFormat((dataType.startField, dataType.endField))
-              .map(format => s"`$format`").mkString(", ")} " +
-            s"when cast to ${dataType.typeName}: $interval, " +
-            s"set ${SQLConf.LEGACY_FROM_DAYTIME_STRING.key} to true " +
-            "to restore the behavior before Spark 3.0."))
+        .foreach {
+          case (interval, dataType) =>
+            val e = intercept[IllegalArgumentException] {
+              cast(Literal.create(interval), dataType).eval()
+            }.getMessage
+            assert(
+              e.contains(
+                s"Interval string does not match day-time format of " +
+                  s"${IntervalUtils
+                    .supportedFormat((dataType.startField, dataType.endField))
+                    .map(format => s"`$format`")
+                    .mkString(", ")} " +
+                  s"when cast to ${dataType.typeName}: $interval, " +
+                  s"set ${SQLConf.LEGACY_FROM_DAYTIME_STRING.key} to true " +
+                  "to restore the behavior before Spark 3.0."))
         }
 
       // Check first field outof bound
-      Seq(("INTERVAL '1067519911' DAY", DayTimeIntervalType(DAY)),
+      Seq(
+        ("INTERVAL '1067519911' DAY", DayTimeIntervalType(DAY)),
         ("INTERVAL '10675199111 04' DAY TO HOUR", DayTimeIntervalType(DAY, HOUR)),
         ("INTERVAL '1067519911 04:00' DAY TO MINUTE", DayTimeIntervalType(DAY, MINUTE)),
         ("INTERVAL '1067519911 04:00:54.775807' DAY TO SECOND", DayTimeIntervalType()),
@@ -1243,18 +1362,25 @@ abstract class CastSuiteBase extends SparkFunSuite with ColumnarExpressionEvalHe
         ("INTERVAL '25620477881:00' HOUR TO MINUTE", DayTimeIntervalType(HOUR, MINUTE)),
         ("INTERVAL '25620477881:00:54.775807' HOUR TO SECOND", DayTimeIntervalType(HOUR, SECOND)),
         ("INTERVAL '1537228672801' MINUTE", DayTimeIntervalType(MINUTE)),
-        ("INTERVAL '1537228672801:54.7757' MINUTE TO SECOND", DayTimeIntervalType(MINUTE, SECOND)),
+        (
+          "INTERVAL '1537228672801:54.7757' MINUTE TO SECOND",
+          DayTimeIntervalType(MINUTE, SECOND)),
         ("INTERVAL '92233720368541.775807' SECOND", DayTimeIntervalType(SECOND)))
-        .foreach { case (interval, dataType) =>
-          val e = intercept[IllegalArgumentException] {
-            cast(Literal.create(interval), dataType).eval()
-          }.getMessage
-          assert(e.contains(s"Interval string does not match day-time format of " +
-            s"${IntervalUtils.supportedFormat((dataType.startField, dataType.endField))
-              .map(format => s"`$format`").mkString(", ")} " +
-            s"when cast to ${dataType.typeName}: $interval, " +
-            s"set ${SQLConf.LEGACY_FROM_DAYTIME_STRING.key} to true " +
-            "to restore the behavior before Spark 3.0."))
+        .foreach {
+          case (interval, dataType) =>
+            val e = intercept[IllegalArgumentException] {
+              cast(Literal.create(interval), dataType).eval()
+            }.getMessage
+            assert(
+              e.contains(
+                s"Interval string does not match day-time format of " +
+                  s"${IntervalUtils
+                    .supportedFormat((dataType.startField, dataType.endField))
+                    .map(format => s"`$format`")
+                    .mkString(", ")} " +
+                  s"when cast to ${dataType.typeName}: $interval, " +
+                  s"set ${SQLConf.LEGACY_FROM_DAYTIME_STRING.key} to true " +
+                  "to restore the behavior before Spark 3.0."))
         }
     }
   }

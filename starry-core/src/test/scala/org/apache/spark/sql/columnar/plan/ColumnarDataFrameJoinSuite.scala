@@ -1,5 +1,6 @@
 package org.apache.spark.sql.columnar.plan
 
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.common.ColumnarSharedSparkSession
 import org.apache.spark.sql.{DataFrame, DataFrameJoinSuite}
 import org.apache.spark.sql.catalyst.TableIdentifier
@@ -12,6 +13,13 @@ import org.scalactic.source.Position
 import org.scalatest.Tag
 
 class ColumnarDataFrameJoinSuite extends DataFrameJoinSuite with ColumnarSharedSparkSession {
+
+
+  override protected def sparkConf: SparkConf = {
+    val conf = new SparkConf()
+    conf.set("spark.sql.rewriteJoinEnabled", "false")
+    conf
+  }
 
   override protected def test(testName: String, testTags: Tag*)(testFun: => Any)(
       implicit pos: Position): Unit = {

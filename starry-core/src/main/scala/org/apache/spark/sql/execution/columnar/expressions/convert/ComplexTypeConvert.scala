@@ -1,9 +1,13 @@
 package org.apache.spark.sql.execution.columnar.expressions.convert
 
+import com.google.common.base.Preconditions
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.execution.columnar.expressions.NativeJsonExpression
+import org.apache.spark.sql.execution.columnar.expressions.{
+  ExpressionConverter,
+  NativeJsonExpression
+}
 import org.apache.spark.sql.execution.columnar.extension.rule.NativeFunctionPlaceHolder
-import org.apache.spark.sql.types.IntegerType
+import org.apache.spark.sql.types.{BooleanType, DataType, IntegerType}
 
 object ComplexTypeConvert {}
 
@@ -46,5 +50,17 @@ object SortArrayConvert extends ExpressionConvertTrait {
     }
     val holder = NativeFunctionPlaceHolder(array, array.base :: Nil, array.dataType, functionName)
     convertToNativeCall(functionName, array.dataType, array.base :: Nil, holder)
+  }
+}
+
+object SizeConvert extends ExpressionConvertTrait {
+  override def convert(functionName: String, expression: Expression): Expression = {
+    val size = expression.asInstanceOf[Size]
+    convertToNativeCall(
+      functionName,
+      expression.dataType,
+      expression.children ++ Seq(
+        ExpressionConverter.nativeConstant(Literal.create(size.legacySizeOfNull, BooleanType))),
+      expression)
   }
 }
