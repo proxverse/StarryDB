@@ -63,6 +63,8 @@ object DateFormatConverter extends ExpressionConvertTrait {
     expression match {
       case dateFormat: DateFormatClass =>
         dateFormat.right match {
+          case n: NativeJsonExpression =>
+            n
           case literal: Literal =>
             if (literal.toString().equals("yyyy-MM")) {
               dateFormat.copy(right = Literal("%Y-%m"))
