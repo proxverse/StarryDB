@@ -18,7 +18,16 @@
 package org.apache.spark.sql.execution.columnar.extension.rule
 
 import org.apache.spark.sql.catalyst.expressions.aggregate._
-import org.apache.spark.sql.catalyst.expressions.{And, Cast, CreateStruct, If, IsNotNull, IsNull, Literal, Or}
+import org.apache.spark.sql.catalyst.expressions.{
+  And,
+  Cast,
+  CreateStruct,
+  If,
+  IsNotNull,
+  IsNull,
+  Literal,
+  Or
+}
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.columnar.expressions.HLLAdapter
@@ -45,6 +54,8 @@ object AggregateFunctionRewriteRule extends Rule[LogicalPlan] {
     plan.transformUp {
       case a: Aggregate =>
         a.transformExpressions {
+          case v2 : V2Aggregator[_, _] =>
+            new NativeFunctionPlaceHolder(v2, v2.children, v2.dataType, v2.aggrFunc.name())
           case agg @ AggExpr(bitmapCountD: BitmapCountDistinctAggFunction) =>
             agg.copy(aggregateFunction = new NativeFunctionPlaceHolder(bitmapCountD))
           case agg @ AggExpr(collectList: CollectList) =>
@@ -61,11 +72,8 @@ object AggregateFunctionRewriteRule extends Rule[LogicalPlan] {
               IsNotNull(child)
             }
             agg.copy(
-              aggregateFunction = new NativeFunctionPlaceHolder(
-                collectSet,
-                child :: Nil,
-                agg.dataType,
-                "set_agg"),
+              aggregateFunction =
+                new NativeFunctionPlaceHolder(collectSet, child :: Nil, agg.dataType, "set_agg"),
               filter = Option.apply(newFilter))
 
           case agg @ AggExpr(Average(child, _)) if child.dataType.isInstanceOf[DecimalType] =>
@@ -140,7 +148,7 @@ object AggregateFunctionRewriteRule extends Rule[LogicalPlan] {
                 agg.dataType))
 
           case agg @ AggregateExpression(count: Min, _, _, _, _)
-            if count.aggBufferAttributes.exists(_.dataType.sameType(StringType)) =>
+              if count.aggBufferAttributes.exists(_.dataType.sameType(StringType)) =>
             agg.copy(
               aggregateFunction = new NativeFunctionPlaceHolder(
                 agg.aggregateFunction,

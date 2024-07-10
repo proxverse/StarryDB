@@ -1,15 +1,6 @@
 package org.apache.spark.sql.execution.columnar.extension.plan
 
-import org.apache.spark.sql.types.{
-  ArrayType,
-  BinaryType,
-  DataType,
-  DecimalType,
-  LongType,
-  StringType,
-  StructField,
-  StructType
-}
+import org.apache.spark.sql.types.{ArrayType, BinaryType, DataType, DecimalType, LongType, MapType, StringType, StructField, StructType}
 import org.json4s.JArray
 import org.json4s.JsonAST.{JInt, JObject, JString, JValue}
 import org.json4s.jackson.JsonMethods.parse
@@ -41,6 +32,13 @@ object VeloxTypeResolver {
         ) =>
       val childType = ctypes.map(parseDataType).head
       ArrayType(childType)
+    case JSortedObject(
+        ("ctypes", JArray(ctypes)),
+        ("name", JString("type")),
+        ("type", JString("map")),
+        ) =>
+      val childType = ctypes.map(parseDataType)
+      MapType(childType.head, childType.last)
     case JSortedObject(
         ("ctypes", JArray(ctypes)),
         ("name", JString("type")),

@@ -17,14 +17,14 @@ public class NativeExpressionConvert {
   public static native long nativeEvalWithBatch(String expr, NativeColumnarBatch batch);
 
   public static native String nativeBuildAggregationNode(String functionName,
-                                             String[] inputs,
-                                             String[] rawInputs,
-                                             String step,
-                                             String mask,
-                                             String[] sortingKeys,
-                                             String[] sortOrders,
-                                             boolean distinct,
-                                             boolean useMergeFunc);
+                                                         String[] inputs,
+                                                         String[] rawInputs,
+                                                         String step,
+                                                         String mask,
+                                                         String[] sortingKeys,
+                                                         String[] sortOrders,
+                                                         boolean distinct,
+                                                         boolean useMergeFunc);
 
   public static VeloxColumnarBatch evalWithBatch(String expr, VeloxColumnarBatch batch, StructType structType) {
     NativeColumnVector rootVector = new NativeColumnVector(nativeEvalWithBatch(expr, batch.nativeObject()));
@@ -34,5 +34,13 @@ public class NativeExpressionConvert {
   public static native String nativeResolveAggType(String functionName,
                                                    String[] argsType,
                                                    String step);
+
+  public static native String nativeResolveFunction(String functionName,
+                                                    String[] argsType);
+
+  public static native String nativeResolveAggFunction(String functionName,
+                                                       String[] argsType);
+
+  public static native boolean nativeFunctionExists(String functionName);
 
 }
