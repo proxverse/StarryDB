@@ -25,7 +25,8 @@ case class StarryScalarBoundFunction(
     extends ScalarFunction[Any] {
 
   override def produceResult(input: InternalRow): Any = {
-    throw new UnsupportedOperationException("")
+    // for dict nullExpr.eval(InternalRow.fromSeq(Seq(null)))
+    null
   }
 }
 
