@@ -143,11 +143,9 @@ object RewriteWithGlobalDict extends Rule[LogicalPlan] with PredicateHelper {
         expand.mapExpressions(rewriteExpr(_, useExecution = true))
       case agg: Aggregate =>
         agg.mapExpressions {
-          case ar: AttributeReference
-              if ar.dictInChildren().exists(_.isInstanceOf[ExecutionColumnDict]) =>
+          case ar: AttributeReference if ar.hasExecDictInChildren() =>
             tryDecodeDown(ar)
-          case a @ Alias(ar: AttributeReference, _)
-              if ar.dictInChildren().exists(_.isInstanceOf[ExecutionColumnDict]) =>
+          case a @ Alias(ar: AttributeReference, _) if ar.hasExecDictInChildren() =>
             tryDecodeDown(a)
           case other => rewriteExpr(other)
         }

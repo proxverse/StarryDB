@@ -134,6 +134,18 @@ object RewriteContext {
       currentPlan.findEncodedExprInChildren(expression).flatMap(_.dict)
     }
 
+    def hasExecDictInChildren(): Boolean = {
+      dictInChildren().exists(isExecDict)
+    }
+
+    private def isExecDict(dict: ColumnDict): Boolean = {
+      dict match {
+        case _: ExecutionColumnDict => true
+        case StartEndDict(_, _, child) => isExecDict(child)
+        case _ => false
+      }
+    }
+
     def encodedRefInChildren(): Option[Expression] = {
       currentPlan.findEncodedExprInChildren(expression)
     }
