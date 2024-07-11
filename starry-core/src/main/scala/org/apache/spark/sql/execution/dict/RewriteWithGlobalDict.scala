@@ -136,7 +136,9 @@ object RewriteWithGlobalDict extends Rule[LogicalPlan] with PredicateHelper {
       case r: InMemoryRelation =>
         loadDictAndEncodeRelation(r)
       case p: Project =>
-        p.mapExpressions(rewriteExpr(_, useExecution = true))
+        Project(
+          p.projectList.map(rewriteExpr(_, useExecution = true).asInstanceOf[NamedExpression]).distinct,
+          p.child)
       case expand: Expand =>
         expand.mapExpressions(rewriteExpr(_, useExecution = true))
       case agg: Aggregate =>
