@@ -21,11 +21,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.Statistics
-import org.apache.spark.sql.catalyst.plans.physical.{
-  BroadcastMode,
-  BroadcastPartitioning,
-  Partitioning
-}
+import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, BroadcastPartitioning, Partitioning}
 import org.apache.spark.sql.execution.columnar.VeloxColumnarBatch
 import org.apache.spark.sql.execution.columnar.jni.{NativeColumnVector, NativeQueryContext}
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, BroadcastExchangeLike}
@@ -36,7 +32,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{LongType, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.unsafe.map.BytesToBytesMap
-import org.apache.spark.util.SparkFatalException
+import org.apache.spark.util.{KnownSizeEstimation, SparkFatalException}
 import org.apache.spark._
 import org.apache.spark.internal.Logging
 
@@ -298,7 +294,7 @@ case class BroadcastBuildSideRDD(
 case class VeloxBuildSideRelation(
     mode: BroadcastMode,
     output: Seq[Attribute],
-    batches: Array[Array[Byte]]) {
+    batches: Array[Array[Byte]]) extends KnownSizeEstimation {
 
   def deserialized: Iterator[ColumnarBatch] = {
     val structType = StructType.fromAttributes(output)
@@ -328,5 +324,11 @@ case class VeloxBuildSideRelation(
     } else {
       Iterator.empty
     }
+  }
+
+  lazy val totalBytes: Int = batches.map(_.length).sum
+
+  override def estimatedSize: Long = {
+    totalBytes
   }
 }
