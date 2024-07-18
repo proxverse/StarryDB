@@ -137,7 +137,9 @@ object RewriteWithGlobalDict extends Rule[LogicalPlan] with PredicateHelper {
         loadDictAndEncodeRelation(r)
       case p: Project =>
         Project(
-          p.projectList.map(rewriteExpr(_, useExecution = true).asInstanceOf[NamedExpression]).distinct,
+          p.projectList
+            .map(rewriteExpr(_, useExecution = true).asInstanceOf[NamedExpression])
+            .distinct,
           p.child)
       case expand: Expand =>
         expand.mapExpressions(rewriteExpr(_, useExecution = true))
@@ -228,9 +230,9 @@ object RewriteWithGlobalDict extends Rule[LogicalPlan] with PredicateHelper {
     } else {
       filter.condition match {
         case _ @ IsNull(_: AttributeReference) =>
-          filter.copy(condition = filter.condition.transformToEncodedRef())
+          filter.copy(condition = tryDecodeDown(filter.condition))
         case _ @ IsNotNull(_: AttributeReference) =>
-          filter.copy(condition = filter.condition.transformToEncodedRef())
+          filter.copy(condition = tryDecodeDown(filter.condition))
         case _ =>
           Filter(tryDecodeDown(filter.condition, true), filter.child)
       }

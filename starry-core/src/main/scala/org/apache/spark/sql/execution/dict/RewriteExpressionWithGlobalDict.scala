@@ -55,10 +55,13 @@ object RewriteExpressionWithGlobalDict extends Logging {
       // is not null/is null does not require decode
       case IsNotNull(_: AttributeReference) | IsNull(_: AttributeReference)
           if expr.children.head.encodedRefInChildren().isDefined =>
-        expr.withNewChildren(Seq(expr.children.head.encodedRefInChildren().get))
+        if (expr.children.head.hasExecDictInChildren()) {
+          expr
+        } else {
+          expr.withNewChildren(Seq(expr.children.head.encodedRefInChildren().get))
+        }
       // handle bool typed
-      case expr
-          if useExecution && !expr.containsPattern(TreePattern.AGGREGATE_EXPRESSION) =>
+      case expr if useExecution && !expr.containsPattern(TreePattern.AGGREGATE_EXPRESSION) =>
         tryDictExecution(expr)
       // others
       case e =>
@@ -117,8 +120,8 @@ object RewriteExpressionWithGlobalDict extends Logging {
     val canDoDictExecution = (expr: Expression) => {
       lazy val refDict = expr.references.head.dictInChildren()
       lazy val validRefDict = refDict.isDefined && refDict.get.supportExecution
-      StarryConf.dictExecutionEnabled &&  expr.references.size == 1 && validRefDict &&
-        !refDict.get.isInstanceOf[StartEndDict]
+      StarryConf.dictExecutionEnabled && expr.references.size == 1 && validRefDict &&
+      !refDict.get.isInstanceOf[StartEndDict]
     }
     expression match {
       case namedExpr @ Alias(expr, name) if canDoDictExecution(expr) =>
