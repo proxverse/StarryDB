@@ -18,20 +18,11 @@
 package org.apache.spark.sql.execution.columnar.extension.rule
 
 import org.apache.spark.sql.catalyst.expressions.aggregate._
-import org.apache.spark.sql.catalyst.expressions.{
-  And,
-  Cast,
-  CreateStruct,
-  If,
-  IsNotNull,
-  IsNull,
-  Literal,
-  Or
-}
+import org.apache.spark.sql.catalyst.expressions.{And, Cast, CreateStruct, If, IsNotNull, IsNull, Literal, Or}
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LogicalPlan}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.columnar.expressions.HLLAdapter
-import org.apache.spark.sql.execution.columnar.expressions.aggregate.BitmapCountDistinctAggFunction
+import org.apache.spark.sql.execution.columnar.expressions.aggregate.{BitmapConstructAggFunction, BitmapCountDistinctAggFunction}
 import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.internal.StarryConf
 import org.apache.spark.sql.types._
@@ -58,6 +49,8 @@ object AggregateFunctionRewriteRule extends Rule[LogicalPlan] {
             new NativeFunctionPlaceHolder(v2, v2.children, v2.dataType, v2.aggrFunc.name())
           case agg @ AggExpr(bitmapCountD: BitmapCountDistinctAggFunction) =>
             agg.copy(aggregateFunction = new NativeFunctionPlaceHolder(bitmapCountD))
+          case agg@AggExpr(bitmapAgg: BitmapConstructAggFunction) =>
+            agg.copy(aggregateFunction = new NativeFunctionPlaceHolder(bitmapAgg))
           case agg @ AggExpr(collectList: CollectList) =>
             agg.copy(
               aggregateFunction = new NativeFunctionPlaceHolder(

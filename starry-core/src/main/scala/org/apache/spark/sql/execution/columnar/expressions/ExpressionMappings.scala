@@ -20,7 +20,7 @@ import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.expressions.{EqualNullSafe, _}
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.execution.ScalarSubquery
-import org.apache.spark.sql.execution.columnar.expressions.aggregate.BitmapCountDistinctAggFunction
+import org.apache.spark.sql.execution.columnar.expressions.aggregate.{BitmapConstructAggFunction, BitmapCountDistinctAggFunction}
 import org.apache.spark.sql.execution.columnar.expressions.convert.NameSig
 
 object ExpressionMappings {
@@ -259,6 +259,10 @@ object ExpressionMappings {
   final val ARRAY_DISTINCT = "array_distinct"
   final val BITMAP_COUNT_DISTINCT = "bitmap_count_distinct"
 
+  // Bitmap
+  final val BITMAP_CONTAINS = "starry_bitmap_contains"
+  final val CONSTRUCT_BITMAP = "construct_bitmap"
+
   /**
    * Mapping Spark scalar expression to Substrait function name
    */
@@ -446,7 +450,10 @@ object ExpressionMappings {
     NameSig[ElementAt](ARRAY_ELEMENT_AT),
     NameSig[ArrayPosition](ARRAY_POSITION),
     NameSig[ArrayPositionWithInstance](ARRAY_POSITION),
-    NameSig[Slice](ARRAY_SLICE))
+    NameSig[Slice](ARRAY_SLICE),
+    // Bitmap
+    NameSig[BitmapContains](BITMAP_CONTAINS),
+  )
 
   /** Mapping Spark aggregation expression to Substrait function name */
   private val AGGREGATE_SigS: Seq[NameSig] = Seq(
@@ -472,6 +479,7 @@ object ExpressionMappings {
     NameSig[ArrayIntersect](ARRAY_INTERSECT),
     NameSig[EqualNullSafe](EQUAL_NULL_SAFE),
     NameSig[BitmapCountDistinctAggFunction](BITMAP_COUNT_DISTINCT),
+    NameSig[BitmapConstructAggFunction](CONSTRUCT_BITMAP)
   )
 
   /** Mapping Spark window expression to Substrait function name */

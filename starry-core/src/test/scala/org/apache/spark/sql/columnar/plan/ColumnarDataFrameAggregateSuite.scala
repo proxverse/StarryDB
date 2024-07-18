@@ -2,7 +2,8 @@ package org.apache.spark.sql.columnar.plan
 
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.common.ColumnarSharedSparkSession
-import org.apache.spark.sql.execution.columnar.expressions.aggregate.BitmapCountDistinctAggFunction
+import org.apache.spark.sql.execution.columnar.expressions.BitmapContains
+import org.apache.spark.sql.execution.columnar.expressions.aggregate.{BitmapConstructAggFunction, BitmapCountDistinctAggFunction}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetTest
 import org.apache.spark.sql.functions.{array_sort, arrays_zip, avg, col, collect_list, collect_set, count, count_distinct, lit, map, max_by, min_by, sum, sum_distinct}
 import org.apache.spark.sql.test.SQLTestData.{DecimalData, TestData2}
@@ -231,13 +232,16 @@ class ColumnarDataFrameAggregateSuite
     checkAnswer(
       longDf.groupBy($"b").agg(bitmap_count_distinct($"a")),
       Row(1, 2) :: Row(2, 2) :: Nil)
+  }
 
-// bitmap_count_distinct with other distinct agg is not supported now
-//    checkAnswer(
-//      testData3.agg(count($"b"), bitmap_count_distinct($"b"), sum_distinct($"b")), // non-partial
-//      Row(1, 1, 2)
-//    )
+  test("bitmap contains") {
+    val bitmap = testData3.filter($"a".equalTo(1)).agg(
+      Column(BitmapConstructAggFunction($"a".expr).toAggregateExpression(false))
+    ).collect().head.get(0).asInstanceOf[Array[Byte]]
 
+    assert(testData3.filter(Column(BitmapContains($"a".expr, lit(bitmap).expr))).count() == 1)
+
+    System.in.read()
   }
 
 }

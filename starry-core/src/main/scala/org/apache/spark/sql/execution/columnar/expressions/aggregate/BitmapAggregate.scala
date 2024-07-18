@@ -178,6 +178,8 @@ case class BitmapConstructAggFunction(
     inputAggBufferOffset: Int = 0)
     extends BasicBitmapFunction(child, mutableAggBufferOffset, inputAggBufferOffset) {
 
+  override val prettyName: String = "construct_bitmap"
+
   def this(child: Expression) = this(child, 0, 0)
 
   override def dataType: DataType = BinaryType
