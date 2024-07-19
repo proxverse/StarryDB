@@ -1,16 +1,15 @@
 package org.apache.spark.sql.execution.columnar.expressions
 
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.analysis.TypeCoercion.implicitCast
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.execution.{SQLExecution, SubqueryExec}
 import org.apache.spark.sql.execution.columnar.VeloxWritableColumnVector
 import org.apache.spark.sql.execution.columnar.expressions.convert.ExpressionConvertMapping
-import org.apache.spark.sql.execution.columnar.extension.plan.{
-  VeloxRowToColumnConverter,
-  VeloxTypeResolver
-}
-import org.apache.spark.sql.execution.columnar.jni.NativeExpressionConvert
+import org.apache.spark.sql.execution.columnar.extension.plan.{VeloxRowToColumnConverter, VeloxTypeResolver}
+import org.apache.spark.sql.execution.columnar.jni.{NativeExpressionConvert, NativeQueryContext}
 import org.apache.spark.sql.types._
 
 import java.util.regex.Pattern
@@ -126,15 +125,12 @@ object ExpressionConverter extends Logging {
   private def beforeProcess(expression: Expression): Expression = expression.transformUp {
     case o if ExpressionConvertMapping.expressionsMap.contains(o.getClass) =>
       ExpressionConvertMapping.expressionsMap.apply(o.getClass).beforeConvert(o)
-
     case scalarSubquery: org.apache.spark.sql.execution.ScalarSubquery =>
-      try {
-        new Literal(scalarSubquery.eval(), scalarSubquery.dataType)
-      } catch {
-        case e: IllegalArgumentException =>
-          scalarSubquery.updateResult()
-          new Literal(scalarSubquery.eval(), scalarSubquery.dataType)
-      }
+      val value = scalarSubquery.plan
+        .executeCollect()
+        .head
+        .get(0, scalarSubquery.dataType)
+      new Literal(value, scalarSubquery.dataType)
     case other => other
   }
 

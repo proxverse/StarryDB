@@ -134,6 +134,7 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
       (BytesToBytesMap.MAX_CAPACITY / 1.5).toLong
     case _ => 512000000
   }
+  val nativeQueryContext: NativeQueryContext = NativeQueryContext.get()
 
   @transient
   override lazy val relationFuture: java.util.concurrent.Future[broadcast.Broadcast[Any]] = {
@@ -141,7 +142,9 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
     SQLExecution.withThreadLocalCaptured[broadcast.Broadcast[Any]](
       session,
       BroadcastExchangeExec.executionContext) {
-      queryContext.attachCurrentThread()
+      if (queryContext != null) {
+        nativeQueryContext.attachCurrentThread()
+      }
       try {
         // Setup a job group here so later it may get cancelled by groupId if necessary.
         sparkContext.setJobGroup(
@@ -195,7 +198,9 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
           promise.failure(e)
           throw e
       } finally {
-        queryContext.detachCurrentThread()
+        if (queryContext != null) {
+          nativeQueryContext.detachCurrentThread()
+        }
       }
     }
   }
