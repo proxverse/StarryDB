@@ -273,7 +273,9 @@ object RewriteContext {
   }
 
   private def resolveColumn(plan: LogicalPlan, column: String): Option[AttributeReference] = {
-    plan.schema.getFieldIndex(column).map(plan.output(_).asInstanceOf[AttributeReference])
+    plan.schema.getFieldIndex(column).map(plan.output(_))
+      .orElse(plan.output.find(attr => attr.name.equalsIgnoreCase(column))) // try ignore case
+      .map(_.asInstanceOf[AttributeReference])
   }
 
 
