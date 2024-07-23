@@ -240,8 +240,6 @@ class ColumnarDataFrameAggregateSuite
     ).collect().head.get(0).asInstanceOf[Array[Byte]]
 
     assert(testData3.filter(Column(BitmapContains($"a".expr, lit(bitmap).expr))).count() == 1)
-
-    System.in.read()
   }
 
 }
