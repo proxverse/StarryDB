@@ -134,6 +134,8 @@ case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
       (BytesToBytesMap.MAX_CAPACITY / 1.5).toLong
     case _ => 512000000
   }
+
+  @transient
   val nativeQueryContext: NativeQueryContext = NativeQueryContext.get()
 
   @transient
