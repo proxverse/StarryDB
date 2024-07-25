@@ -2,7 +2,7 @@ package org.apache.spark.sql.execution.columnar.extension.rule
 
 import org.apache.spark.sql.catalyst.expressions.{Alias, AliasHelper, Attribute, CreateArray, CreateMap, CreateNamedStruct, Expression, ExtractValue, NamedExpression, OuterReference, PythonUDF, UpdateFields}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.columnar.extension.plan.ColumnarProjectExec
+import org.apache.spark.sql.execution.columnar.extension.plan.{ColumnarProjectExec, ColumnarSupport}
 import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
 
 // Code is copied from
@@ -10,7 +10,7 @@ import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
 object CollapseProjectExec extends Rule[SparkPlan] with AliasHelper {
   override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
     case p1 @ ProjectExec(_, p2: ProjectExec)
-      if canCollapseExpressions(p1.projectList, p2.projectList, true) =>
+      if sameProjType(p1, p2) && canCollapseExpressions(p1.projectList, p2.projectList, true) =>
       new ColumnarProjectExec(buildCleanedProjectList(p1.projectList, p2.projectList), p2.child)
   }
 
@@ -19,6 +19,16 @@ object CollapseProjectExec extends Rule[SparkPlan] with AliasHelper {
                                lower: Seq[NamedExpression]): Seq[NamedExpression] = {
     val aliases = getAliasMap(lower)
     upper.map(replaceAliasButKeepName(_, aliases))
+  }
+
+  // either all of ColumnarProject or Not
+  def sameProjType(p1: ProjectExec, p2: ProjectExec): Boolean = {
+    (p1, p2) match {
+      case (_: ColumnarSupport, _: ColumnarSupport) => true
+      case (_: ColumnarSupport, _) => false
+      case (_, _: ColumnarSupport) => false
+      case _ => true
+    }
   }
 
   /**

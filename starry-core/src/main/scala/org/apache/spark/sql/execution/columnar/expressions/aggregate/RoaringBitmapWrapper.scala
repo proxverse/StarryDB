@@ -91,11 +91,11 @@ case class RoaringBitmapWrapper(int64: Boolean) {
     } else {
       val bitmap = bitmapWriter.get()
       val buf = if (withTypeFlag) {
-        val withFlag = ByteBuffer.allocate(bitmap64.serializedSizeInBytes().toInt + 1)
+        val withFlag = ByteBuffer.allocate(bitmap.serializedSizeInBytes() + 1)
         withFlag.put(0.toByte)
         withFlag
       } else {
-        ByteBuffer.allocate(bitmap64.serializedSizeInBytes().toInt)
+        ByteBuffer.allocate(bitmap.serializedSizeInBytes())
       }
       bitmap.serialize(buf)
       buf.array()
