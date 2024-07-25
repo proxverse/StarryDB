@@ -2,7 +2,12 @@ package org.apache.spark.sql.execution.columnar.jni;
 
 import com.prx.starry.common.jni.NativeClass;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 public class NativeQueryContext extends NativeClass implements AutoCloseable {
+
+
+  AtomicInteger ref = new AtomicInteger(0);
 
   static ThreadLocal<NativeQueryContext> queryContextThreadLocal = new ThreadLocal<>();
 
@@ -16,18 +21,23 @@ public class NativeQueryContext extends NativeClass implements AutoCloseable {
 
 
   protected native long nativeCreate();
+
   protected native void nativeRelease();
+
   protected native void nativeAttachCurrentThread();
+
   protected native void nativeDetachCurrentThread();
 
   public static void clear() {
-    if (queryContextThreadLocal.get() != null) {
+    if (queryContextThreadLocal.get() != null && queryContextThreadLocal.get().ref.decrementAndGet() == 0) {
       queryContextThreadLocal.get().close();
     }
-    queryContextThreadLocal.set(null);
+    queryContextThreadLocal.remove();
   }
 
+
   public void attachCurrentThread() {
+    ref.incrementAndGet();
     nativeAttachCurrentThread();
   }
 
@@ -36,7 +46,7 @@ public class NativeQueryContext extends NativeClass implements AutoCloseable {
   }
 
   public static NativeQueryContext get() {
-   return queryContextThreadLocal.get();
+    return queryContextThreadLocal.get();
   }
 
   @Override
@@ -44,6 +54,5 @@ public class NativeQueryContext extends NativeClass implements AutoCloseable {
     queryContextThreadLocal.set(null);
     detachCurrentThread();
     nativeRelease();
-
   }
 }

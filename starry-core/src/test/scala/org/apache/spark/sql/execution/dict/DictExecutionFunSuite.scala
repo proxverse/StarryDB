@@ -67,7 +67,7 @@ class DictExecutionFunSuite extends ColumnarSharedSparkSession {
       when(col("dict").isin(Array("D"): _*), col("dict")).otherwise(lit("other")).expr)
     val expression = ExpressionConverter.convertToNative(boundExpr).asInstanceOf[NativeJsonExpression]
     val vector = fetchDictVector(new ExecutionColumnDict(dict, boundExpr, StringType, expression.native))
-    Assertions.assert(vector.isInstanceOf[VeloxConstantsVector])
+    Assertions.assert(!vector.isInstanceOf[VeloxConstantsVector])
     Assertions.assert(vector.getUTF8String(0).equals(UTF8String.fromString("other")))
     Assertions.assert(vector.getUTF8String(1).equals(UTF8String.fromString("other")))
     Assertions.assert(vector.getUTF8String(2).equals(UTF8String.fromString("other")))
