@@ -21,7 +21,11 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.Statistics
-import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, BroadcastPartitioning, Partitioning}
+import org.apache.spark.sql.catalyst.plans.physical.{
+  BroadcastMode,
+  BroadcastPartitioning,
+  Partitioning
+}
 import org.apache.spark.sql.execution.columnar.VeloxColumnarBatch
 import org.apache.spark.sql.execution.columnar.jni.{NativeColumnVector, NativeQueryContext}
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, BroadcastExchangeLike}
@@ -106,9 +110,6 @@ object ColumnarBroadcastExchangeExec {
  */
 case class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
     extends BroadcastExchangeLike {
-
-
-
 
   @transient override lazy val metrics = Map(
     "dataSize" -> SQLMetrics.createSizeMetric(sparkContext, "data size"),
@@ -301,7 +302,8 @@ case class BroadcastBuildSideRDD(
 case class VeloxBuildSideRelation(
     mode: BroadcastMode,
     output: Seq[Attribute],
-    batches: Array[Array[Byte]]) extends KnownSizeEstimation {
+    batches: Array[Array[Byte]])
+    extends KnownSizeEstimation {
 
   def deserialized: Iterator[ColumnarBatch] = {
     val structType = StructType.fromAttributes(output)
@@ -319,9 +321,7 @@ case class VeloxBuildSideRelation(
           var rowCount = 0
           val row = rowIterator.next()
           val start = System.nanoTime()
-          val cb = VeloxColumnarBatch.createFromJson(
-            row,
-            structType)
+          val cb = VeloxColumnarBatch.createFromJson(row, structType)
           elapse += System.nanoTime() - start
           rowCount += cb.numRows()
           cb
