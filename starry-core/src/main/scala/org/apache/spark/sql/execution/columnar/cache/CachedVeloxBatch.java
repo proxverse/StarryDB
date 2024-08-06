@@ -5,12 +5,13 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.KryoSerializable;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+import org.apache.spark.TaskContext;
 import org.apache.spark.sql.columnar.CachedBatch;
 import org.apache.spark.sql.execution.columnar.VeloxColumnarBatch;
-import org.apache.spark.sql.execution.columnar.jni.NativeColumnVector;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.util.KnownSizeEstimation;
+import org.apache.spark.util.TaskCompletionListener;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.Externalizable;
@@ -57,8 +58,6 @@ public class CachedVeloxBatch implements AutoCloseable, KnownSizeEstimation, Ext
     writerBytes(out, json.getBytes());
     byte[] bytes = veloxBatch.serialize();
     writerBytes(out, bytes);
-
-
   }
 
   private static void writerBytes(ObjectOutput out, byte[] bytes) throws IOException {
@@ -72,7 +71,9 @@ public class CachedVeloxBatch implements AutoCloseable, KnownSizeEstimation, Ext
     veloxBatch = VeloxColumnarBatch.createFromJson(
         readBytes(in),
         schema);
-
+    if (TaskContext.get() != null) {
+      TaskContext.get().addTaskCompletionListener((TaskCompletionListener) a -> veloxBatch.close());
+    }
   }
 
   @NotNull

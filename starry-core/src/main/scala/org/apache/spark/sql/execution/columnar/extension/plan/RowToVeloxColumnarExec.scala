@@ -70,7 +70,7 @@ object RowToVeloxColumnarExec {
           last_cb
         }
       }
-      new CloseableColumnBatchIterator(res)
+      new CloseableColumnBatchIterator[ColumnarBatch](res)
     } else {
       Iterator.empty
     }

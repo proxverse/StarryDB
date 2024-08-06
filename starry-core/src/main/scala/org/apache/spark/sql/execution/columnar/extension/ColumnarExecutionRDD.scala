@@ -106,7 +106,7 @@ class ColumnarExecutionRDD(
         next1
       }
     }
-    new CloseableColumnBatchIterator(iter)
+    new CloseableColumnBatchIterator[ColumnarBatch](iter)
   }
 
   override def getPartitions: Array[Partition] = {

@@ -16,18 +16,16 @@
  */
 package org.apache.spark.sql.execution.columnar.extension.plan
 
+import org.apache.spark._
+import org.apache.spark.internal.Logging
 import org.apache.spark.launcher.SparkLauncher
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.Statistics
-import org.apache.spark.sql.catalyst.plans.physical.{
-  BroadcastMode,
-  BroadcastPartitioning,
-  Partitioning
-}
+import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, BroadcastPartitioning, Partitioning}
 import org.apache.spark.sql.execution.columnar.VeloxColumnarBatch
-import org.apache.spark.sql.execution.columnar.jni.{NativeColumnVector, NativeQueryContext}
+import org.apache.spark.sql.execution.columnar.jni.NativeQueryContext
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, BroadcastExchangeLike}
 import org.apache.spark.sql.execution.joins.HashedRelationBroadcastMode
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
@@ -37,8 +35,6 @@ import org.apache.spark.sql.types.{LongType, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.unsafe.map.BytesToBytesMap
 import org.apache.spark.util.{KnownSizeEstimation, SparkFatalException}
-import org.apache.spark._
-import org.apache.spark.internal.Logging
 
 import java.util.UUID
 import java.util.concurrent.{TimeUnit, TimeoutException}
@@ -46,11 +42,11 @@ import scala.concurrent.Promise
 import scala.concurrent.duration.NANOSECONDS
 import scala.util.control.NonFatal
 
-class CloseableColumnBatchIterator(
-    itr: Iterator[ColumnarBatch])
-    extends Iterator[ColumnarBatch]
+class CloseableColumnBatchIterator[T <: AutoCloseable](
+    itr: Iterator[T])
+    extends Iterator[T]
     with Logging {
-  var cb: ColumnarBatch = _
+  var cb: T = _
 
   override def hasNext: Boolean = {
     val res = itr.hasNext
@@ -59,7 +55,7 @@ class CloseableColumnBatchIterator(
     }
     res
   }
-  override def next(): ColumnarBatch = {
+  override def next(): T = {
     closeCurrentBatch()
     cb = itr.next()
     cb
@@ -68,7 +64,6 @@ class CloseableColumnBatchIterator(
   private def closeCurrentBatch(): Unit = {
     if (cb != null) {
       cb.close()
-      cb = null
     }
   }
 }
@@ -287,7 +282,7 @@ case class BroadcastBuildSideRDD(
   }
 
   override def compute(split: Partition, context: TaskContext): Iterator[ColumnarBatch] = {
-    new CloseableColumnBatchIterator(broadcasted.value.deserialized)
+    new CloseableColumnBatchIterator[ColumnarBatch](broadcasted.value.deserialized)
 
   }
 }
@@ -320,7 +315,7 @@ case class VeloxBuildSideRelation(
           cb
         }
       }
-      new CloseableColumnBatchIterator(res)
+      new CloseableColumnBatchIterator[ColumnarBatch](res)
     } else {
       Iterator.empty
     }
