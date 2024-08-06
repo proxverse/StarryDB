@@ -36,7 +36,7 @@ case class VeloxColumnarToRowExec(child: SparkPlan) extends ColumnarToRowTransit
   @transient override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
     "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "number of input batches"),
-    "convertTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to convert"))
+    "convertTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to convert"))
   override def nodeName: String = "VeloxColumnarToRowExec"
 
   override def doExecuteBroadcast[T](): Broadcast[T] = {
@@ -89,8 +89,8 @@ class ColumnarToRowRDD(
       Iterator.empty
     } else {
       val res: Iterator[Iterator[InternalRow]] = new Iterator[Iterator[InternalRow]] {
-        val localOutput = output
-        val toUnsafe = UnsafeProjection.create(localOutput, localOutput)
+        val localOutput: Seq[Attribute] = output
+        val toUnsafe: UnsafeProjection = UnsafeProjection.create(localOutput, localOutput)
         override def hasNext: Boolean = {
           val hasNext = batches.hasNext
           if (!hasNext && !closed) {

@@ -31,13 +31,15 @@ import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 object RowToVeloxColumnarExec {
   def toVeloxBatchIterator(
-      numInputRows: SQLMetric,
-      numOutputBatches: SQLMetric,
-      batchSize: Int,
-      localSchema: StructType,
-      rowIterator: Iterator[InternalRow]): Iterator[ColumnarBatch] = {
+                            numInputRows: SQLMetric,
+                            numOutputBatches: SQLMetric,
+                            convertTime: SQLMetric,
+                            batchSize: Int,
+                            localSchema: StructType,
+                            rowIterator: Iterator[InternalRow]): Iterator[ColumnarBatch] = {
     if (rowIterator.hasNext) {
       val res = new Iterator[ColumnarBatch] {
+        private val buffer: Array[InternalRow] = new Array(batchSize)
         private val converters = new VeloxRowToColumnConverter(localSchema)
         private var last_cb: ColumnarBatch = null
         private var elapse: Long = 0
@@ -49,15 +51,16 @@ object RowToVeloxColumnarExec {
         override def next(): ColumnarBatch = {
           val cb = ColumnBatchUtils.createWriterableColumnBatch(batchSize, localSchema)
           var rowCount = 0
+          val vectors = cb.asInstanceOf[VeloxColumnarBatch]
+            .getColumns
+            .map(_.asInstanceOf[WritableColumnVector])
           while (rowCount < batchSize && rowIterator.hasNext) {
             val row = rowIterator.next()
             val start = System.nanoTime()
             converters.convert(
               row,
-              cb.asInstanceOf[VeloxColumnarBatch]
-                .getColumns
-                .map(_.asInstanceOf[WritableColumnVector]))
-            elapse += System.nanoTime() - start
+              vectors)
+            convertTime += System.nanoTime() - start
             rowCount += 1
           }
           cb.setNumRows(rowCount)
@@ -92,17 +95,18 @@ object RowToVeloxColumnarExec {
  * be to reduce code.
  */
 case class RowToVeloxColumnarExec(child: SparkPlan)
-    extends RowToColumnarTransition
+  extends RowToColumnarTransition
     with UnaryExecNode {
 
   @transient override lazy val metrics = Map(
     "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of intput rows"),
     "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "number of output batches"),
-    "convertTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to convert"))
+    "convertTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "time to convert"))
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     val numInputRows = longMetric("numInputRows")
     val numOutputBatches = longMetric("numOutputBatches")
+    val convertTime = longMetric("convertTime")
     // Instead of creating a new config we are reusing columnBatchSize. In the future if we do
     // combine with some of the Arrow conversion tools we will need to unify some of the configs.
     val numRows = conf.columnBatchSize
@@ -110,7 +114,13 @@ case class RowToVeloxColumnarExec(child: SparkPlan)
     // plan (this) in the closure.
     val localSchema = schema
     child.execute().mapPartitions { rowIterator =>
-      toVeloxBatchIterator(numInputRows, numOutputBatches, numRows, localSchema, rowIterator)
+      toVeloxBatchIterator(
+        numInputRows,
+        numOutputBatches,
+        convertTime,
+        numRows,
+        localSchema,
+        rowIterator)
     }
   }
 

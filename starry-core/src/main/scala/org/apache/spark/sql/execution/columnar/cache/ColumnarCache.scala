@@ -73,6 +73,7 @@ class CachedVeloxBatchSerializer extends CachedBatchSerializer {
         .toVeloxBatchIterator(
           new SQLMetric("numInputRows"),
           new SQLMetric("numInputRows"),
+          new SQLMetric("numInputRows"),
           batchSize,
           structType,
           itr)

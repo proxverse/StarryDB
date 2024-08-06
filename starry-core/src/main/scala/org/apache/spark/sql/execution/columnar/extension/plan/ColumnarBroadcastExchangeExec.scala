@@ -47,28 +47,21 @@ import scala.concurrent.duration.NANOSECONDS
 import scala.util.control.NonFatal
 
 class CloseableColumnBatchIterator(
-    itr: Iterator[ColumnarBatch],
-    pipelineTime: Option[SQLMetric] = None)
+    itr: Iterator[ColumnarBatch])
     extends Iterator[ColumnarBatch]
     with Logging {
   var cb: ColumnarBatch = _
-  var scanTime = 0L
 
   override def hasNext: Boolean = {
-    val beforeTime = System.nanoTime()
     val res = itr.hasNext
-    scanTime += System.nanoTime() - beforeTime
     if (!res) {
-      pipelineTime.foreach(t => t += TimeUnit.NANOSECONDS.toMillis(scanTime))
       closeCurrentBatch()
     }
     res
   }
   override def next(): ColumnarBatch = {
-    val beforeTime = System.nanoTime()
     closeCurrentBatch()
     cb = itr.next()
-    scanTime += System.nanoTime() - beforeTime
     cb
   }
 

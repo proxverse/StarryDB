@@ -30,10 +30,11 @@ class VeloxRowToColumnConverter(schema: StructType) extends Serializable {
   val converters = schema.fields.map {
     f => VeloxRowToColumnConverter.getConverterForType(f.dataType, f.nullable)
   }
+  private val length: Int = converters.length
 
   final def convert(row: InternalRow, vectors: Array[WritableColumnVector]): Unit = {
     var idx = 0
-    while (idx < row.numFields) {
+    while (idx < length) {
       converters(idx).append(row, idx, vectors(idx))
       idx += 1
     }
