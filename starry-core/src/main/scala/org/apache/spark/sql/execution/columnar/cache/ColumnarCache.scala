@@ -211,10 +211,10 @@ class CachedVeloxBatchSerializer extends CachedBatchSerializer {
       itr
         .map { batch =>
           val veloxBatch = batch.asInstanceOf[CachedVeloxBatch].veloxBatch
-          val GlutenVeloxColumnarBatch = veloxBatch.getColumns
+          val columns = veloxBatch.getColumns
           val vectors = requestedColumnIndices
-            .map(GlutenVeloxColumnarBatch.apply)
-            .map(c => new NoCloseColumnVector(c).asInstanceOf[ColumnVector])
+            .map(columns.apply)
+            .map(c => NoCloseColumnVector(c).asInstanceOf[ColumnVector])
             .toArray
           val newBatch = new VeloxColumnarBatch(vectors, veloxBatch.numRows())
           newBatch

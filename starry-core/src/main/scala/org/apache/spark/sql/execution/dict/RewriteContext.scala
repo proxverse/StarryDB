@@ -8,12 +8,17 @@ import org.apache.spark.sql.execution.columnar.{CachedRDDBuilder, InMemoryRelati
 import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.types.ArrayType
 
+import java.util
 import scala.collection.mutable
 
 object RewriteContext {
 
 
   private val currentPlan_ = new ThreadLocal[PlanWithDictMapping]()
+
+  private val commonExpr_ = new ThreadLocal[java.util.HashMap[Expression, Expression]]{
+    override def initialValue(): util.HashMap[Expression, Expression] = new util.HashMap[Expression, Expression]()
+  }
 
   private def currentPlan = currentPlan_.get()
 
@@ -26,9 +31,11 @@ object RewriteContext {
 
   def transformWithContext(root: LogicalPlan)(rule: Function[LogicalPlan, LogicalPlan]): LogicalPlan = {
     try {
+      commonExpr_.get().clear()
       currentPlan_.remove()
       transform(root)(rule)
     } finally {
+      commonExpr_.get().clear()
       currentPlan_.remove()
     }
   }
@@ -90,6 +97,18 @@ object RewriteContext {
       plan.unsetTagValue(GLOBAL_DICT_MAPPING_TAG)
       plan.expressions.foreach(_.unsetTagValue(GLOBAL_DICT_TAG))
     }
+  }
+
+  def lookupExecutionExpression(expr: Expression): Option[Expression] = {
+    if (commonExpr_.get().containsKey(expr)) {
+      Option.apply(commonExpr_.get().get(expr))
+    } else {
+      Option.empty
+    }
+  }
+
+  def recordExecutionExpression(expr: Expression, dict: Expression): Unit = {
+      commonExpr_.get().put(expr, dict)
   }
 
   // expression wrapper for easy access columnDict

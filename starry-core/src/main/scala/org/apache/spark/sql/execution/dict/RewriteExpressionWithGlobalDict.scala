@@ -45,6 +45,8 @@ object RewriteExpressionWithGlobalDict extends Logging {
       // reference that is not inside a computable func call needs decode
       case ar: AttributeReference =>
         ar.decodeInChildren()
+      case aggregateExpression: AggregateExpression =>
+        rewriteAggregateExpression(aggregateExpression)
       // keep window related exprs
       case wexpr: WindowExpression =>
         wexpr
@@ -80,10 +82,7 @@ object RewriteExpressionWithGlobalDict extends Logging {
   }
 
   private def rewriteAggregateExpression(expression: Expression): Expression = {
-    expression match {
-      // custom rewrite
-      case customExpr if DictExpressionRewriteRegistry.findAggExprRewrite(customExpr).isDefined =>
-        DictExpressionRewriteRegistry.findAggExprRewrite(customExpr).get.rewrite(customExpr)
+    var exprAfterRewriter = expression match {
       case alias @ Alias(agg: AggregateExpression, _) =>
         val newAgg = agg.mapChildren {
           case aggregateFunction: AggregateFunction =>
@@ -103,7 +102,35 @@ object RewriteExpressionWithGlobalDict extends Logging {
         } else {
           Alias(newAgg, alias.name)(exprId = alias.exprId)
         }
+
+      case agg: AggregateExpression =>
+        val newAgg = agg.mapChildren {
+          case aggregateFunction: AggregateFunction =>
+            aggregateFunction.mapChildren { child =>
+              val newChild = tryDecodeDown(child, true)
+              newChild.dict match {
+                case Some(_: ExecutionColumnDict) =>
+                  newChild.decode()
+                case _ =>
+                  newChild
+              }
+            }
+          case other => tryDecodeDown(other)
+        }
+        if (newAgg fastEquals agg) {
+          agg
+        } else {
+          newAgg
+        }
     }
+    if (DictExpressionRewriteRegistry.findAggExprRewrite(expression).isDefined) {
+      // custom rewrite
+      return DictExpressionRewriteRegistry
+        .findAggExprRewrite(exprAfterRewriter)
+        .get
+        .rewrite(exprAfterRewriter)
+    }
+    exprAfterRewriter
   }
 
   private def rewriteWindowExpression(expression: Expression): Expression = {
@@ -126,6 +153,11 @@ object RewriteExpressionWithGlobalDict extends Logging {
     expression match {
       case namedExpr @ Alias(expr, name) if canDoDictExecution(expr) =>
         try {
+          val maybeExpression = lookupExecutionExpression(expr)
+          if (maybeExpression.isDefined) {
+            return maybeExpression.get
+          }
+
           val encodedRef = expr.references.head.encodedRefInChildren().get
           val nullExpr = expr.transform {
             case ar: AttributeReference =>
@@ -144,13 +176,16 @@ object RewriteExpressionWithGlobalDict extends Logging {
               if (value == null) {
                 val transformedExpr = Alias(encodedRef, s"${name}_enc_transformed")()
                 namedExpr.recordMapping(transformedExpr, execDict)
+                recordExecutionExpression(expr, transformedExpr)
                 transformedExpr
               } else {
-                namedExpr.withNewChildren(
+                val transformedExpr = namedExpr.withNewChildren(
                   Seq(
                     CaseWhen(
                       Seq((IsNull(encodedRef), Literal.create(value, expr.dataType))),
                       LowCardDictDecode(encodedRef, execDict))))
+                recordExecutionExpression(expr, transformedExpr)
+                transformedExpr
               }
             case _ =>
               namedExpr
@@ -162,6 +197,10 @@ object RewriteExpressionWithGlobalDict extends Logging {
         }
 
       case expr: Expression if canDoDictExecution(expr) =>
+        val maybeExpression = lookupExecutionExpression(expr)
+        if (maybeExpression.isDefined) {
+          return maybeExpression.get
+        }
         val encodedRef = expr.references.head.encodedRefInChildren().get
         val boundExpr = expr.transform {
           case ar: AttributeReference =>
@@ -178,13 +217,16 @@ object RewriteExpressionWithGlobalDict extends Logging {
             case native: NativeJsonExpression =>
               val execDict =
                 ExecutionColumnDict(encodedRef.dict.get, boundExpr, expr.dataType, native.native)
-              val transformedExpr = LowCardDictDecode(encodedRef, execDict)
+              var transformedExpr = LowCardDictDecode(encodedRef, execDict)
               if (value == null) {
+                recordExecutionExpression(expr, transformedExpr)
                 transformedExpr
               } else {
-                CaseWhen(
+                val after = CaseWhen(
                   Seq((IsNull(encodedRef), Literal.create(value, expr.dataType))),
                   transformedExpr)
+                recordExecutionExpression(expr, after)
+                after
               }
             case _ =>
               expr
