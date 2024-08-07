@@ -31,8 +31,10 @@ object GlobalDictRegistry extends Logging {
     .maximumSize(100)
     .removalListener((notify: RemovalNotification[Key, mutable.Buffer[ColumnDictIndex]]) =>
       notify.getValue.foreach { v =>
-        v.dict.cleanup()
-        logInfo(s"remove dict ${v.table},${v.column} id ${v.dict.broadcastID}")
+        try {
+          v.dict.cleanup()
+          logInfo(s"remove dict ${v.table},${v.column} id ${v.dict.broadcastID}")
+        }
       }
     )
     .build()
@@ -49,6 +51,10 @@ object GlobalDictRegistry extends Logging {
   def invalidate(db: String, table: String): Unit = {
     cache.invalidate(Key(db, table))
     logInfo(s"column dict cache invalidated for ${db}.${table}")
+  }
+
+  def invalidateAll(): Unit = {
+    cache.invalidateAll()
   }
 
   def register(db: String, table: String, columnDict: ColumnDictIndex): Unit = {
