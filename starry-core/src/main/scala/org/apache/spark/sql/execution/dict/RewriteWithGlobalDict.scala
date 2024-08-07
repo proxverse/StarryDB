@@ -143,6 +143,8 @@ object RewriteWithGlobalDict extends Rule[LogicalPlan] with PredicateHelper {
           p.child)
       case expand: Expand =>
         expand.mapExpressions(rewriteExpr(_, useExecution = true))
+      case generate: Generate =>
+        generate.mapExpressions(rewriteExpr(_, useExecution = true))
       case agg: Aggregate =>
         agg.mapExpressions {
           case ar: AttributeReference if ar.hasExecDictInChildren() =>
