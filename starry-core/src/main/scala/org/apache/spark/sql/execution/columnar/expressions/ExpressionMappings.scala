@@ -260,7 +260,6 @@ object ExpressionMappings {
   final val BITMAP_COUNT_DISTINCT = "bitmap_count_distinct"
 
   // Bitmap
-  final val BITMAP_CONTAINS = "starry_bitmap_contains"
   final val CONSTRUCT_BITMAP = "construct_bitmap"
 
   /**
@@ -451,8 +450,6 @@ object ExpressionMappings {
     NameSig[ArrayPosition](ARRAY_POSITION),
     NameSig[ArrayPositionWithInstance](ARRAY_POSITION),
     NameSig[Slice](ARRAY_SLICE),
-    // Bitmap
-    NameSig[BitmapContains](BITMAP_CONTAINS),
   )
 
   /** Mapping Spark aggregation expression to Substrait function name */

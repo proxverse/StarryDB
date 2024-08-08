@@ -1,18 +1,16 @@
 package org.apache.spark.sql.execution.columnar.extension
 
-import org.apache.commons.codec.binary.Hex
-import org.apache.spark.sql.catalyst.expressions.{And, Ascending, Explode, Expression, Inline, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{Ascending, Explode, Expression, Inline, SortOrder}
 import org.apache.spark.sql.catalyst.optimizer.BuildRight
 import org.apache.spark.sql.catalyst.rules.{Rule, UnknownRuleId}
 import org.apache.spark.sql.catalyst.trees.AlwaysProcess
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, SortAggregateExec}
-import org.apache.spark.sql.execution.columnar.expressions.{BitmapContains, ExpressionConverter, Unnest}
+import org.apache.spark.sql.execution.columnar.expressions.{ExpressionConverter, Unnest}
 import org.apache.spark.sql.execution.columnar.extension.plan._
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, ShuffledHashJoinExec, SortMergeJoinExec}
 import org.apache.spark.sql.execution.window.WindowExec
-import org.apache.spark.sql.functions.lit
 import org.apache.spark.sql.internal.StarryConf
 import org.apache.spark.sql.types.{AtomicType, IntegralType}
 

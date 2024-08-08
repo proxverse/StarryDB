@@ -2,6 +2,7 @@ package org.apache.spark.sql.execution.columnar.expressions.convert
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.execution.columnar.expressions.BitmapContains
 import org.apache.spark.sql.execution.dict.{LowCardDictDecode, LowCardDictDecodeArray}
 import org.apache.spark.sql.internal.StarryConf
 import org.apache.spark.util.Utils
@@ -82,6 +83,7 @@ object ExpressionConvertMapping {
     Sig[DateFormatClass](DateFormatConverter),
     Sig[LowCardDictDecode](LowCardDictDecodeConverter),
     Sig[LowCardDictDecodeArray](LowCardDictDecodeConverter),
+    Sig[BitmapContains](BitmapContainsConverter),
     Sig[KnownFloatingPointNormalized](NormalizedConvert),
     Sig[Size](SizeConvert),
     Sig[ApplyFunctionExpression](ApplyFunctionExpressionConvert),

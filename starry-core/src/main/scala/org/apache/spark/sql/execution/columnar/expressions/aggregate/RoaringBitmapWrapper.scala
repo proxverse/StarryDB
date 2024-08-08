@@ -120,7 +120,17 @@ object RoaringBitmapWrapper {
     val int64 = buf.get() == 1
     val wrapper = new RoaringBitmapWrapper(int64)
     wrapper.read(buf)
+    wrapper.flush()
     wrapper
   }
+
+  def deserialize(bytes: Array[Byte], int64: Boolean): RoaringBitmapWrapper = {
+    val buf = ByteBuffer.wrap(bytes)
+    val wrapper = new RoaringBitmapWrapper(int64)
+    wrapper.read(buf)
+    wrapper.flush()
+    wrapper
+  }
+
 
 }
