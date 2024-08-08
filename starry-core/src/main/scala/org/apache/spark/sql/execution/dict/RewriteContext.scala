@@ -157,6 +157,10 @@ object RewriteContext {
       dictInChildren().exists(isExecDict)
     }
 
+    def execDictEncoded(): Boolean = {
+      dict.exists(isExecDict)
+    }
+
     private def isExecDict(dict: ColumnDict): Boolean = {
       dict match {
         case _: ExecutionColumnDict => true

@@ -108,9 +108,11 @@ object RewriteWithGlobalDict extends Rule[LogicalPlan] with PredicateHelper {
       .zip(originalPlan.output)
       .map {
         case (encodedAttr, oriAttr) // decode if needed
-            if encodedAttrs.exists(_.exprId == encodedAttr.exprId) &&
-              // in case it actually queries the encoded col
-              encodedAttr.dataType != oriAttr.dataType =>
+            if encodedAttrs.find(_.exprId == encodedAttr.exprId).exists(
+                // exec dict requires decoding
+                _.execDictEncoded() ||
+                // in case it actually queries the encoded col
+                encodedAttr.dataType != oriAttr.dataType ) =>
           encodedAttrs
             .find(_.exprId == encodedAttr.exprId)
             .get
