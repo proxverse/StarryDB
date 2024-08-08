@@ -211,7 +211,7 @@ object RewriteWithGlobalDict extends Rule[LogicalPlan] with PredicateHelper {
         .groupBy(_._1)
         .map(t => t._2.map(_._2).reduce(And))
       val newCondition =
-        (expressions.map(tryDecodeDown(_, true)) ++ (isNotNull ++ other).map(tryDecodeDown(_)))
+        (expressions.map(tryDecodeDown(_, true)) ++ (isNotNull ++ other).map(tryDecodeDown(_, true)))
           .reduce(And)
       Filter(newCondition, filter.child)
     } else if (splitDisjunctivePredicates(filter.condition).size > 1) {
@@ -226,7 +226,7 @@ object RewriteWithGlobalDict extends Rule[LogicalPlan] with PredicateHelper {
         .groupBy(_._1)
         .map(t => t._2.map(_._2).reduce(Or))
       val newCondition =
-        (expressions.map(tryDecodeDown(_, true)) ++ (isNotNull ++ other).map(tryDecodeDown(_)))
+        (expressions.map(tryDecodeDown(_, true)) ++ (isNotNull ++ other).map(tryDecodeDown(_, true)))
           .reduce(Or)
       Filter(newCondition, filter.child)
     } else {
