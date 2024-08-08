@@ -17,7 +17,7 @@
 package org.apache.spark.sql.execution.columnar.extension.plan
 
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.SpecializedGetters
+import org.apache.spark.sql.catalyst.expressions.{SpecializedGetters, UnsafeRow}
 import org.apache.spark.sql.errors.QueryExecutionErrors
 import org.apache.spark.sql.execution.vectorized.WritableColumnVector
 import org.apache.spark.sql.types._
@@ -33,6 +33,14 @@ class VeloxRowToColumnConverter(schema: StructType) extends Serializable {
   private val length: Int = converters.length
 
   final def convert(row: InternalRow, vectors: Array[WritableColumnVector]): Unit = {
+    var idx = 0
+    while (idx < row.numFields) {
+      converters(idx).append(row, idx, vectors(idx))
+      idx += 1
+    }
+  }
+
+  final def convert(row: UnsafeRow, vectors: Array[WritableColumnVector]): Unit = {
     var idx = 0
     while (idx < length) {
       converters(idx).append(row, idx, vectors(idx))
