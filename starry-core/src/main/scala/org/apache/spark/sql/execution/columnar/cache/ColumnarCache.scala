@@ -16,30 +16,15 @@
  */
 package org.apache.spark.sql.execution.columnar.cache
 
+import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, UnsafeProjection}
-import org.apache.spark.sql.columnar.{
-  CachedBatch,
-  CachedBatchSerializer,
-  SimpleMetricsCachedBatch
-}
-import org.apache.spark.sql.execution.columnar.{
-  ColumnBatchUtils,
-  NoCloseColumnVector,
-  VeloxColumnarBatch
-}
-import org.apache.spark.sql.execution.columnar.extension.plan.{
-  CloseableColumnBatchIterator,
-  RowToVeloxColumnarExec,
-  VeloxRowToColumnConverter
-}
+import org.apache.spark.sql.columnar.{CachedBatch, CachedBatchSerializer, SimpleMetricsCachedBatch}
+import org.apache.spark.sql.execution.columnar.{ColumnBatchUtils, NoCloseColumnVector, VeloxColumnarBatch}
+import org.apache.spark.sql.execution.columnar.extension.plan.{CloseableColumnBatchIterator, RowToVeloxColumnarExec, VeloxRowToColumnConverter}
 import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.execution.vectorized.{
-  OffHeapColumnVector,
-  OnHeapColumnVector,
-  WritableColumnVector
-}
+import org.apache.spark.sql.execution.vectorized.{OffHeapColumnVector, OnHeapColumnVector, WritableColumnVector}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
@@ -51,7 +36,7 @@ case class DefaultCachedBatch(numRows: Int, buffers: Array[Array[Byte]], stats: 
     extends SimpleMetricsCachedBatch
 
 /** The default implementation of CachedBatchSerializer. */
-class CachedVeloxBatchSerializer extends CachedBatchSerializer {
+class CachedVeloxBatchSerializer extends CachedBatchSerializer with Logging{
   override def supportsColumnarInput(schema: Seq[Attribute]): Boolean = true
 
   override def convertColumnarBatchToCachedBatch(
@@ -60,7 +45,7 @@ class CachedVeloxBatchSerializer extends CachedBatchSerializer {
       storageLevel: StorageLevel,
       conf: SQLConf): RDD[CachedBatch] = {
     if (storageLevel.useDisk && storageLevel.useMemory) {
-      throw new UnsupportedOperationException("only support one storage")
+      logWarning(s"columnar cache only support one storage ${Thread.currentThread().getStackTrace.mkString(",")}")
     }
     val structType = StructType.fromAttributes(schema)
     val batchSize = conf.columnBatchSize
@@ -82,7 +67,7 @@ class CachedVeloxBatchSerializer extends CachedBatchSerializer {
       storageLevel: StorageLevel,
       conf: SQLConf): RDD[CachedBatch] = {
     if (storageLevel.useDisk && storageLevel.useMemory) {
-      throw new UnsupportedOperationException("columnar cache only support one storage")
+      logWarning(s"columnar cache only support one storage ${Thread.currentThread().getStackTrace.mkString(",")}")
     }
     val batchSize = conf.columnBatchSize
     val useCompression = conf.useCompression

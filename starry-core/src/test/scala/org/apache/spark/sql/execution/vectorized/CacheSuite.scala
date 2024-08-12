@@ -25,20 +25,20 @@ import org.apache.spark.sql.execution.columnar.cache.CachedVeloxBatch
 import org.apache.spark.sql.execution.datasources.parquet.ParquetTest
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
+import org.apache.spark.storage.StorageLevel.MEMORY_ONLY
 
 class CacheSuite extends ParquetTest {
-
 
   test("PostMergeAggregateExpression: test rewrite") {
     withTable("bucket_table") {
       val frame = readResourceParquetFile("performance-data")
       val frame1 = frame
-      frame1.cache
+      frame1.persist(MEMORY_ONLY)
       frame1.count()
       val cachedFrame = frame
         .select(split(col("SHIPMODE"), " ")
           .as("a"))
-        .cache()
+        .persist(MEMORY_ONLY)
       val rows1 = cachedFrame
         .select(element_at(col("a"), 0))
         .count()
@@ -51,7 +51,7 @@ class CacheSuite extends ParquetTest {
     withTable("bucket_table") {
       val frame = readResourceParquetFile("performance-data")
       val frame1 = frame
-      frame1.cache
+        .persist(MEMORY_ONLY)
       frame1.count()
       val variants = frame
         .select(col("SHIPMODE")
@@ -86,7 +86,7 @@ class CacheSuite extends ParquetTest {
     withTable("bucket_table") {
       val frame = readResourceParquetFile("performance-data")
       val frame1 = frame
-      frame1.cache
+      frame1.persist(MEMORY_ONLY)
       frame1.count()
       val variants = frame
         .select(col("SHIPMODE")

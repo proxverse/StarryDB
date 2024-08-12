@@ -23,6 +23,7 @@ import org.apache.spark.sql.execution.columnar.extension.utils.NativeLibUtil
 import org.apache.spark.sql.execution.columnar.jni.NativeQueryContext
 import org.apache.spark.sql.execution.datasources.parquet.ParquetTest
 import org.apache.spark.sql.internal.{SQLConf, StarryConf}
+import org.apache.spark.storage.StorageLevel.MEMORY_ONLY
 import org.scalatest.Assertions
 
 class MemorySuite extends ParquetTest {
@@ -47,7 +48,7 @@ class MemorySuite extends ParquetTest {
         }
         val frame = readResourceParquetFile("performance-data")
         try {
-          frame.cache
+          frame.persist(MEMORY_ONLY)
           frame.count()
           Assertions.fail()
         } catch {

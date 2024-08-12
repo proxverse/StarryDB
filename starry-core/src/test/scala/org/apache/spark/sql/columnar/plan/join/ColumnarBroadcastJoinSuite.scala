@@ -35,6 +35,7 @@ import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.test.SQLTestUtils
 import org.apache.spark.sql.types.{LongType, ShortType}
+import org.apache.spark.storage.StorageLevel.MEMORY_ONLY
 import org.scalactic.source.Position
 import org.scalatest.Tag
 
@@ -129,7 +130,7 @@ abstract class BroadcastJoinSuiteBase extends QueryTest with SQLTestUtils
       try {
         val df1 = Seq((1, "4"), (2, "2")).toDF("key", "value")
         val df2 = Seq((1, "1"), (2, "2")).toDF("key", "value")
-        df2.cache()
+        df2.persist(MEMORY_ONLY)
         val df3 = df1.join(broadcast(df2), Seq("key"), "inner")
         val numBroadCastHashJoin = collect(df3.queryExecution.executedPlan) {
           case b: BroadcastHashJoinExec => b
@@ -146,7 +147,7 @@ abstract class BroadcastJoinSuiteBase extends QueryTest with SQLTestUtils
       try {
         val df1 = Seq((1, "4"), (2, "2")).toDF("key", "value")
         val df2 = Seq((1, "1"), (2, "2")).toDF("key", "value")
-        broadcast(df2).cache()
+        broadcast(df2).persist(MEMORY_ONLY)
 
         val df3 = df1.join(df2, Seq("key"), "inner")
         val numCachedPlan = collect(df3.queryExecution.executedPlan) {

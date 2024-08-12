@@ -2,6 +2,7 @@ package org.apache.spark.sql.columnar.plan
 
 import org.apache.spark.sql.common.ColumnarSharedSparkSession
 import org.apache.spark.sql.execution.datasources.parquet.ParquetTest
+import org.apache.spark.storage.StorageLevel.MEMORY_ONLY
 
 class PlanSuite extends ColumnarSharedSparkSession with ParquetTest {
 
@@ -14,7 +15,7 @@ class PlanSuite extends ColumnarSharedSparkSession with ParquetTest {
 
   test("test row cache") {
     readParquetFile(testFile("test-data/memory_leak_test.parquet")) { df =>
-      val rows = df.filter("caseid = 'ABC-20221130-33888'").cache.count
+      val rows = df.filter("caseid = 'ABC-20221130-33888'").persist(MEMORY_ONLY).count
       println(rows)
     }
   }
@@ -22,7 +23,7 @@ class PlanSuite extends ColumnarSharedSparkSession with ParquetTest {
     readParquetFile(testFile("test-data/memory_leak_test.parquet")) { df =>
       val rows = df
         .filter("caseid = 'ABC-20221130-33888'")
-        .cache
+        .persist(MEMORY_ONLY)
         .collect()
       println(rows)
     }
