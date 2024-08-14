@@ -32,7 +32,6 @@ object GlobalDictRegistry extends Logging {
     .removalListener((notify: RemovalNotification[Key, mutable.Buffer[ColumnDictIndex]]) =>
       notify.getValue.foreach { v =>
         try {
-          v.dict.cleanup()
           logInfo(s"remove dict ${v.table},${v.column} id ${v.dict.broadcastID}")
         }
       }
