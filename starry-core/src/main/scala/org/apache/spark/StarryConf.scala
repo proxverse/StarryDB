@@ -99,7 +99,7 @@ object StarryConf {
     .buildConf("spark.sql.starry.columnar.columnarShuffleEnabled")
     .internal()
     .booleanConf
-    .createWithDefault(true)
+    .createWithDefault(false)
 
   val REMOVE_SINGLE_PARTITION = SQLConf
     .buildConf("spark.sql.starry.columnar.removeSinglePartition")
