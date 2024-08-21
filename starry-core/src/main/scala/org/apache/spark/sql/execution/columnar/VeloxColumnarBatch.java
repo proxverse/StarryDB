@@ -40,8 +40,16 @@ public class VeloxColumnarBatch extends ColumnarBatch {
   }
 
   public static VeloxColumnarBatch createFromJson(byte[] json, StructType structType) {
-    VeloxColumnarBatch fromRowVector = createFromRowVector(NativeColumnVector.deserialize(json), structType);
-    return fromRowVector;
+    return createFromBytes(json, structType, 0);
+  }
+
+  public static VeloxColumnarBatch createFromBytes(byte[] json, StructType structType, int type) {
+    try {
+      VeloxColumnarBatch fromRowVector = createFromRowVector(NativeColumnVector.deserialize(json, type, structType.catalogString()), structType);
+      return fromRowVector;
+    } catch (Exception e) {
+      throw e;
+    }
   }
 
   public static VeloxColumnarBatch createFromRowVector(NativeColumnVector rootVector, StructType structType) {

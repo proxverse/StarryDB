@@ -17,11 +17,6 @@
 
 package org.apache.spark.rpc
 
-import org.apache.spark.rpc.RpcEndpointRef
-import org.apache.spark.storage.BlockManagerMessages.ToBlockManagerMaster
-
-import java.util
-
 sealed trait ToMemorykManagerMasterEndpoint
 case class MemoryStatics() extends ToMemorykManagerMasterEndpoint
 
@@ -34,7 +29,6 @@ case class RegisterManagerManager(executorId: String, sender: RpcEndpointRef)
 
 case class FetchMemoryStatics() extends ToMemoryManagerMaster
 
-
-
 sealed trait ToMemoryManagerMasterReplay
-case class MemoryStaticsReply(executorId: String, info: String) extends ToMemoryManagerMasterReplay
+case class MemoryStaticsReply(executorId: String, info: String)
+    extends ToMemoryManagerMasterReplay

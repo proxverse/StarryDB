@@ -1,15 +1,26 @@
 package org.apache.spark.sql.execution.columnar.extension
 
-import org.apache.spark.sql.catalyst.expressions.{Ascending, Explode, Expression, Inline, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{
+  Ascending,
+  Explode,
+  Expression,
+  Inline,
+  SortOrder
+}
 import org.apache.spark.sql.catalyst.optimizer.BuildRight
+import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
 import org.apache.spark.sql.catalyst.rules.{Rule, UnknownRuleId}
 import org.apache.spark.sql.catalyst.trees.AlwaysProcess
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.columnar.expressions.{ExpressionConverter, Unnest}
 import org.apache.spark.sql.execution.columnar.extension.plan._
-import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
-import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, ShuffledHashJoinExec, SortMergeJoinExec}
+import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
+import org.apache.spark.sql.execution.joins.{
+  BroadcastHashJoinExec,
+  ShuffledHashJoinExec,
+  SortMergeJoinExec
+}
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.internal.StarryConf
 import org.apache.spark.sql.types.{AtomicType, IntegralType}
@@ -104,7 +115,8 @@ case class ColumnarTransformRule() extends Rule[SparkPlan] {
             e2.isSkewJoin)
         case (filterExec: SortMergeJoinExec, e2: SortMergeJoinExec) if canTransform(filterExec) =>
           if ((!StarryConf.sMJEnabled) ||
-            (StarryConf.rewriteSMJEnabled && e2.children.exists(_.isInstanceOf[ColumnarSortExec]))) {
+              (StarryConf.rewriteSMJEnabled && e2.children.exists(
+                _.isInstanceOf[ColumnarSortExec]))) {
             logInfo("Rewrite smg to hash join")
             val newLeft = e2.left match {
               case columnarSortExec: ColumnarSortExec =>
@@ -183,7 +195,21 @@ case class ColumnarTransformRule() extends Rule[SparkPlan] {
           } else {
             after
           }
-
+        case (_: ShuffleExchangeExec, after: ShuffleExchangeExec)
+            if StarryConf.columnarShuffleEnabled &&
+              after.outputPartitioning.isInstanceOf[HashPartitioning] &&
+              after.outputPartitioning
+                .asInstanceOf[HashPartitioning]
+                .expressions
+                .nonEmpty =>
+          val newChild = ColumnarPartitionedOutputExec(
+            after.outputPartitioning.asInstanceOf[HashPartitioning],
+            after.child)
+          ColumnarShuffleExchangeExec(
+            after.outputPartitioning,
+            newChild,
+            after.shuffleOrigin,
+            after.output)
         case (e, e2) =>
           if (e2.children
                 .zip(e2.requiredChildOrdering)

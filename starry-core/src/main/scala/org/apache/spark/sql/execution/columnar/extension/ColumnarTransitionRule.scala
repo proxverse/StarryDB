@@ -22,10 +22,18 @@ import org.apache.spark.sql.catalyst.rules.{PlanChangeLogger, Rule}
 import org.apache.spark.sql.internal.StarryConf.isStarryEnabled
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.columnar.extension.plan._
-import org.apache.spark.sql.execution.columnar.extension.rule.{CollapseProjectExec, SingleAggregateRule}
+import org.apache.spark.sql.execution.columnar.extension.rule.{
+  CollapseProjectExec,
+  SingleAggregateRule
+}
 import org.apache.spark.sql.execution.columnar.jni.NativeQueryContext
 import org.apache.spark.sql.execution.exchange.Exchange
-import org.apache.spark.sql.execution.{ColumnarRule, ColumnarToRowExec, RowToColumnarExec, SparkPlan}
+import org.apache.spark.sql.execution.{
+  ColumnarRule,
+  ColumnarToRowExec,
+  RowToColumnarExec,
+  SparkPlan
+}
 
 case class ColumnarTransitionRule(pre: Rule[SparkPlan], post: Rule[SparkPlan])
     extends ColumnarRule {
@@ -67,14 +75,6 @@ case class PreRuleReplaceRowToColumnar(session: SparkSession)
 
     var overridden: SparkPlan = plan
     val startTime = System.nanoTime()
-    //noinspection ScalaStyle
-    //todo 1. topexchange会发生什么
-    // 2. ae会发生什么
-    val isTopParentExchange = plan match {
-      case _: Exchange => true
-      case _ => false
-    }
-//                        6
     val traceElements = Thread.currentThread.getStackTrace
     assert(
       traceElements.length > aqeStackTraceIndex,
@@ -130,6 +130,8 @@ case class VeloxColumnarPostRule() extends Rule[SparkPlan] {
           case other =>
             ColumnarInputAdapter(other)
         })
+      case RowToColumnarExec(child: ColumnarShuffleExchangeExec) =>
+        child
       case rc: ColumnarToRowExec if isStarryEnabled && rc.child.isInstanceOf[ColumnarSupport] =>
         new VeloxColumnarToRowExec(
           new ColumnarEngineExec(rc.child)(
@@ -141,8 +143,7 @@ case class VeloxColumnarPostRule() extends Rule[SparkPlan] {
       case _ @ColumnarBroadcastExchangeExec(mode, child: ColumnarSupport) =>
         ColumnarBroadcastExchangeExec(
           mode,
-          ColumnarEngineExec(child)(
-            ColumnarEngineExec.transformStageCounter.incrementAndGet()))
+          ColumnarEngineExec(child)(ColumnarEngineExec.transformStageCounter.incrementAndGet()))
       case plan => plan
     }
     after

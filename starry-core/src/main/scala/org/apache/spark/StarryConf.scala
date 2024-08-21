@@ -95,6 +95,12 @@ object StarryConf {
     .booleanConf
     .createWithDefault(true)
 
+  val COLUMNAR_SHUFFLE_ENABLED = SQLConf
+    .buildConf("spark.sql.starry.columnar.columnarShuffleEnabled")
+    .internal()
+    .booleanConf
+    .createWithDefault(true)
+
   val REMOVE_SINGLE_PARTITION = SQLConf
     .buildConf("spark.sql.starry.columnar.removeSinglePartition")
     .doc("移除一个分区的 exchange")
@@ -141,6 +147,8 @@ object StarryConf {
 
   def rewriteCountDistinctAsBitmap: Boolean =
     SQLConf.get.getConf(REWRITE_COUNT_DISTINCT_AS_BITMAP)
+
+  def columnarShuffleEnabled: Boolean = SQLConf.get.getConf(COLUMNAR_SHUFFLE_ENABLED)
 
   def newDateDiffEnabled: Boolean =
     SQLConf.get.getConf(NEW_DATE_DIFF_ENABLED)

@@ -13,7 +13,5 @@ class MemoryManagerSuite extends ColumnarSharedSparkSession {
   test("remove executor") {
     StarryEnv.get.memoryManager.master.removeExecutor("driver")
     Assertions.assert(StarryEnv.get.memoryManager.master.memoryStatics().isEmpty)
-
-
   }
 }

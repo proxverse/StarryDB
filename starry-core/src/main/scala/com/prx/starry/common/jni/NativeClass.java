@@ -16,14 +16,14 @@ public abstract class NativeClass implements AutoCloseable {
 
   protected abstract void releaseInternal();
 
-  public final void Release(){
+  public final void Release() {
     releaseInternal();
   }
 
   @Override
   public synchronized void close() {
     if (!isRelease) {
-     Release();
+      Release();
       isRelease = true;
     }
   }

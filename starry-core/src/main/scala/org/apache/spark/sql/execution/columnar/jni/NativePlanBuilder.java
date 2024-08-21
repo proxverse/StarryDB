@@ -26,11 +26,11 @@ public class NativePlanBuilder extends NativeClass {
                                              String output);
 
   private native void nativeMergeJoin(String joinType,
-                                             String[] leftKeys,
-                                             String[] rightKeys,
-                                             String filter,
-                                             String rightPlan,
-                                             String output);
+                                      String[] leftKeys,
+                                      String[] rightKeys,
+                                      String filter,
+                                      String rightPlan,
+                                      String output);
 
 
   private native void nativeAggregation(String step,
@@ -76,6 +76,8 @@ public class NativePlanBuilder extends NativeClass {
                                    String ordinalityName);
 
   private native void nativeLimit(int offset, int limit);
+
+  private native void nativePartitionedOutput(String[] offset, int numPartitions);
 
 
   @Override
@@ -160,6 +162,11 @@ public class NativePlanBuilder extends NativeClass {
                      String[] unnestNames,
                      String ordinalityName) {
     nativeUnnest(replicateVariables, unnestVariables, unnestNames, ordinalityName);
+  }
+
+
+  public void partitionedOutput(String[] keys, int numPartitions) {
+    nativePartitionedOutput(keys, numPartitions);
   }
 
 

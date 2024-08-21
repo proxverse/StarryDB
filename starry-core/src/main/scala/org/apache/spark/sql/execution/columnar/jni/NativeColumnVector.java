@@ -70,7 +70,7 @@ public class NativeColumnVector extends NativeClass {
   private native byte[] nativeSerialize();
 
 
-  private static native long nativeDeserialize(byte[] json);
+  private static native long nativeDeserialize(byte[] json, int type, String s);
 
   public NativeColumnVector reserveDictionaryIds(int capacity) {
     return new NativeColumnVector(nativeReserveDictionaryIds(capacity));
@@ -134,8 +134,8 @@ public class NativeColumnVector extends NativeClass {
     return nativeSerialize();
   }
 
-  public static NativeColumnVector deserialize(byte[] json) {
-    return new NativeColumnVector(nativeDeserialize(json));
+  public static NativeColumnVector deserialize(byte[] json, int type, String s) {
+    return new NativeColumnVector(nativeDeserialize(json, type, s));
   }
 
   @Override

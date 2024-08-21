@@ -1,16 +1,12 @@
 package org.apache.spark
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.rpc.{
-  StarryRPCMangerMasterEndpoint,
-  StarryRPCConstants,
-  StarryMemoryManager,
-  StarryMemoryManagerMaster
-}
+import org.apache.spark.rpc.{StarryMemoryManager, StarryMemoryManagerMaster, StarryRPCConstants, StarryRPCMangerMasterEndpoint}
 import org.apache.spark.rpc.{RpcEndpoint, RpcEndpointRef}
+import org.apache.spark.sql.shuffle.{StarryShuffleConstants, StarryShuffleManager, StarryShuffleManagerMaster, StarryShuffleMangerMasterEndpoint}
 import org.apache.spark.util.RpcUtils
 
-case class StarryEnv(memoryManager: StarryMemoryManager) {}
+case class StarryEnv(memoryManager: StarryMemoryManager, shuffleManager: StarryShuffleManager) {}
 
 object StarryEnv extends Logging {
   @volatile private var env: StarryEnv = _
@@ -54,7 +50,14 @@ object StarryEnv extends Logging {
         new StarryRPCMangerMasterEndpoint(SparkEnv.get.conf)))
     val memoryManager =
       new StarryMemoryManager(executorId, SparkEnv.get.rpcEnv, memoryManagerMaster)
-    set(new StarryEnv(memoryManager))
+
+    val shuffleManagerMaster = new StarryShuffleManagerMaster(
+      registerOrLookupEndpoint(
+        StarryShuffleConstants.STARRY_SHUFFLE_MANAGER_MASTER_ENDPOINT_NAME,
+        new StarryShuffleMangerMasterEndpoint(SparkEnv.get.conf)))
+    val shuffleManager =
+      new StarryShuffleManager(executorId, SparkEnv.get.rpcEnv, shuffleManagerMaster)
+    set(new StarryEnv(memoryManager, shuffleManager))
   }
 
 }

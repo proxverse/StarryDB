@@ -14,7 +14,6 @@ class StarryMemoryManagerMaster(var driverEndpoint: RpcEndpointRef) extends Logg
     logInfo(s"Registered MemoryManager $executorId")
   }
 
-  private val gson = new Gson()
   def memoryStatics(): Map[String, Map[String, Map[String, Long]]] = {
     driverEndpoint
       .askSync[Seq[MemoryStaticsReply]](MemoryStatics)
@@ -25,8 +24,8 @@ class StarryMemoryManagerMaster(var driverEndpoint: RpcEndpointRef) extends Logg
   def removeExecutor(executorId: String): Unit = {
     driverEndpoint.askSync[Boolean](RemoveExecutor(executorId))
   }
-
 }
+
 case class StarryMemoryManager(
     val executorId: String,
     rpcEnv: RpcEnv,
