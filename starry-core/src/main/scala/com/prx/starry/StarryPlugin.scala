@@ -11,7 +11,7 @@ import org.apache.spark.sql.catalyst.optimizer.{CollapseProject, ColumnPruning}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.columnar.expressions.aggregate.BitmapCountDistinctAggFunction
-import org.apache.spark.sql.execution.columnar.extension.rule.{AggregateFunctionRewriteRule, CountDistinctToBitmap, PreProjectRewriteRule}
+import org.apache.spark.sql.execution.columnar.extension.rule.{AggregateFunctionRewriteRule, CountDistinctToBitmap, PreProjectRewriteRule, ProjectRemoveDupColumn}
 import org.apache.spark.sql.execution.columnar.extension.utils.NativeLibUtil
 import org.apache.spark.sql.execution.columnar.extension.{ColumnarTransitionRule, JoinSelectionOverrides, PreRuleReplaceRowToColumnar, VeloxColumnarPostRule}
 import org.apache.spark.sql.execution.dict.RewriteWithGlobalDict
@@ -116,7 +116,8 @@ object Starry {
     AggregateFunctionRewriteRule ::
     PreProjectRewriteRule ::
     ColumnPruning ::
-    CollapseProject :: Nil
+    CollapseProject ::
+    ProjectRemoveDupColumn:: Nil
 
 
   def starrySession(otherConf: SparkConf = new SparkConf()): SparkSession = {
