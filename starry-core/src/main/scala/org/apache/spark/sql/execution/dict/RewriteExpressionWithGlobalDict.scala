@@ -123,7 +123,7 @@ object RewriteExpressionWithGlobalDict extends Logging {
           newAgg
         }
     }
-    if (DictExpressionRewriteRegistry.findAggExprRewrite(expression).isDefined) {
+    if (DictExpressionRewriteRegistry.findAggExprRewrite(exprAfterRewriter).isDefined) {
       // custom rewrite
       return DictExpressionRewriteRegistry
         .findAggExprRewrite(exprAfterRewriter)
