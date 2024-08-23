@@ -67,13 +67,18 @@ object RewriteContext {
         transformed.withChildrenEncodingMapping()
       case colUnchanged
         if colUnchanged.children.size == 1 &&
-          colUnchanged.outputSet == colUnchanged.children.head.outputSet &&
+          sameOutputSet(colUnchanged, colUnchanged.children.head) &&
           colUnchanged.getEncodedAttributes.isEmpty =>
         transformed.withChildrenEncodingMapping()
       case _ =>
     }
 
     transformed
+  }
+
+  private def sameOutputSet(plan: LogicalPlan, other: LogicalPlan): Boolean = {
+    plan.outputSet == other.outputSet &&
+      plan.outputSet.forall(attr => other.outputSet.exists(otherAttr => otherAttr.equals(attr)))
   }
 
   private def setDictTag(expression: Expression, columnDict: ColumnDict): Unit = {
