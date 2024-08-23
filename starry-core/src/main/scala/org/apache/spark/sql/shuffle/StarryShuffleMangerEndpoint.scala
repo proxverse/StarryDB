@@ -34,10 +34,15 @@ class StarryShuffleMangerEndpoint(
   override def receive: PartialFunction[Any, Unit] = {
     case batch: AddBatch =>
       starryShuffleManager.addBatch(batch.shuffleId, batch.reduceId, batch.byte)
+    case removeShuffle: RemoveShuffle =>
+      starryShuffleManager.removeShuffle(removeShuffle.shuffleId)
+    case batch: RemoveShufflePartition =>
+      starryShuffleManager.removePartition(batch.shuffleId, batch.reduceId)
     case _ => throw new SparkException(self + " does not implement 'receive'")
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
+
     case FetchShuffleStatics =>
       context.reply(ShuffleStaticsReply(executorId, starryShuffleManager.ShuffleStatics()))
     case batch: AddBatch =>
@@ -48,10 +53,10 @@ class StarryShuffleMangerEndpoint(
         case e: Throwable =>
           context.reply(Failed(e.getCause.getMessage))
       }
+
     case batch: QueryBatch =>
       try {
-        starryShuffleManager.queryBatch(batch.shuffleId, batch.reduceId)
-        context.reply(OK)
+        context.reply(starryShuffleManager.queryBatch(batch.shuffleId, batch.reduceId))
       } catch {
         case e: Throwable =>
           context.reply(Failed(e.getCause.getMessage))
@@ -66,13 +71,8 @@ class StarryShuffleMangerEndpoint(
           context.reply(Failed(e.getCause.getMessage))
       }
 
-    case removeShuffle: RemoveShuffle =>
-      try {
-        context.reply(starryShuffleManager.removeShuffle(removeShuffle.shuffleId))
-      } catch {
-        case e: Throwable =>
-          context.reply(Failed(e.getCause.getMessage))
-      }
+    case FetchMemoryStatics =>
+      context.reply(starryShuffleManager.memoryStatics())
     case e =>
       logError(s"Received unexpected message. $e")
   }

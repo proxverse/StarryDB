@@ -10,6 +10,7 @@ object RegisterUI {
         override def onApplicationStart(applicationStart: SparkListenerApplicationStart): Unit = {
           Thread.sleep(10 * 1000)
           sc.ui.foreach(_.attachTab(new StarryMemoryUI(sc.ui.get)))
+          sc.ui.foreach(_.attachTab(new StarryShuffleMemoryUI(sc.ui.get)))
         }
       })
 

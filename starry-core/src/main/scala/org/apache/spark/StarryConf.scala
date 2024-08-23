@@ -119,6 +119,12 @@ object StarryConf {
     .booleanConf
     .createWithDefault(true)
 
+
+  val PRE_EXECUROE_SHUFFLE_INSTANCES = SQLConf
+    .buildConf("spark.sql.starry.shuffle.preExecutorInstances")
+    .intConf
+    .createWithDefault(2)
+
   def dictExecutionEnabled: Boolean =
     SQLConf.get.getConf(DICT_EXECUTION_ENABLED)
 

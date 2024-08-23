@@ -1,12 +1,20 @@
 package org.apache.spark
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.rpc.{StarryMemoryManager, StarryMemoryManagerMaster, StarryRPCConstants, StarryRPCMangerMasterEndpoint}
-import org.apache.spark.rpc.{RpcEndpoint, RpcEndpointRef}
-import org.apache.spark.sql.shuffle.{StarryShuffleConstants, StarryShuffleManager, StarryShuffleManagerMaster, StarryShuffleMangerMasterEndpoint}
-import org.apache.spark.util.RpcUtils
+import org.apache.spark.rpc._
+import org.apache.spark.sql.internal.StarryConf
+import org.apache.spark.sql.shuffle.{
+  StarryShuffleConstants,
+  StarryShuffleManager,
+  StarryShuffleManagerMaster,
+  StarryShuffleMangerMasterEndpoint
+}
+import org.apache.spark.util.{RpcUtils, Utils}
 
-case class StarryEnv(memoryManager: StarryMemoryManager, shuffleManager: StarryShuffleManager) {}
+case class StarryEnv(
+    memoryManager: StarryMemoryManager,
+    shuffleManagerMaster: StarryShuffleManagerMaster,
+    shuffleManagers: Seq[StarryShuffleManager]) {}
 
 object StarryEnv extends Logging {
   @volatile private var env: StarryEnv = _
@@ -27,8 +35,22 @@ object StarryEnv extends Logging {
       createEnv(executorId)
     }
   }
-  def createDriverEnv(): Unit = {
+  def createDriverEnv(sc: SparkContext): Unit = {
     createEnv(SparkContext.DRIVER_IDENTIFIER)
+    sc.cleaner.foreach(f =>
+      f.attachListener(new CleanerListener {
+        override def rddCleaned(rddId: Int): Unit = {}
+
+        override def shuffleCleaned(shuffleId: Int): Unit = {
+          StarryEnv.get.shuffleManagerMaster.removeShuffle(shuffleId)
+        }
+
+        override def broadcastCleaned(broadcastId: Long): Unit = {}
+
+        override def accumCleaned(accId: Long): Unit = {}
+
+        override def checkpointCleaned(rddId: Long): Unit = {}
+      }))
   }
 
   def createEnv(executorId: String): Unit = {
@@ -49,15 +71,20 @@ object StarryEnv extends Logging {
         StarryRPCConstants.STARRY_RPC_MANAGER_MASTER_ENDPOINT_NAME,
         new StarryRPCMangerMasterEndpoint(SparkEnv.get.conf)))
     val memoryManager =
-      new StarryMemoryManager(executorId, SparkEnv.get.rpcEnv, memoryManagerMaster)
-
+      StarryMemoryManager(executorId, SparkEnv.get.rpcEnv, memoryManagerMaster)
     val shuffleManagerMaster = new StarryShuffleManagerMaster(
       registerOrLookupEndpoint(
         StarryShuffleConstants.STARRY_SHUFFLE_MANAGER_MASTER_ENDPOINT_NAME,
         new StarryShuffleMangerMasterEndpoint(SparkEnv.get.conf)))
-    val shuffleManager =
-      new StarryShuffleManager(executorId, SparkEnv.get.rpcEnv, shuffleManagerMaster)
-    set(new StarryEnv(memoryManager, shuffleManager))
+
+    val managers = if (isDriver && !Utils.isLocalMaster(SparkEnv.get.conf)) {
+      Seq.empty[StarryShuffleManager]
+    } else {
+      Range(0, SparkEnv.get.conf.get(StarryConf.PRE_EXECUROE_SHUFFLE_INSTANCES)).map(i =>
+        StarryShuffleManager(executorId, SparkEnv.get.rpcEnv, shuffleManagerMaster))
+    }
+
+    set(new StarryEnv(memoryManager, shuffleManagerMaster, managers))
   }
 
 }

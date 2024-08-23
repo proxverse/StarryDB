@@ -5,24 +5,17 @@ import org.apache.spark.util.Utils
 
 import javax.servlet.http.HttpServletRequest
 import scala.xml.{Elem, Node}
-class StarryShuffleMemoryUI(parent: SparkUI) extends SparkUITab(parent, "StarryMemory") {
-  attachPage(new StarryShuffleMemoryPage(this))
+class StarryMemoryUI(parent: SparkUI) extends SparkUITab(parent, "StarryShuffleMemory") {
+  attachPage(new StarryMemoryPage(this))
 }
 
-private[ui] class StarryShuffleMemoryPage(parent: SparkUITab) extends WebUIPage("") {
+private[ui] class StarryMemoryPage(parent: SparkUITab) extends WebUIPage("") {
 
   def render(request: HttpServletRequest): Seq[Node] = {
-    val statics = StarryEnv.get.memoryManager.master.memoryStatics()
+    val statics = StarryEnv.get.shuffleManagerMaster.fetchAllMemory()
 
-    val spans = statics.map(
-      tp =>
-        createSpan(
-          s"${tp._1}-memory",
-          tp._2.flatMap(ent =>
-            ent._2.map(e =>
-              (
-                s"${ent._1}_${e._1}",
-                s"${if (e._1.endsWith("Bytes")) { s"${Utils.bytesToString(e._2)} |  ${e._2}" } else { e._2 }}")))))
+    val spans = statics.map(tp =>
+      createSpan(s"${tp._1}-shuffle", tp._2.map(tp => (tp._1.toString, tp._2.toString))))
     val context =
       <span>
         <div class="form-inline">

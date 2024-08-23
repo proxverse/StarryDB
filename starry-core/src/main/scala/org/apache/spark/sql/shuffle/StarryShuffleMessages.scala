@@ -17,13 +17,15 @@
 
 package org.apache.spark.sql.shuffle
 
-import org.apache.spark.rpc.RpcEndpointRef
-import org.apache.spark.unsafe.types.UTF8String
+import org.apache.spark.rpc.{RpcEndpointRef, ToMemoryManagerMaster}
 
 sealed trait ToShuffleManagerMasterEndpoint
-case class ShuffleStatics() extends ToShuffleManagerMasterEndpoint
+case class FetchAllShuffleService() extends ToShuffleManagerMasterEndpoint
+
+case class MemoryStatics() extends ToShuffleManagerMasterEndpoint
 
 case class RemoveExecutor(executorId: String) extends ToShuffleManagerMasterEndpoint
+case class CleanShuffle(shuffleId: Int) extends ToShuffleManagerMasterEndpoint
 
 sealed trait ToShuffleManager
 
@@ -34,11 +36,15 @@ case class FetchShuffleStatics() extends ToShuffleManager
 
 case class RemoveShuffle(shuffleId: Int) extends ToShuffleManager
 
-case class AddBatch(shuffleId: Int, reduceId: Int, byte: UTF8String) extends ToShuffleManager
+case class RemoveShufflePartition(shuffleId: Int, reduceId: Int) extends ToShuffleManager
+
+case class AddBatch(shuffleId: Int, reduceId: Int, byte: Array[Byte]) extends ToShuffleManager
 
 case class QueryBatch(shuffleId: Int, reduceId: Int) extends ToShuffleManager
 
 case class FetchBatch(shuffleId: Int, reduceId: Int, number: Int) extends ToShuffleManager
+
+case class FetchMemoryStatics() extends ToShuffleManager
 
 sealed trait ShuffleManagerReplay
 
@@ -46,6 +52,9 @@ case class ShuffleStaticsReply(executorId: String, info: String) extends Shuffle
 
 case class OK() extends ShuffleManagerReplay
 
-case class BatchMessage(batch: UTF8String) extends ShuffleManagerReplay
+case class BatchMessage(batch: Array[Byte]) extends ShuffleManagerReplay
 
 case class Failed(reason: String) extends ShuffleManagerReplay
+
+case class MemoryStaticsReply(endpoint: String, info: Map[Long, Long])
+    extends ShuffleManagerReplay

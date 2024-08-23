@@ -19,16 +19,34 @@ package org.apache.spark.sql.execution.columnar.extension.plan
 
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
+import org.apache.spark.rpc.RpcAddress
 import org.apache.spark.shuffle.sort.SortShuffleManager
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.columnar.VeloxColumnarBatch.createFromBytes
 import org.apache.spark.sql.execution.columnar.expressions.ExpressionConverter
-import org.apache.spark.sql.execution.{CoalescedMapperPartitionSpec, CoalescedPartitionSpec, CoalescedPartitioner, PartialMapperPartitionSpec, PartialReducerPartitionSpec, ShufflePartitionSpec, ShuffledRowRDDPartition}
+import org.apache.spark.sql.execution.{
+  CoalescedMapperPartitionSpec,
+  CoalescedPartitionSpec,
+  CoalescedPartitioner,
+  PartialMapperPartitionSpec,
+  PartialReducerPartitionSpec,
+  ShufflePartitionSpec,
+  ShuffledRowRDDPartition
+}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLShuffleReadMetricsReporter}
 import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.shuffle.{
+  BatchMessage,
+  FetchBatch,
+  QueryBatch,
+  RemoveShufflePartition,
+  StarryShuffleConstants
+}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import java.util.concurrent.TimeUnit
 
 /**
  * This is a specialized version of [[org.apache.spark.rdd.ShuffledRDD]] that is optimized for
@@ -50,18 +68,21 @@ class ShuffledColumnarRDD(
     var dependency: ShuffleDependency[Int, InternalRow, InternalRow],
     metrics: Map[String, SQLMetric],
     partitionSpecs: Array[ShufflePartitionSpec],
-    attributes: Seq[Attribute])
+    attributes: Seq[Attribute],
+    shuffleServices: Array[(String, RpcAddress)])
     extends RDD[ColumnarBatch](dependency.rdd.context, Nil) {
 
   def this(
       dependency: ShuffleDependency[Int, InternalRow, InternalRow],
       metrics: Map[String, SQLMetric],
-      attributes: Seq[Attribute]) = {
+      attributes: Seq[Attribute],
+      shuffleServices: Array[(String, RpcAddress)]) = {
     this(
       dependency,
       metrics,
       Array.tabulate(dependency.partitioner.numPartitions)(i => CoalescedPartitionSpec(i, i + 1)),
-      attributes)
+      attributes,
+      shuffleServices)
   }
 
   dependency.rdd.context.setLocalProperty(
@@ -113,17 +134,41 @@ class ShuffledColumnarRDD(
     val tempMetrics = context.taskMetrics().createTempShuffleReadMetrics()
     // `SQLShuffleReadMetricsReporter` will update its own metrics for SQL exchange operator,
     // as well as the `tempMetrics` for basic shuffle metrics.
-    val structType = StructType.fromAttributes(attributes.map(e =>
-      e.withName(ExpressionConverter.toNativeAttrIdName(e))))
+    val structType = StructType.fromAttributes(
+      attributes.map(e => e.withName(ExpressionConverter.toNativeAttrIdName(e))))
     val sqlMetricsReporter = new SQLShuffleReadMetricsReporter(tempMetrics, metrics)
+    val rpcs = shuffleServices.map { address =>
+      SparkEnv.get.rpcEnv.setupEndpointRef(address._2, address._1)
+    }
+    val partitions = rpcs.length
     val reader = split.asInstanceOf[ShuffledRowRDDPartition].spec match {
       case CoalescedPartitionSpec(startReducerIndex, endReducerIndex, _) =>
-        Range(startReducerIndex, endReducerIndex).flatMap { mapIndex =>
-          val i = StarryEnv.get.shuffleManager.queryBatch(dependency.shuffleId, mapIndex)
+        TaskContext
+          .get()
+          .addTaskCompletionListener[Unit](_ =>
+            Range(startReducerIndex, endReducerIndex).foreach { reduceId =>
+              rpcs
+                .apply(reduceId % partitions)
+                .send(RemoveShufflePartition(dependency.shuffleId, reduceId))
+          })
+        Range(startReducerIndex, endReducerIndex).flatMap { reduceId =>
+          val ref = rpcs
+            .apply(reduceId % partitions)
+          val startFetchWait = System.nanoTime()
+          val i = ref.askSync[Int](QueryBatch(dependency.shuffleId, reduceId))
+          sqlMetricsReporter.incFetchWaitTime(
+            TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startFetchWait))
           Range(0, i).map { index =>
-            val message = StarryEnv.get.shuffleManager
-              .fetchBatch(dependency.shuffleId, startReducerIndex, index)
-            createFromBytes(message.batch.getBytes, structType, 1).asInstanceOf[ColumnarBatch]
+            val message =
+              ref.askSync[BatchMessage](
+                FetchBatch(dependency.shuffleId, startReducerIndex, index))
+            sqlMetricsReporter.incRemoteBytesRead(message.batch.length)
+            val startFetchWait = System.nanoTime()
+            val batch = createFromBytes(message.batch, structType, 1).asInstanceOf[ColumnarBatch]
+            sqlMetricsReporter.incFetchWaitTime(
+              TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startFetchWait))
+            sqlMetricsReporter.incRecordsRead(batch.numRows())
+            batch
           }
         }
       case PartialReducerPartitionSpec(reducerIndex, startMapIndex, endMapIndex, _) =>

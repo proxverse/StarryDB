@@ -18,18 +18,29 @@
 package org.apache.spark.sql.shuffle
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.rpc.{RpcCallContext, RpcEndpointRef, RpcEnv, ThreadSafeRpcEndpoint}
+import org.apache.spark.rpc.{
+  RpcAddress,
+  RpcCallContext,
+  RpcEndpointRef,
+  RpcEnv,
+  ThreadSafeRpcEndpoint
+}
 import org.apache.spark.util.{RpcUtils, ThreadUtils}
 import org.apache.spark.{SparkConf, SparkEnv}
 
+import java.util
 import java.util.concurrent.ConcurrentHashMap
 import scala.collection.JavaConverters._
 import scala.collection.generic.CanBuildFrom
 import scala.reflect.ClassTag
 
+class StarryShuffleMangerMasterEndpoint(conf: SparkConf)
+    extends ThreadSafeRpcEndpoint
+    with Logging {
+  private val executorDataMap = new ConcurrentHashMap[String, util.ArrayList[RpcEndpointRef]]
+  var allShuffleService = Array.empty[(String, RpcAddress)]
+  var allEndpoints = Seq.empty[RpcEndpointRef]
 
-class StarryShuffleMangerMasterEndpoint(conf: SparkConf) extends ThreadSafeRpcEndpoint with Logging {
-  private val executorDataMap = new ConcurrentHashMap[String, RpcEndpointRef]
   override val rpcEnv: RpcEnv = SparkEnv.get.rpcEnv
 
   val timeout = RpcUtils.askRpcTimeout(conf)
@@ -37,32 +48,59 @@ class StarryShuffleMangerMasterEndpoint(conf: SparkConf) extends ThreadSafeRpcEn
   import scala.concurrent.Future
   def askAll[T: ClassTag](message: Any): Seq[T] = {
     val futures =
-      executorDataMap.values.asScala.toSeq.map(c => c.ask[T](message))
+      allEndpoints.map(c => c.ask[T](message))
     implicit val sameThread = ThreadUtils.sameThread
     val cbf =
       implicitly[CanBuildFrom[Seq[Future[T]], T, Seq[T]]]
     timeout.awaitResult(Future.sequence(futures)(cbf, ThreadUtils.sameThread))
   }
 
+  def sendAll[T: ClassTag](message: Any): Unit = {
+    allEndpoints.foreach(c => c.send(message))
+  }
+
+  override def receive: PartialFunction[Any, Unit] = {
+    case CleanShuffle(shuffleId) =>
+      sendAll(RemoveShuffle(shuffleId))
+    case e =>
+      logError(s"Received unexpected message. $e")
+  }
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
     case RegisterManagerManager(executorId, sender) =>
-      if (executorDataMap.contains(executorId)) {
-        context.sendFailure(new IllegalStateException(s"Duplicate executor ID: $executorId"))
-      } else {
-        executorDataMap.put(executorId, sender)
+      if (!executorDataMap.contains(executorId)) {
+        executorDataMap.put(executorId, new util.ArrayList[RpcEndpointRef]())
       }
+      executorDataMap.get(executorId).add(sender)
+      updateEndpoint()
       context.reply(true)
-    case ShuffleStatics =>
-      val strings = askAll[ShuffleStaticsReply](FetchShuffleStatics)
-      context.reply(strings)
+    case FetchAllShuffleService =>
+      context.reply(allShuffleService)
+
+    case MemoryStatics =>
+      context.reply(askAll[MemoryStaticsReply](FetchMemoryStatics))
     case RemoveExecutor(executorId) =>
-      if (executorDataMap.containsKey(executorId))  {
+      if (executorDataMap.containsKey(executorId)) {
         executorDataMap.remove(executorId)
       }
+      updateEndpoint()
       context.reply(true)
     case e =>
       logError(s"Received unexpected message. $e")
   }
+
+  private def updateEndpoint(): Unit = {
+    allEndpoints = executorDataMap
+      .values()
+      .asScala
+      .flatMap(_.asScala)
+      .toSeq
+    allShuffleService = executorDataMap
+      .values()
+      .asScala
+      .flatMap(list => list.asScala.map(e => (e.name, e.address)))
+      .toArray
+  }
+
   override def onStart(): Unit = {
     logInfo(s"Initialized GlutenDriverEndpoint.")
   }

@@ -1,6 +1,6 @@
 package org.apache.spark.rpc.netty
 
-import org.apache.spark.rpc.{RpcAddress, RpcEnv, netty}
+import org.apache.spark.rpc.{RpcAddress, RpcEnv}
 
 import java.nio.ByteBuffer
 
@@ -10,7 +10,7 @@ object NettyUtil {
       nettyRpcEndpointRef: NettyRpcEndpointRef,
       byteBuffer: ByteBuffer): Unit = {
     rpc
-      .asInstanceOf[netty.NettyRpcEnv]
+      .asInstanceOf[NettyRpcEnv]
       .send(new ByteBufferRequestMessage(rpc.address, nettyRpcEndpointRef, byteBuffer))
   }
 }

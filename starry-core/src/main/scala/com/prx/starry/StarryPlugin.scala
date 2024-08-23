@@ -40,7 +40,7 @@ class StarryDriverPlugin extends DriverPlugin with Logging {
 
   override def init(sc: SparkContext, pluginContext: PluginContext): util.Map[String, String] = {
     LibLoader.loadLib(sc.getConf)
-    StarryEnv.createDriverEnv()
+    StarryEnv.createDriverEnv(sc)
     StarryAppListener.register(sc)
     RegisterUI.register(sc)
     Collections.emptyMap()
