@@ -19,29 +19,22 @@ package org.apache.spark.sql.execution.columnar.extension.plan
 
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
-import org.apache.spark.rpc.RpcAddress
+import org.apache.spark.rpc.{RpcAddress, RpcEndpointRef}
 import org.apache.spark.shuffle.sort.SortShuffleManager
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.columnar.VeloxColumnarBatch.createFromBytes
 import org.apache.spark.sql.execution.columnar.expressions.ExpressionConverter
-import org.apache.spark.sql.execution.{
-  CoalescedMapperPartitionSpec,
-  CoalescedPartitionSpec,
-  CoalescedPartitioner,
-  PartialMapperPartitionSpec,
-  PartialReducerPartitionSpec,
-  ShufflePartitionSpec,
-  ShuffledRowRDDPartition
-}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLShuffleReadMetricsReporter}
+import org.apache.spark.sql.execution._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.shuffle.{
   BatchMessage,
   FetchBatch,
+  FetchStreamingBatch,
   QueryBatch,
   RemoveShufflePartition,
-  StarryShuffleConstants
+  StreamingBatchMessage
 }
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -64,32 +57,36 @@ import java.util.concurrent.TimeUnit
  * map output, and `dependency.partitioner.numPartitions` is the number of pre-shuffle partitions
  * (i.e. the number of partitions of the map output).
  */
-class ShuffledColumnarRDD(
+class StreamingShuffledColumnarRDD(
     var dependency: ShuffleDependency[Int, InternalRow, InternalRow],
     metrics: Map[String, SQLMetric],
     partitionSpecs: Array[ShufflePartitionSpec],
     attributes: Seq[Attribute],
-    shuffleServices: Array[(String, RpcAddress)])
+    shuffleServices: Array[(String, RpcAddress)],
+    isMppMode: Boolean)
     extends RDD[ColumnarBatch](dependency.rdd.context, Nil) {
 
   def this(
       dependency: ShuffleDependency[Int, InternalRow, InternalRow],
       metrics: Map[String, SQLMetric],
       attributes: Seq[Attribute],
-      shuffleServices: Array[(String, RpcAddress)]) = {
+      shuffleServices: Array[(String, RpcAddress)],
+      isMppMode: Boolean) = {
     this(
       dependency,
       metrics,
       Array.tabulate(dependency.partitioner.numPartitions)(i => CoalescedPartitionSpec(i, i + 1)),
       attributes,
-      shuffleServices)
+      shuffleServices,
+      isMppMode)
   }
 
   dependency.rdd.context.setLocalProperty(
     SortShuffleManager.FETCH_SHUFFLE_BLOCKS_IN_BATCH_ENABLED_KEY,
     SQLConf.get.fetchShuffleBlocksInBatch.toString)
 
-  override def getDependencies: Seq[Dependency[_]] = List(dependency)
+  override def getDependencies: Seq[Dependency[_]] =
+    if (isMppMode) { super.getDependencies } else { List(dependency) }
 
   override val partitioner: Option[Partitioner] =
     if (partitionSpecs.forall(_.isInstanceOf[CoalescedPartitionSpec])) {
@@ -115,13 +112,8 @@ class ShuffledColumnarRDD(
     partition.asInstanceOf[ShuffledRowRDDPartition].spec match {
       case CoalescedPartitionSpec(startReducerIndex, endReducerIndex, _) =>
         // TODO order by partition size.
-        val partitions = shuffleServices.length
         startReducerIndex.until(endReducerIndex).flatMap { reducerIndex =>
-          Seq(
-            shuffleServices
-              .apply(reducerIndex % partitions)
-              ._2
-              .host)
+          tracker.getPreferredLocationsForShuffle(dependency, reducerIndex)
         }
 
       case PartialReducerPartitionSpec(_, startMapIndex, endMapIndex, _) =>
@@ -159,22 +151,13 @@ class ShuffledColumnarRDD(
         Range(startReducerIndex, endReducerIndex).flatMap { reduceId =>
           val ref = rpcs
             .apply(reduceId % partitions)
-          val startFetchWait = System.nanoTime()
-          val i = ref.askSync[Int](QueryBatch(dependency.shuffleId, reduceId))
-          sqlMetricsReporter.incFetchWaitTime(
-            TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startFetchWait))
-          Range(0, i).map { index =>
-            val message =
-              ref.askSync[BatchMessage](
-                FetchBatch(dependency.shuffleId, startReducerIndex, index))
-            sqlMetricsReporter.incRemoteBytesRead(message.batch.length)
-            val startFetchWait = System.nanoTime()
-            val batch = createFromBytes(message.batch, structType, 1).asInstanceOf[ColumnarBatch]
-            sqlMetricsReporter.incFetchWaitTime(
-              TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startFetchWait))
-            sqlMetricsReporter.incRecordsRead(batch.numRows())
-            batch
-          }
+          new ColumnarBatchIterator(
+            ref,
+            reduceId,
+            dependency.shuffleId,
+            sqlMetricsReporter,
+            structType)
+
         }
       case PartialReducerPartitionSpec(reducerIndex, startMapIndex, endMapIndex, _) =>
         throw new UnsupportedOperationException()
@@ -192,5 +175,61 @@ class ShuffledColumnarRDD(
   override def clearDependencies(): Unit = {
     super.clearDependencies()
     dependency = null
+  }
+}
+
+class ColumnarBatchIterator(
+    ref: RpcEndpointRef,
+    startReducerIndex: Int,
+    shuffleId: Int,
+    sqlMetricsReporter: SQLShuffleReadMetricsReporter,
+    structType: StructType)
+    extends Iterator[ColumnarBatch] {
+
+  private var buffer: java.util.ArrayList[Array[Byte]] = new java.util.ArrayList[Array[Byte]]()
+  private var isFinish = false
+
+  // Fetch the next batch if necessary
+  private def fetchNext(): Unit = {
+    while (buffer.isEmpty && !isFinish) {
+      val startFetchWait = System.nanoTime()
+      val message =
+        ref.askSync[StreamingBatchMessage](FetchStreamingBatch(shuffleId, startReducerIndex))
+      sqlMetricsReporter.incFetchWaitTime(
+        TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startFetchWait))
+      isFinish = message.isFinish
+      if (message.batch.nonEmpty) {
+        message.batch.foreach(buffer.add)
+      } else if (!isFinish) {
+        // 如果拿到空批次但还没结束，等待一段时间后重试
+        // 这里的等待时间需要根据实际情况调整
+        Thread.sleep(5) // 等待时间，比如100毫秒
+      }
+    }
+  }
+
+  override def hasNext: Boolean = {
+    fetchNext()
+    buffer.size() > 0
+  }
+
+  override def next(): ColumnarBatch = {
+    if (!hasNext) {
+      throw new java.util.NoSuchElementException("End of stream")
+    }
+    val batchBytes = buffer.remove(0)
+    convertBytesToColumnarBatch(batchBytes)
+  }
+
+  // 实现从字节转换到ColumnarBatch的逻辑
+  private def convertBytesToColumnarBatch(batchBytes: Array[Byte]): ColumnarBatch = {
+    sqlMetricsReporter.incRemoteBytesRead(batchBytes.length)
+    val startConversionTime = System.nanoTime()
+    // 假设createFromBytes是一个存在的方法来从字节创建ColumnarBatch
+    val batch = createFromBytes(batchBytes, structType, 1).asInstanceOf[ColumnarBatch]
+    sqlMetricsReporter.incFetchWaitTime(
+      TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startConversionTime))
+    sqlMetricsReporter.incRecordsRead(batch.numRows())
+    batch
   }
 }

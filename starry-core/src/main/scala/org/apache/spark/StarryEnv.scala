@@ -80,8 +80,13 @@ object StarryEnv extends Logging {
     val managers = if (isDriver && !Utils.isLocalMaster(SparkEnv.get.conf)) {
       Seq.empty[StarryShuffleManager]
     } else {
-      Range(0, SparkEnv.get.conf.get(StarryConf.PRE_EXECUROE_SHUFFLE_INSTANCES)).map(i =>
-        StarryShuffleManager(executorId, SparkEnv.get.rpcEnv, shuffleManagerMaster))
+      Range(0, SparkEnv.get.conf.get(StarryConf.PRE_EXECUROE_SHUFFLE_INSTANCES)).map(
+        i =>
+          StarryShuffleManager(
+            executorId,
+            SparkEnv.get.rpcEnv,
+            shuffleManagerMaster,
+            SparkEnv.get.blockManager))
     }
 
     set(new StarryEnv(memoryManager, shuffleManagerMaster, managers))

@@ -38,6 +38,8 @@ class StarryShuffleMangerEndpoint(
       starryShuffleManager.removeShuffle(removeShuffle.shuffleId)
     case batch: RemoveShufflePartition =>
       starryShuffleManager.removePartition(batch.shuffleId, batch.reduceId)
+    case finish: Finish =>
+      starryShuffleManager.setFinish(finish.shuffleId, finish.reduceId, finish.total)
     case _ => throw new SparkException(self + " does not implement 'receive'")
   }
 
@@ -51,7 +53,7 @@ class StarryShuffleMangerEndpoint(
         context.reply(OK)
       } catch {
         case e: Throwable =>
-          context.reply(Failed(e.getCause.getMessage))
+          context.reply(Failed(e.getMessage))
       }
 
     case batch: QueryBatch =>
@@ -59,7 +61,7 @@ class StarryShuffleMangerEndpoint(
         context.reply(starryShuffleManager.queryBatch(batch.shuffleId, batch.reduceId))
       } catch {
         case e: Throwable =>
-          context.reply(Failed(e.getCause.getMessage))
+          context.reply(Failed(e.getMessage))
       }
 
     case batch: FetchBatch =>
@@ -68,11 +70,16 @@ class StarryShuffleMangerEndpoint(
           starryShuffleManager.fetchBatch(batch.shuffleId, batch.reduceId, batch.number))
       } catch {
         case e: Throwable =>
-          context.reply(Failed(e.getCause.getMessage))
+          context.reply(Failed(e.getMessage))
       }
+
+    case batch: FetchStreamingBatch =>
+      context.reply(
+        starryShuffleManager.fetchBatchStreaming(batch.shuffleId, batch.reduceId))
 
     case FetchMemoryStatics =>
       context.reply(starryShuffleManager.memoryStatics())
+
     case e =>
       logError(s"Received unexpected message. $e")
   }

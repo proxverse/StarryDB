@@ -132,6 +132,8 @@ case class VeloxColumnarPostRule() extends Rule[SparkPlan] {
         })
       case RowToColumnarExec(child: ColumnarShuffleExchangeExec) =>
         child
+      case RowToColumnarExec(child: StreamingColumnarShuffleExchangeExec) =>
+        child
       case rc: ColumnarToRowExec if isStarryEnabled && rc.child.isInstanceOf[ColumnarSupport] =>
         new VeloxColumnarToRowExec(
           new ColumnarEngineExec(rc.child)(

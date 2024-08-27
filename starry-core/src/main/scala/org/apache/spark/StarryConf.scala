@@ -101,6 +101,12 @@ object StarryConf {
     .booleanConf
     .createWithDefault(false)
 
+  val STREAMING_SHUFFLE_ENABLED = SQLConf
+    .buildConf("spark.sql.starry.columnar.StreamingShuffleEnabled")
+    .internal()
+    .booleanConf
+    .createWithDefault(false)
+
   val REMOVE_SINGLE_PARTITION = SQLConf
     .buildConf("spark.sql.starry.columnar.removeSinglePartition")
     .doc("移除一个分区的 exchange")
@@ -124,6 +130,11 @@ object StarryConf {
     .buildConf("spark.sql.starry.shuffle.preExecutorInstances")
     .intConf
     .createWithDefault(2)
+
+  val SHUFFLE_MANAGER_MEMORY_BYTES = SQLConf
+    .buildConf("spark.sql.starry.shuffle.shuffleManagerMemoryBytes")
+    .bytesConf(ByteUnit.BYTE)
+    .createWithDefault(0)
 
   def dictExecutionEnabled: Boolean =
     SQLConf.get.getConf(DICT_EXECUTION_ENABLED)
@@ -155,6 +166,8 @@ object StarryConf {
     SQLConf.get.getConf(REWRITE_COUNT_DISTINCT_AS_BITMAP)
 
   def columnarShuffleEnabled: Boolean = SQLConf.get.getConf(COLUMNAR_SHUFFLE_ENABLED)
+
+  def mppShuffleEnabled: Boolean = columnarShuffleEnabled && SQLConf.get.getConf(STREAMING_SHUFFLE_ENABLED)
 
   def newDateDiffEnabled: Boolean =
     SQLConf.get.getConf(NEW_DATE_DIFF_ENABLED)

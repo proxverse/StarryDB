@@ -205,11 +205,20 @@ case class ColumnarTransformRule() extends Rule[SparkPlan] {
           val newChild = ColumnarPartitionedOutputExec(
             after.outputPartitioning.asInstanceOf[HashPartitioning],
             after.child)
-          ColumnarShuffleExchangeExec(
-            after.outputPartitioning,
-            newChild,
-            after.shuffleOrigin,
-            after.output)
+
+          if (StarryConf.mppShuffleEnabled) {
+            StreamingColumnarShuffleExchangeExec(
+              after.outputPartitioning,
+              newChild,
+              after.shuffleOrigin,
+              after.output)
+          } else {
+            ColumnarShuffleExchangeExec(
+              after.outputPartitioning,
+              newChild,
+              after.shuffleOrigin,
+              after.output)
+          }
         case (e, e2) =>
           if (e2.children
                 .zip(e2.requiredChildOrdering)
