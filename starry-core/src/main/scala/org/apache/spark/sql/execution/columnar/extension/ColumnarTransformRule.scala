@@ -15,6 +15,7 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.columnar.expressions.{ExpressionConverter, Unnest}
 import org.apache.spark.sql.execution.columnar.extension.plan._
+import org.apache.spark.sql.execution.command.{DataWritingCommandExec, ExecutedCommandExec}
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
 import org.apache.spark.sql.execution.joins.{
   BroadcastHashJoinExec,
@@ -201,7 +202,8 @@ case class ColumnarTransformRule() extends Rule[SparkPlan] {
               after.outputPartitioning
                 .asInstanceOf[HashPartitioning]
                 .expressions
-                .nonEmpty =>
+                .nonEmpty && !plan.isInstanceOf[DataWritingCommandExec] &&
+              !plan.isInstanceOf[ExecutedCommandExec] =>
           val newChild = ColumnarPartitionedOutputExec(
             after.outputPartitioning.asInstanceOf[HashPartitioning],
             after.child)

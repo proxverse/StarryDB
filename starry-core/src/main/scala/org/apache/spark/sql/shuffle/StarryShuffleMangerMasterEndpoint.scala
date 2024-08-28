@@ -18,6 +18,7 @@
 package org.apache.spark.sql.shuffle
 
 import org.apache.spark.internal.Logging
+import org.apache.spark.rpc.netty.NettyUtil
 import org.apache.spark.rpc.{
   RpcAddress,
   RpcCallContext,
@@ -37,7 +38,8 @@ import scala.reflect.ClassTag
 class StarryShuffleMangerMasterEndpoint(conf: SparkConf)
     extends ThreadSafeRpcEndpoint
     with Logging {
-  private val executorDataMap = new ConcurrentHashMap[String, util.ArrayList[RpcEndpointRef]]
+  private val executorDataMap =
+    new ConcurrentHashMap[String, util.ArrayList[(RpcEndpointRef, RpcAddress)]]
   var allShuffleService = Array.empty[(String, RpcAddress)]
   var allEndpoints = Seq.empty[RpcEndpointRef]
 
@@ -66,11 +68,13 @@ class StarryShuffleMangerMasterEndpoint(conf: SparkConf)
       logError(s"Received unexpected message. $e")
   }
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
-    case RegisterManagerManager(executorId, sender) =>
+    case RegisterManagerManager(executorId, rpc, address) =>
       if (!executorDataMap.contains(executorId)) {
-        executorDataMap.put(executorId, new util.ArrayList[RpcEndpointRef]())
+        executorDataMap.put(executorId, new util.ArrayList[(RpcEndpointRef, RpcAddress)]())
       }
-      executorDataMap.get(executorId).add(sender)
+      executorDataMap
+        .get(executorId)
+        .add((rpc, address))
       updateEndpoint()
       context.reply(true)
     case FetchAllShuffleService =>
@@ -93,11 +97,14 @@ class StarryShuffleMangerMasterEndpoint(conf: SparkConf)
       .values()
       .asScala
       .flatMap(_.asScala)
+      .map(_._1)
       .toSeq
     allShuffleService = executorDataMap
       .values()
       .asScala
-      .flatMap(list => list.asScala.map(e => (e.name, e.address)))
+      .flatMap(list =>
+        list.asScala
+          .map(e => (e._1.name, e._2)))
       .toArray
   }
 

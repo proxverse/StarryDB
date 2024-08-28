@@ -2,6 +2,7 @@ package org.apache.spark
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.rpc._
+import org.apache.spark.rpc.netty.NettyUtil
 import org.apache.spark.sql.internal.StarryConf
 import org.apache.spark.sql.shuffle.{
   StarryShuffleConstants,
@@ -77,18 +78,26 @@ object StarryEnv extends Logging {
         StarryShuffleConstants.STARRY_SHUFFLE_MANAGER_MASTER_ENDPOINT_NAME,
         new StarryShuffleMangerMasterEndpoint(SparkEnv.get.conf)))
 
-    val managers = if (isDriver && !Utils.isLocalMaster(SparkEnv.get.conf)) {
-      Seq.empty[StarryShuffleManager]
-    } else {
-      Range(0, SparkEnv.get.conf.get(StarryConf.PRE_EXECUROE_SHUFFLE_INSTANCES)).map(
-        i =>
-          StarryShuffleManager(
-            executorId,
-            SparkEnv.get.rpcEnv,
-            shuffleManagerMaster,
-            SparkEnv.get.blockManager))
-    }
-
+    val managers =
+      if (!SparkEnv.get.conf.get(StarryConf.COLUMNAR_SHUFFLE_ENABLED) || (isDriver && !Utils
+            .isLocalMaster(SparkEnv.get.conf))) {
+        Seq.empty[StarryShuffleManager]
+      } else {
+        val address = if (!isDriver) {
+          NettyUtil.startServer()
+        } else {
+          SparkEnv.get.rpcEnv.address
+        }
+        Range(0, SparkEnv.get.conf.get(StarryConf.PRE_EXECUROE_SHUFFLE_INSTANCES))
+          .map(
+            i =>
+              StarryShuffleManager(
+                executorId,
+                SparkEnv.get.rpcEnv,
+                shuffleManagerMaster,
+                SparkEnv.get.blockManager,
+                address))
+      }
     set(new StarryEnv(memoryManager, shuffleManagerMaster, managers))
   }
 

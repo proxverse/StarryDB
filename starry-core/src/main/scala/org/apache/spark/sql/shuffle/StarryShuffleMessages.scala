@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.shuffle
 
-import org.apache.spark.rpc.RpcEndpointRef
+import org.apache.spark.rpc.{RpcAddress, RpcEndpointRef}
 
 sealed trait ToShuffleManagerMasterEndpoint
 case class FetchAllShuffleService() extends ToShuffleManagerMasterEndpoint
@@ -29,7 +29,7 @@ case class CleanShuffle(shuffleId: Int) extends ToShuffleManagerMasterEndpoint
 
 sealed trait ToShuffleManager
 
-case class RegisterManagerManager(executorId: String, sender: RpcEndpointRef)
+case class RegisterManagerManager(executorId: String, sender: RpcEndpointRef, rpcAddress: RpcAddress)
     extends ToShuffleManager
 
 case class FetchShuffleStatics() extends ToShuffleManager

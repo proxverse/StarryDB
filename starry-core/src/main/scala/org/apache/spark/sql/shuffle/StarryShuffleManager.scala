@@ -22,9 +22,9 @@ object ShuffleMode extends Enumeration {
 
 class StarryShuffleManagerMaster(var driverEndpoint: RpcEndpointRef) extends Logging {
 
-  def registerShuffleManager(executorId: String, storageEndpoint: RpcEndpointRef): Unit = {
+  def registerShuffleManager(executorId: String, storageEndpoint: RpcEndpointRef, rpcAddress: RpcAddress): Unit = {
     logInfo(s"Registering ShuffleManager $executorId")
-    driverEndpoint.askSync[Boolean](RegisterManagerManager(executorId, storageEndpoint))
+    driverEndpoint.askSync[Boolean](RegisterManagerManager(executorId, storageEndpoint, rpcAddress))
     logInfo(s"Registered ShuffleManager $executorId")
   }
 
@@ -64,12 +64,14 @@ case class StarryShuffleManager(
     val executorId: String,
     rpcEnv: RpcEnv,
     master: StarryShuffleManagerMaster,
-    blockManager: BlockManager)
+    blockManager: BlockManager,
+    rpcAddress: RpcAddress)
     extends Logging {
 
-  val storageEndpoint: RpcEndpointRef = rpcEnv.setupEndpoint(
-    StarryShuffleConstants.STARRY_SHUFFLE_MANAGER_ENDPOINT_NAME + ShuffleManager.ID_GENERATOR.next,
-    new StarryShuffleMangerEndpoint(executorId, rpcEnv, this))
+  private val name
+    : String = StarryShuffleConstants.STARRY_SHUFFLE_MANAGER_ENDPOINT_NAME + ShuffleManager.ID_GENERATOR.next
+  val storageEndpoint: RpcEndpointRef =
+    rpcEnv.setupEndpoint(name, new StarryShuffleMangerEndpoint(name, rpcEnv, this))
 
   val maxMemoryUsage: Long = {
     val requireBytes = SparkEnv.get.conf.get(StarryConf.SHUFFLE_MANAGER_MEMORY_BYTES) // 1GB
@@ -174,7 +176,7 @@ case class StarryShuffleManager(
   }
 
   private def register(): Unit = {
-    master.registerShuffleManager(storageEndpoint.name, storageEndpoint)
+    master.registerShuffleManager(SparkEnv.get.executorId, storageEndpoint, rpcAddress)
   }
   register()
   def ShuffleStatics(): String = {

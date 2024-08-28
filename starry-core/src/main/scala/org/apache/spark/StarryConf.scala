@@ -136,6 +136,11 @@ object StarryConf {
     .bytesConf(ByteUnit.BYTE)
     .createWithDefault(0)
 
+  val SHUFFLE_SERVER_PORT = SQLConf
+    .buildConf("spark.sql.starry.shuffle.port")
+    .intConf
+    .createWithDefault(17073)
+
   def dictExecutionEnabled: Boolean =
     SQLConf.get.getConf(DICT_EXECUTION_ENABLED)
 
