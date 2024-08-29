@@ -28,13 +28,29 @@ import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{ShuffleWriteMetricsReporter, ShuffleWriteProcessor}
 import org.apache.spark.shuffle.sort.SortShuffleManager
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, BoundReference, UnsafeProjection, UnsafeRow}
+import org.apache.spark.sql.catalyst.expressions.{
+  Attribute,
+  BoundReference,
+  UnsafeProjection,
+  UnsafeRow
+}
 import org.apache.spark.sql.catalyst.expressions.codegen.LazilyGeneratedOrdering
 import org.apache.spark.sql.catalyst.plans.logical.Statistics
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.exchange.{ENSURE_REQUIREMENTS, Exchange, ShuffleExchangeExec, ShuffleExchangeLike, ShuffleOrigin}
-import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics, SQLShuffleReadMetricsReporter, SQLShuffleWriteMetricsReporter}
+import org.apache.spark.sql.execution.exchange.{
+  ENSURE_REQUIREMENTS,
+  Exchange,
+  ShuffleExchangeExec,
+  ShuffleExchangeLike,
+  ShuffleOrigin
+}
+import org.apache.spark.sql.execution.metric.{
+  SQLMetric,
+  SQLMetrics,
+  SQLShuffleReadMetricsReporter,
+  SQLShuffleWriteMetricsReporter
+}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.shuffle.{AddBatch, StarryShuffleConstants}
 import org.apache.spark.sql.types.StructType
@@ -62,7 +78,11 @@ case class ColumnarShuffleExchangeExec(
   override lazy val metrics = Map(
     "dataSize" -> SQLMetrics.createSizeMetric(sparkContext, "data size"),
     "numPartitions" -> SQLMetrics
-      .createMetric(sparkContext, "number of partitions")) ++ readMetrics ++ writeMetrics
+      .createMetric(sparkContext, "number of partitions"),
+    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+    "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "number of input batches"),
+    "convertTime" -> SQLMetrics
+      .createNanoTimingMetric(sparkContext, "time to convert")) ++ readMetrics ++ writeMetrics
 
   override def nodeName: String = "Exchange"
 
@@ -121,17 +141,29 @@ case class ColumnarShuffleExchangeExec(
   /**
    * Caches the created ShuffleRowRDD so we can reuse that.
    */
-  private var cachedShuffleRDD: ShuffledRowRDD = null
   private var cachedColumnarShuffleRDD: ShuffledColumnarRDD = null
+  private var cachedRowShuffleRDD: RDD[InternalRow] = null
 
   override def supportsColumnar: Boolean = false
 
+  // to support writing data
   protected override def doExecute(): RDD[InternalRow] = {
     // Returns the same ShuffleRowRDD if this plan is used by multiple plans.
-    if (cachedShuffleRDD == null) {
-      cachedShuffleRDD = new ShuffledRowRDD(shuffleDependency, readMetrics)
+    if (cachedColumnarShuffleRDD == null) {
+      val numOutputRows = longMetric("numOutputRows")
+      val numInputBatches = longMetric("numInputBatches")
+      val convertTime = longMetric("convertTime")
+      cachedColumnarShuffleRDD =
+        new ShuffledColumnarRDD(shuffleDependency, readMetrics, output, shuffleServices)
+      cachedRowShuffleRDD = new ColumnarToRowRDD(
+        sparkContext,
+        cachedColumnarShuffleRDD,
+        output,
+        numOutputRows,
+        numInputBatches,
+        convertTime)
     }
-    cachedShuffleRDD
+    cachedRowShuffleRDD
   }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
@@ -212,8 +244,7 @@ object ColumnarShuffleExchangeExec {
             reporter.incBytesWritten(bytes.size)
             rpcs
               .apply(partition % partitions)
-              .send(
-                AddBatch(dep.shuffleId, partition, bytes))
+              .send(AddBatch(dep.shuffleId, partition, bytes))
             reporter.incWriteTime(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start))
           }
         new CompressedMapStatus(

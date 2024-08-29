@@ -79,6 +79,25 @@ case class ColumnarTransformRule() extends Rule[SparkPlan] {
     canHashBuild(hashAggregateExec.groupingExpressions)
   }
 
+  private def canTransform(shuffleExchangeExec: ShuffleExchangeExec, root: SparkPlan): Boolean = {
+    val isSupported = StarryConf.columnarShuffleEnabled &&
+      shuffleExchangeExec.outputPartitioning.isInstanceOf[HashPartitioning] &&
+      shuffleExchangeExec.outputPartitioning
+        .asInstanceOf[HashPartitioning]
+        .expressions
+        .nonEmpty
+    root match {
+      case _: DataWritingCommandExec | _: ExecutedCommandExec =>
+        if (StarryConf.columnarShuffleOnWritingEnabled) {
+          isSupported
+        } else {
+          false
+        }
+      case _ =>
+        isSupported
+    }
+  }
+
   private def canTransform(generateExec: GenerateExec): Boolean = {
     if (generateExec.outer) {
       return false
@@ -196,19 +215,12 @@ case class ColumnarTransformRule() extends Rule[SparkPlan] {
           } else {
             after
           }
-        case (_: ShuffleExchangeExec, after: ShuffleExchangeExec)
-            if StarryConf.columnarShuffleEnabled &&
-              after.outputPartitioning.isInstanceOf[HashPartitioning] &&
-              after.outputPartitioning
-                .asInstanceOf[HashPartitioning]
-                .expressions
-                .nonEmpty && !plan.isInstanceOf[DataWritingCommandExec] &&
-              !plan.isInstanceOf[ExecutedCommandExec] =>
+        case (_: ShuffleExchangeExec, after: ShuffleExchangeExec) if canTransform(after, plan) =>
           val newChild = ColumnarPartitionedOutputExec(
             after.outputPartitioning.asInstanceOf[HashPartitioning],
             after.child)
 
-          if (StarryConf.mppShuffleEnabled) {
+          if (StarryConf.streamingShuffleEnabled) {
             StreamingColumnarShuffleExchangeExec(
               after.outputPartitioning,
               newChild,

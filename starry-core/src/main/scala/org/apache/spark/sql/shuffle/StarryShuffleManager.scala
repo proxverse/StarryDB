@@ -22,9 +22,13 @@ object ShuffleMode extends Enumeration {
 
 class StarryShuffleManagerMaster(var driverEndpoint: RpcEndpointRef) extends Logging {
 
-  def registerShuffleManager(executorId: String, storageEndpoint: RpcEndpointRef, rpcAddress: RpcAddress): Unit = {
+  def registerShuffleManager(
+      executorId: String,
+      storageEndpoint: RpcEndpointRef,
+      rpcAddress: RpcAddress): Unit = {
     logInfo(s"Registering ShuffleManager $executorId")
-    driverEndpoint.askSync[Boolean](RegisterManagerManager(executorId, storageEndpoint, rpcAddress))
+    driverEndpoint.askSync[Boolean](
+      RegisterManagerManager(executorId, storageEndpoint, rpcAddress))
     logInfo(s"Registered ShuffleManager $executorId")
   }
 

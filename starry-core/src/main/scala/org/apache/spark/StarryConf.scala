@@ -101,6 +101,12 @@ object StarryConf {
     .booleanConf
     .createWithDefault(false)
 
+  val COLUMNAR_SHUFFLE_ON_WRITING_ENABLED = SQLConf
+    .buildConf("spark.sql.starry.columnar.columnarShuffleOnWritingEnabled")
+    .internal()
+    .booleanConf
+    .createWithDefault(false)
+
   val STREAMING_SHUFFLE_ENABLED = SQLConf
     .buildConf("spark.sql.starry.columnar.StreamingShuffleEnabled")
     .internal()
@@ -172,7 +178,9 @@ object StarryConf {
 
   def columnarShuffleEnabled: Boolean = SQLConf.get.getConf(COLUMNAR_SHUFFLE_ENABLED)
 
-  def mppShuffleEnabled: Boolean = columnarShuffleEnabled && SQLConf.get.getConf(STREAMING_SHUFFLE_ENABLED)
+  def columnarShuffleOnWritingEnabled: Boolean = SQLConf.get.getConf(COLUMNAR_SHUFFLE_ON_WRITING_ENABLED)
+
+  def streamingShuffleEnabled: Boolean = columnarShuffleEnabled && SQLConf.get.getConf(STREAMING_SHUFFLE_ENABLED)
 
   def newDateDiffEnabled: Boolean =
     SQLConf.get.getConf(NEW_DATE_DIFF_ENABLED)

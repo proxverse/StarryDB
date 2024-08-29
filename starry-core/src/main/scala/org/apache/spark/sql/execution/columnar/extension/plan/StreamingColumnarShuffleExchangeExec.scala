@@ -63,7 +63,11 @@ case class StreamingColumnarShuffleExchangeExec(
   override lazy val metrics = Map(
     "dataSize" -> SQLMetrics.createSizeMetric(sparkContext, "data size"),
     "numPartitions" -> SQLMetrics
-      .createMetric(sparkContext, "number of partitions")) ++ readMetrics ++ writeMetrics
+      .createMetric(sparkContext, "number of partitions"),
+    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+    "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "number of input batches"),
+    "convertTime" -> SQLMetrics
+      .createNanoTimingMetric(sparkContext, "time to convert")) ++ readMetrics ++ writeMetrics
 
   override def nodeName: String = "Exchange"
 
@@ -122,26 +126,41 @@ case class StreamingColumnarShuffleExchangeExec(
   /**
    * Caches the created ShuffleRowRDD so we can reuse that.
    */
-  private var cachedShuffleRDD: ShuffledRowRDD = null
   private var cachedColumnarShuffleRDD: StreamingShuffledColumnarRDD = null
+  private var cachedRowShuffleRDD: RDD[InternalRow] = null
 
   override def supportsColumnar: Boolean = false
 
   protected override def doExecute(): RDD[InternalRow] = {
     // Returns the same ShuffleRowRDD if this plan is used by multiple plans.
-    if (cachedShuffleRDD == null) {
-      cachedShuffleRDD = new ShuffledRowRDD(shuffleDependency, readMetrics)
+    if (cachedColumnarShuffleRDD == null) {
+      val numOutputRows = longMetric("numOutputRows")
+      val numInputBatches = longMetric("numInputBatches")
+      val convertTime = longMetric("convertTime")
+      ShuffleUtils.run(inputRDD, shuffleServices, shuffleDependency.shuffleId)
+      cachedColumnarShuffleRDD = new StreamingShuffledColumnarRDD(
+        shuffleDependency,
+        readMetrics,
+        output,
+        shuffleServices,
+        isMppMode)
+      cachedRowShuffleRDD = new ColumnarToRowRDD(
+        sparkContext,
+        cachedColumnarShuffleRDD,
+        output,
+        numOutputRows,
+        numInputBatches,
+        convertTime)
+
     }
-    cachedShuffleRDD
+    cachedRowShuffleRDD
   }
 
-  val isMppMode: Boolean = StarryConf.mppShuffleEnabled
+  val isMppMode: Boolean = StarryConf.streamingShuffleEnabled
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     if (cachedColumnarShuffleRDD == null) {
-      if (isMppMode) {
-        ShuffleUtils.run(inputRDD, shuffleServices, shuffleDependency.shuffleId)
-      }
+      ShuffleUtils.run(inputRDD, shuffleServices, shuffleDependency.shuffleId)
       cachedColumnarShuffleRDD = new StreamingShuffledColumnarRDD(
         shuffleDependency,
         readMetrics,

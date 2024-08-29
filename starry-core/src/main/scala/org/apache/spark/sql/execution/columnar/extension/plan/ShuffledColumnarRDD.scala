@@ -40,8 +40,7 @@ import org.apache.spark.sql.shuffle.{
   BatchMessage,
   FetchBatch,
   QueryBatch,
-  RemoveShufflePartition,
-  StarryShuffleConstants
+  RemoveShufflePartition
 }
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch

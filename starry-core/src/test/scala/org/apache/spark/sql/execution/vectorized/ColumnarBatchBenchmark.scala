@@ -186,7 +186,7 @@ object ColumnarBatchBenchmark extends BenchmarkBase {
 
     def columnNative = { i: Int =>
       {
-        val col = VeloxWritableColumnVector.createVector(count, IntegerType)
+        val col = VeloxWritableColumnVector.createVectorWithNative(count, IntegerType)
         var sum = 0L
         for (n <- 0L until iters) {
           var i = 0
@@ -379,7 +379,7 @@ object ColumnarBatchBenchmark extends BenchmarkBase {
       } else if (memoryMode == MemoryMode.ON_HEAP) {
         new OnHeapColumnVector(count, BinaryType)
       } else {
-        VeloxWritableColumnVector.createVector(count, BinaryType)
+        VeloxWritableColumnVector.createVectorWithNative(count, BinaryType)
       }
 
       var sum = 0L
@@ -412,7 +412,7 @@ object ColumnarBatchBenchmark extends BenchmarkBase {
 
     val onHeapVector = new OnHeapColumnVector(count, ArrayType(IntegerType))
     val offHeapVector = new OffHeapColumnVector(count, ArrayType(IntegerType))
-    val nativeVector = VeloxWritableColumnVector.createVector(count, ArrayType(IntegerType))
+    val nativeVector = VeloxWritableColumnVector.createVectorWithNative(count, ArrayType(IntegerType))
 
     val minSize = 3
     val maxSize = 32

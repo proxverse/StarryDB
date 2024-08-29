@@ -56,7 +56,7 @@ public class VeloxWritableColumnVector extends WritableColumnVector {
 
   String operationType;
 
-  public static VeloxWritableColumnVector createVector(int capacity, DataType dataType) {
+  public static VeloxWritableColumnVector createVectorWithNative(int capacity, DataType dataType) {
     if (dataType.sameType(DataTypes.TimestampType)) {
       return new VeloxWritableTimestampVector(capacity, dataType);
     } else if (dataType.sameType(DataTypes.StringType) || dataType.sameType(DataTypes.BinaryType)) {
@@ -74,7 +74,7 @@ public class VeloxWritableColumnVector extends WritableColumnVector {
   }
 
 
-  public static VeloxWritableColumnVector createVector(int capacity, NativeColumnVector nativeColumnVector, DataType dataType) {
+  public static VeloxWritableColumnVector createVectorWithNative(int capacity, NativeColumnVector nativeColumnVector, DataType dataType) {
     if (dataType.sameType(DataTypes.TimestampType)) {
       return new VeloxWritableTimestampVector(capacity, nativeColumnVector, dataType);
     } else if (dataType.sameType(DataTypes.StringType) || dataType.sameType(DataTypes.BinaryType)) {
@@ -136,10 +136,10 @@ public class VeloxWritableColumnVector extends WritableColumnVector {
     super(nativeColumnVector.capacity(), dataType);
     this.nativeColumnVector = nativeColumnVector;
     this.operationType = "READ";
-    bind();
+    bindToRead();
   }
 
-  void bind() {
+  void bindToRead() {
     if (dataType().sameType(DataTypes.BooleanType)) {
       isBoolean = true;
     }
@@ -227,18 +227,18 @@ public class VeloxWritableColumnVector extends WritableColumnVector {
         childCapacity *= DEFAULT_ARRAY_LENGTH;
       }
       this.childColumns = new WritableColumnVector[1];
-      this.childColumns[0] = createVector(childCapacity, nativeColumnVector.newChildWithIndex(0), childType);
+      this.childColumns[0] = createVectorWithNative(childCapacity, nativeColumnVector.newChildWithIndex(0), childType);
     } else if (type instanceof StructType) {
       StructType st = (StructType) type;
       this.childColumns = new WritableColumnVector[st.fields().length];
       for (int i = 0; i < childColumns.length; ++i) {
-        this.childColumns[i] = createVector(capacity, nativeColumnVector.newChildWithIndex(i), st.fields()[i].dataType());
+        this.childColumns[i] = createVectorWithNative(capacity, nativeColumnVector.newChildWithIndex(i), st.fields()[i].dataType());
       }
     } else if (type instanceof MapType) {
       MapType mapType = (MapType) type;
       this.childColumns = new WritableColumnVector[2];
-      this.childColumns[0] = createVector(capacity, nativeColumnVector.newChildWithIndex(0), mapType.keyType());
-      this.childColumns[1] = createVector(capacity, nativeColumnVector.newChildWithIndex(1), mapType.valueType());
+      this.childColumns[0] = createVectorWithNative(capacity, nativeColumnVector.newChildWithIndex(0), mapType.keyType());
+      this.childColumns[1] = createVectorWithNative(capacity, nativeColumnVector.newChildWithIndex(1), mapType.valueType());
     } else if (type instanceof CalendarIntervalType) {
       throw new UnsupportedOperationException();
       // Three columns. Months as int. Days as Int. Microseconds as Long.
@@ -872,7 +872,7 @@ public class VeloxWritableColumnVector extends WritableColumnVector {
         }
         int capacity = parquetDict.getMaxId() + 1;
         NativeColumnVector nativeDictionaryVector = nativeColumnVector.createDictionaryVector(capacity);
-        dictionaryVector = createVector(capacity, nativeDictionaryVector, dataType());
+        dictionaryVector = createVectorWithNative(capacity, nativeDictionaryVector, dataType());
         loadToVelox(dictionaryVector, dictionary, capacity);
       } catch (IllegalAccessException e) {
         throw new RuntimeException(e);

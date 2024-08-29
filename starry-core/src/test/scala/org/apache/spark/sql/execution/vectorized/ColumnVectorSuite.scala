@@ -23,7 +23,7 @@ import org.apache.spark.sql.catalyst.expressions.SpecificInternalRow
 import org.apache.spark.sql.common.ColumnarSharedSparkSession
 import org.apache.spark.sql.execution.columnar.{ColumnAccessor, ColumnBatchUtils}
 import org.apache.spark.sql.execution.columnar.compression.ColumnBuilderHelper
-import org.apache.spark.sql.execution.columnar.VeloxWritableColumnVector.createVector
+import org.apache.spark.sql.execution.columnar.VeloxWritableColumnVector.createVectorWithNative
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarArray
 import org.apache.spark.unsafe.types.{CalendarInterval, UTF8String}
@@ -48,7 +48,7 @@ class NativeColumnVectorSuite
   }
 
   private def withVectors(size: Int, dt: DataType)(block: WritableColumnVector => Unit): Unit = {
-    withVector(createVector(size, dt))(block)
+    withVector(createVectorWithNative(size, dt))(block)
   }
 
   private def testVectors(name: String, size: Int, dt: DataType)(
