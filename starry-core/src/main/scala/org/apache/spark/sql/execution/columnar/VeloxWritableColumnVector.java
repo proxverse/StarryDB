@@ -56,7 +56,7 @@ public class VeloxWritableColumnVector extends WritableColumnVector {
 
   String operationType;
 
-  public static VeloxWritableColumnVector createVectorWithNative(int capacity, DataType dataType) {
+  public static VeloxWritableColumnVector createVector(int capacity, DataType dataType) {
     if (dataType.sameType(DataTypes.TimestampType)) {
       return new VeloxWritableTimestampVector(capacity, dataType);
     } else if (dataType.sameType(DataTypes.StringType) || dataType.sameType(DataTypes.BinaryType)) {

@@ -69,7 +69,7 @@ object ExpressionConverter extends Logging {
     // TODO use scalar valued constant ?
     val row = InternalRow.fromSeq(Seq(lit.value))
     val converter = VeloxRowToColumnConverter.getConverterForType(lit.dataType, true)
-    val vector = VeloxWritableColumnVector.createVectorWithNative(1, lit.dataType)
+    val vector = VeloxWritableColumnVector.createVector(1, lit.dataType)
     converter.append(row, 0, vector)
     val json = NativeExpressionConvert.nativeCreateConstantTypedExpr(
       lit.dataType.catalogString,

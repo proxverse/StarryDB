@@ -36,7 +36,7 @@ import org.apache.spark.sql.catalyst.util.{ArrayBasedMapBuilder, DateTimeUtils, 
 import org.apache.spark.sql.common.ColumnarSharedSparkSession
 import org.apache.spark.sql.execution.RowToColumnConverter
 import org.apache.spark.sql.execution.columnar.{ColumnBatchUtils, VeloxWritableColumnVector}
-import VeloxWritableColumnVector.createVectorWithNative
+import VeloxWritableColumnVector.createVector
 import org.apache.spark.sql.execution.datasources.parquet.VectorizedPlainValuesReader
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.util.ArrowUtils
@@ -58,7 +58,7 @@ class NativeColumnarBatchSuite extends SparkFunSuite with ColumnarSharedSparkSes
     }
   }
   private def allocate(capacity: Int, dt: DataType, memMode: MemoryMode): WritableColumnVector = {
-      createVectorWithNative(capacity, dt)
+      createVector(capacity, dt)
   }
 
   private def testVector(
