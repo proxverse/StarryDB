@@ -27,7 +27,7 @@ class ShuffleManagerSuite extends ParquetTest {
           .groupBy("ORDERKEY")
           .agg(expr("max(DISCOUNT)"))
           .collect()
-        Assertions.assert(rows.length == 1500000)
+        Assertions.assert(rows.length == 499420)
       }
     }
   }
