@@ -2,7 +2,7 @@ package org.apache.spark.sql.shuffle
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.MemoryMode
-import org.apache.spark.rpc.{RpcAddress, RpcEndpointRef, RpcEnv}
+import org.apache.spark.rpc.{RemoveExecutor, RpcAddress, RpcEndpointRef, RpcEnv}
 import org.apache.spark.sql.internal.StarryConf
 import org.apache.spark.storage.{BlockManager, ShuffleBlockId, ShufflePushBlockId}
 import org.apache.spark.util.IdGenerator
@@ -46,6 +46,9 @@ class StarryShuffleManagerMaster(var driverEndpoint: RpcEndpointRef) extends Log
 
   def removeShuffle(shuffleId: Int): Unit = {
     driverEndpoint.send(CleanShuffle(shuffleId))
+  }
+  def removeExecutor(executorId: String): Unit = {
+    driverEndpoint.askSync[Boolean](RemoveExecutor(executorId))
   }
 }
 

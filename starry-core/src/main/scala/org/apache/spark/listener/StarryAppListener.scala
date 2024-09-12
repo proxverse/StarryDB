@@ -8,6 +8,7 @@ class StarryAppListener extends SparkListener with Logging {
 
   override def onExecutorRemoved(executorRemoved: SparkListenerExecutorRemoved): Unit = {
     StarryEnv.get.memoryManager.master.removeExecutor(executorRemoved.executorId)
+    StarryEnv.get.shuffleManagerMaster.removeExecutor(executorRemoved.executorId)
   }
 }
 
