@@ -14,6 +14,10 @@ public abstract class NativeClass implements AutoCloseable {
     return this.handle;
   }
 
+  public void releaseHandle() {
+    this.handle = 0;
+  }
+
   protected abstract void releaseInternal();
 
   public final void Release() {
