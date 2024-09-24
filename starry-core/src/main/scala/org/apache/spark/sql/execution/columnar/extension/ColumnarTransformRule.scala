@@ -1,12 +1,6 @@
 package org.apache.spark.sql.execution.columnar.extension
 
-import org.apache.spark.sql.catalyst.expressions.{
-  Ascending,
-  Explode,
-  Expression,
-  Inline,
-  SortOrder
-}
+import org.apache.spark.sql.catalyst.expressions.{Ascending, Attribute, Explode, Expression, Inline, SortOrder}
 import org.apache.spark.sql.catalyst.optimizer.BuildRight
 import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
 import org.apache.spark.sql.catalyst.rules.{Rule, UnknownRuleId}
@@ -17,11 +11,7 @@ import org.apache.spark.sql.execution.columnar.expressions.{ExpressionConverter,
 import org.apache.spark.sql.execution.columnar.extension.plan._
 import org.apache.spark.sql.execution.command.{DataWritingCommandExec, ExecutedCommandExec}
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
-import org.apache.spark.sql.execution.joins.{
-  BroadcastHashJoinExec,
-  ShuffledHashJoinExec,
-  SortMergeJoinExec
-}
+import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, ShuffledHashJoinExec, SortMergeJoinExec}
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.internal.StarryConf
 import org.apache.spark.sql.types.{AtomicType, IntegralType}
@@ -85,7 +75,11 @@ case class ColumnarTransformRule() extends Rule[SparkPlan] {
       shuffleExchangeExec.outputPartitioning
         .asInstanceOf[HashPartitioning]
         .expressions
-        .nonEmpty
+        .nonEmpty &&
+      shuffleExchangeExec.outputPartitioning
+        .asInstanceOf[HashPartitioning]
+        .expressions
+        .forall(_.isInstanceOf[Attribute])
     root match {
       case _: DataWritingCommandExec | _: ExecutedCommandExec =>
         if (StarryConf.columnarShuffleOnWritingEnabled) {
