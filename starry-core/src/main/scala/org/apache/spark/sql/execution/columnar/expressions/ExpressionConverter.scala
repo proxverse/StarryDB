@@ -12,6 +12,7 @@ import org.apache.spark.sql.execution.columnar.extension.plan.{VeloxRowToColumnC
 import org.apache.spark.sql.execution.columnar.jni.{NativeExpressionConvert, NativeQueryContext}
 import org.apache.spark.sql.types._
 
+import java.util.Locale
 import java.util.regex.Pattern
 
 object ExpressionConverter extends Logging {
@@ -218,7 +219,10 @@ object ExpressionConverter extends Logging {
   private val NON_ALPHANUMERIC_PATTERN = Pattern.compile("[^a-zA-Z0-9]")
 
   def toNativeAttrIdName(a: Attribute): String = {
-    NON_ALPHANUMERIC_PATTERN.matcher(s"${a.name}_${a.exprId.id}").replaceAll("_").toLowerCase
+    NON_ALPHANUMERIC_PATTERN
+      .matcher(s"${a.name}_${a.exprId.id}")
+      .replaceAll("_")
+      .toUpperCase(Locale.ROOT)
   }
 
 }

@@ -5,7 +5,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.sp</groupId>
   <artifactId>starry</artifactId>
-  <version>0.0.9-SNAPSHOT</version>
+  <version>0.0.9</version>
   <name>starry engine</name>
   <packaging>pom</packaging>
   <properties>
@@ -28,11 +28,11 @@
     <jackson.core.asl.version>1.9.13</jackson.core.asl.version>
     <antlr4.runtime.version>4.8</antlr4.runtime.version>
     <scalatest_2.12.version>3.2.9</scalatest_2.12.version>
-    <delta.core_2.12.version>2.1.0-SNAPSHOT</delta.core_2.12.version>
+    <delta.core_2.12.version>2.1.0</delta.core_2.12.version>
     <junit.jupiter.version>5.6.2</junit.jupiter.version>
     <parquet.test.deps.scope>test</parquet.test.deps.scope>
     <parquet.version>1.12.2</parquet.version>
-    <parquet.hadoop.version>1.12.2-prx-SNAPSHOT</parquet.hadoop.version>
+    <parquet.hadoop.version>1.12.2-prx</parquet.hadoop.version>
     <!--这里表单上写的是24.1.1，但找不到这个版本-->
     <mockito-scala.version>1.16.3</mockito-scala.version>
     <scalatest-maven-plugin.version>2.2.0</scalatest-maven-plugin.version>
