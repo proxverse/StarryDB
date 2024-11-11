@@ -1,17 +1,29 @@
 package org.apache.spark.sql.execution.columnar.extension
 
-import org.apache.spark.sql.catalyst.expressions.{Ascending, Attribute, Explode, Expression, Inline, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{
+  Ascending,
+  Attribute,
+  Explode,
+  Expression,
+  Inline,
+  SortOrder
+}
 import org.apache.spark.sql.catalyst.optimizer.BuildRight
-import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
+import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, RangePartitioning}
 import org.apache.spark.sql.catalyst.rules.{Rule, UnknownRuleId}
 import org.apache.spark.sql.catalyst.trees.AlwaysProcess
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.columnar.expressions.{ExpressionConverter, Unnest}
 import org.apache.spark.sql.execution.columnar.extension.plan._
+import org.apache.spark.sql.execution.columnar.extension.rule.NativeFunctionPlaceHolder
 import org.apache.spark.sql.execution.command.{DataWritingCommandExec, ExecutedCommandExec}
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ShuffleExchangeExec}
-import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, ShuffledHashJoinExec, SortMergeJoinExec}
+import org.apache.spark.sql.execution.joins.{
+  BroadcastHashJoinExec,
+  ShuffledHashJoinExec,
+  SortMergeJoinExec
+}
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.internal.StarryConf
 import org.apache.spark.sql.types.{AtomicType, IntegralType}
@@ -108,6 +120,14 @@ case class ColumnarTransformRule() extends Rule[SparkPlan] {
   }
 
   override def apply(plan: SparkPlan): SparkPlan = {
+
+    val hasRangePartition = plan.exists {
+      case s: ShuffleExchangeExec
+        if s.outputPartitioning
+          .isInstanceOf[RangePartitioning] =>
+        true
+      case _ => false
+    }
     val plan1 =
       plan.transformUpWithBeforeAndAfterRuleOnChildren(AlwaysProcess.fn, UnknownRuleId) {
         case (projectExec: ProjectExec, e: ProjectExec) if canTransform(projectExec) =>
@@ -209,7 +229,8 @@ case class ColumnarTransformRule() extends Rule[SparkPlan] {
           } else {
             after
           }
-        case (_: ShuffleExchangeExec, after: ShuffleExchangeExec) if canTransform(after, plan) =>
+        case (_: ShuffleExchangeExec, after: ShuffleExchangeExec)
+            if !hasRangePartition && canTransform(after, plan) =>
           val newChild = ColumnarPartitionedOutputExec(
             after.outputPartitioning.asInstanceOf[HashPartitioning],
             after.child)
