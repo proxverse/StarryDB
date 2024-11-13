@@ -72,6 +72,9 @@ object ExpressionConverter extends Logging {
     val converter = VeloxRowToColumnConverter.getConverterForType(lit.dataType, true)
     val vector = VeloxWritableColumnVector.createVector(1, lit.dataType)
     converter.append(row, 0, vector)
+    if (lit.dataType.isInstanceOf[ArrayType]) {
+      vector.getChild(0).reserve(row.getArray(0).numElements())
+    }
     val json = NativeExpressionConvert.nativeCreateConstantTypedExpr(
       lit.dataType.catalogString,
       vector.getNative)

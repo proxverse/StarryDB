@@ -29,7 +29,7 @@ public class NativeQueryContext extends NativeClass implements AutoCloseable {
   protected native void nativeDetachCurrentThread();
 
   public static void clear() {
-    if (queryContextThreadLocal.get() != null && queryContextThreadLocal.get().ref.decrementAndGet() == 0) {
+    if (queryContextThreadLocal.get() != null && queryContextThreadLocal.get().ref.decrementAndGet() <= 0) {
       queryContextThreadLocal.get().close();
     }
     queryContextThreadLocal.remove();

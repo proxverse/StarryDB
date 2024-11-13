@@ -16,6 +16,24 @@
     <maven.compiler.target>8</maven.compiler.target>
   </properties>
 
+  <repositories>
+    <repository>
+      <id>jitpack.io</id>
+      <url>http://121.37.155.119:8081/repository/maven-public/</url>
+      <name>Jitpack.io repository</name>
+      <!-- needed for brotli-codec -->
+    </repository>
+    <repository>
+      <id>nexus-repo</id>
+      <name>sp-repo</name>
+      <url>http://121.37.155.119:8081/repository/maven-public/</url>
+    </repository>
+    <repository>
+      <id>jindodata</id>
+      <url>https://jindodata-binary.oss-cn-shanghai.aliyuncs.com/mvn-repo/</url>
+    </repository>
+  </repositories>
+  
   <dependencies>
 
     <dependency>
@@ -108,12 +126,6 @@
       <artifactId>jackson-module-jaxb-annotations</artifactId>
     </dependency>
 
-    <dependency>
-      <groupId>com.sp</groupId>
-      <artifactId>proxverse-spark-common</artifactId>
-      <version>0.0.1-SNAPSHOT</version>
-      <type>test-jar</type>
-    </dependency>
 
     <dependency>
       <groupId>org.apache.hadoop</groupId>
@@ -223,13 +235,6 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
-  <repositories>
-    <repository>
-      <id>nexus-repo</id>
-      <name>sp-repo</name>
-      <url>http://121.37.155.119:8081/repository/maven-public/</url>
-    </repository>
-  </repositories>
 
   <build>
     <plugins>

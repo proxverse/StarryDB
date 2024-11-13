@@ -66,6 +66,10 @@ class CloseableColumnBatchIterator[T <: AutoCloseable](
       cb.close()
     }
   }
+
+  def close(): Unit = {
+    closeCurrentBatch()
+  }
 }
 
 object ColumnarBroadcastExchangeExec {

@@ -17,6 +17,7 @@
 
 package org.apache.spark.sql.execution.columnar.extension
 
+import org.apache.spark._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.columnar.extension.MetricsUpdater.applyMetrics
@@ -24,13 +25,12 @@ import org.apache.spark.sql.execution.columnar.extension.plan.CloseableColumnBat
 import org.apache.spark.sql.execution.columnar.extension.vector.ColumnarBatchInIterator
 import org.apache.spark.sql.execution.columnar.jni.NativeColumnarExecution
 import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark._
 import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.json4s
-import org.json4s.{NoTypeHints, _}
 import org.json4s.jackson.JsonMethods._
 import org.json4s.jackson.Serialization
+import org.json4s.{NoTypeHints, _}
 
 import scala.collection.JavaConverters._
 import scala.util.Try
@@ -85,12 +85,6 @@ class ColumnarExecutionRDD(
     val confStr = Serialization.write(finalMap)
 
     execution.init(planJson, nodeIds, columnarNativeIterator, confStr)
-
-    TaskContext.get().addTaskCompletionListener[Unit] { t =>
-      val metrics = parse(execution.getMetrics)
-      applyMetrics(nodeMetrics, metrics)
-      execution.close()
-    }
     val iter = new Iterator[ColumnarBatch] {
 
       override def hasNext: Boolean = {
@@ -106,7 +100,14 @@ class ColumnarExecutionRDD(
         next1
       }
     }
-    new CloseableColumnBatchIterator[ColumnarBatch](iter)
+    val batches = new CloseableColumnBatchIterator[ColumnarBatch](iter)
+    TaskContext.get().addTaskCompletionListener[Unit] { t =>
+      val metrics = parse(execution.getMetrics)
+      applyMetrics(nodeMetrics, metrics)
+      execution.close()
+      batches.close()
+    }
+    batches
   }
 
   override def getPartitions: Array[Partition] = {

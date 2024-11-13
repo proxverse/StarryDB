@@ -16,11 +16,13 @@
  */
 package org.apache.spark.sql.execution.columnar.cache
 
+import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, UnsafeProjection}
 import org.apache.spark.sql.columnar.{CachedBatch, CachedBatchSerializer, SimpleMetricsCachedBatch}
+import org.apache.spark.sql.execution.columnar.extension.MetricsUpdater.applyMetrics
 import org.apache.spark.sql.execution.columnar.{ColumnBatchUtils, NoCloseColumnVector, VeloxColumnarBatch}
 import org.apache.spark.sql.execution.columnar.extension.plan.{CloseableColumnBatchIterator, RowToVeloxColumnarExec, VeloxRowToColumnConverter}
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -29,6 +31,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
 import org.apache.spark.storage.StorageLevel
+import org.json4s.jackson.JsonMethods.parse
 
 import scala.collection.JavaConverters._
 
@@ -165,7 +168,7 @@ class CachedVeloxBatchSerializer extends CachedBatchSerializer with Logging{
       }.unzip
     val structType = StructType.fromAttributes(selectedAttributes)
     input.mapPartitionsInternal { itr =>
-      itr
+      val batches = new CloseableColumnBatchIterator[ColumnarBatch](itr
         .map { batch =>
           val veloxBatch = batch.asInstanceOf[CachedVeloxBatch].veloxBatch
           val veloxColumnarBatch = veloxBatch.getColumns
@@ -175,7 +178,11 @@ class CachedVeloxBatchSerializer extends CachedBatchSerializer with Logging{
             .toArray
           val newBatch = new VeloxColumnarBatch(vectors, veloxBatch.numRows())
           newBatch
-        }
+        })
+      TaskContext.get().addTaskCompletionListener[Unit] { t =>
+        batches.close()
+      }
+      batches
     }
   }
 
